@@ -24,18 +24,6 @@ class MainActivity : ComponentActivity() {
                 // Navigation kommt hier rein — erst wenn erste Screens stehen
 
 
-                // Temporär in BoulderBuddyTheme { ... } einfügen zum testen:
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(BoulderBuddy.colors.surfaceBackground)
-                        .dotPattern(BoulderBuddy.colors.surfacePattern),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("Theme OK", color = BoulderBuddy.colors.surfaceInverse)
-                }
-
-
             }
         }
     }
