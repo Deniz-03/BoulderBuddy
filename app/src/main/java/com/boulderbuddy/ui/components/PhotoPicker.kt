@@ -5,11 +5,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,27 +27,32 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 
-// Gestrichelte Platzhalter-Kachel im RouteCard-Grid der aktiven Session.
-// Sie belegt dieselbe Grid-Zelle wie eine RouteCard und öffnet "Route hinzufügen".
-// onClick gehört zum Kern-UI dieser Komponente — sie IST ein Button,
-// anders als RouteCard, wo die Navigation Screen-Sache ist.
+// Gestrichelter Foto-Slot für "Route hinzufügen" und Boulder-Detail.
+// Teilt sich das Dash-Rahmen-Muster mit AddRouteCard (drawBehind + PathEffect),
+// weil BorderStroke kein PathEffect unterstützt.
+// onClick gehört zum Kern-UI: der Slot IST der Auslöser für Kamera/Galerie —
+// das Öffnen des Pickers selbst bleibt Sache des Screens.
 @Composable
-fun AddRouteCard(
+fun PhotoPicker(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    label: String = "Foto aufnehmen",
 ) {
     val borderColor = BoulderBuddy.colors.borderSubtle
+    // 16:9 als natürliches Foto-Seitenverhältnis. aspectRatio statt fester Höhe,
+    // damit der Slot mit der Bildschirmbreite skaliert.
+    val photoRatio = 16f / 9f
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            // clip vor background: schneidet Ecken des Hintergrunds korrekt rund
+            .aspectRatio(photoRatio)
+            // clip vor background: schneidet die Ecken des Hintergrunds rund.
             .clip(MaterialTheme.shapes.medium)
             .background(BoulderBuddy.colors.surfaceCard)
             .clickable(onClick = onClick)
-            // BorderStroke unterstützt kein PathEffect, daher gestrichelter Rahmen via drawBehind.
-            // drawBehind kommt nach background, damit der Strich sichtbar über dem Hintergrund liegt.
-            // radiusMedium spiegelt shapes.medium, weil DrawScope keinen Zugriff auf MaterialTheme hat.
+            // Gestrichelter Rahmen via drawBehind (nach background, damit er sichtbar
+            // über dem Hintergrund liegt). Werte kommen aus Dimens.
             .drawBehind {
                 drawRoundRect(
                     color = borderColor,
@@ -58,8 +64,7 @@ fun AddRouteCard(
                         )
                     )
                 )
-            }
-            .padding(Dimens.paddingXL),
+            },
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -67,13 +72,15 @@ fun AddRouteCard(
             verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
         ) {
             Icon(
-                imageVector = Icons.Outlined.Add,
-                contentDescription = "Route hinzufügen",
+                imageVector = Icons.Outlined.PhotoCamera,
+                // null: der sichtbare Label-Text beschreibt die Aktion bereits,
+                // doppelte Ansage für TalkBack vermeiden.
+                contentDescription = null,
                 tint = borderColor,
                 modifier = Modifier.size(Dimens.iconL),
             )
             Text(
-                text = "Boulder",
+                text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = borderColor,
             )
@@ -81,10 +88,13 @@ fun AddRouteCard(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3, widthDp = 360)
 @Composable
-private fun AddRouteCardPreview() {
+private fun PhotoPickerPreview() {
     BoulderBuddyTheme {
-        AddRouteCard(onClick = {})
+        PhotoPicker(
+            onClick = {},
+            modifier = Modifier.padding(Dimens.paddingL),
+        )
     }
 }

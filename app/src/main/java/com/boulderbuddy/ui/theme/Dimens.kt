@@ -14,5 +14,16 @@ object Dimens {
 
     val dotRadius  = 1.3.dp    // Lochstruktur Punktgröße
     val dotSpacing = 24.dp     // Lochstruktur Rasterabstand
+
+    val swatchSize = 36.dp     // Durchmesser einer Farb-Auswahl im ColorPicker
+    val iconS      = 18.dp     // Inline-/Button-Icon (PrimaryButton)
+    val iconL      = 28.dp     // Icon in größeren Slots (AddRouteCard, PhotoPicker)
+
+    // Gestrichelter Platzhalter-Rahmen (AddRouteCard, PhotoPicker).
+    // radiusMedium spiegelt shapes.medium (14dp) — DrawScope hat keinen Zugriff
+    // auf MaterialTheme, daher hier zentral als Token statt pro Komponente hartkodiert.
+    val radiusMedium = 14.dp
+    val dashLength   = 10.dp   // Strichlänge
+    val dashGap      = 6.dp    // Lücke zwischen den Strichen
 }
 
