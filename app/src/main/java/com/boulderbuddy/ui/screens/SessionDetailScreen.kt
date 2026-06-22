@@ -48,7 +48,7 @@ private data class BoulderPreviewData(
 // TODO: Diese Liste kommt später aus dem ViewModel (Boulder dieser Session via Room).
 private val placeholderBoulders = listOf(
     BoulderPreviewData(grade = "5c", name = "Dachrinne", accentColorKey = "red", versuche = 1, status = "top"),
-    BoulderPreviewData(grade = "6a", name = "Slab Talk", accentColorKey = "blue", versuche = 1, status = "projekt"),
+    BoulderPreviewData(grade = "6a", name = "Slab Talk", accentColorKey = "blue", versuche = 3, status = "projekt"),
     BoulderPreviewData(grade = "6b", name = "Überhang", accentColorKey = "green", versuche = 1, status = "top"),
 )
 
