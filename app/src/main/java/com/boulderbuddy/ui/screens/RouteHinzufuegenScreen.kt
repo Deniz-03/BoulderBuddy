@@ -36,6 +36,8 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 
 @Composable
 fun RouteHinzufuegenScreen() {
+    // TODO: Edit-Modus — bei übergebener boulderId die Felder aus Room vorbefüllen
+    //  und den Titel auf "Boulder bearbeiten" setzen (Wireframe #8 = hinzufügen/bearbeiten).
     // Speichern der Textfeldeingaben
     var sektor by remember { mutableStateOf("") }
     var grade by remember { mutableStateOf("") }
@@ -52,11 +54,13 @@ fun RouteHinzufuegenScreen() {
         routes.purple,
         routes.pink,
     )
+    // Aktuell gewählte Routenfarbe (Start: Grün, wie im Wireframe).
+    var selected by remember { mutableStateOf(routes.green) }
 
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Boulder Hinzufügen",
+                title = "Boulder hinzufügen",
                 navIcon = {
                     IconButton(onClick = { /* TODO: Navigation zurück zur Session-Detail */ }) {
                         Icon(
@@ -103,8 +107,6 @@ fun RouteHinzufuegenScreen() {
                         modifier = Modifier.weight(1f),
                     )
                 }
-
-                var selected by remember { mutableStateOf(routes.green) }
 
                 Text(
                     text = "Farbe",

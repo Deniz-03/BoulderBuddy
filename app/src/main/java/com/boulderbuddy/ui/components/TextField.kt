@@ -40,6 +40,7 @@ fun TextField(
     label: String? = null,
     singleLine: Boolean = true,
     minLines: Int = 1,
+    readOnly: Boolean = false,
 ) {
     Column(
         modifier = modifier,
@@ -57,6 +58,7 @@ fun TextField(
             value = value,
             onValueChange = onChange,
             modifier = Modifier.fillMaxWidth(),
+            readOnly = readOnly,
             singleLine = singleLine,
             minLines = minLines,
             textStyle = MaterialTheme.typography.bodyMedium.copy(

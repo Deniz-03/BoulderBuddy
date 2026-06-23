@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.BottomNav
 import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
@@ -30,6 +30,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.theme.routeColorForKey
 
 // Platzhalter-Datenklasse bis das echte Datenmodell aus Room kommt
 private data class SessionPreviewData(
@@ -108,12 +109,24 @@ fun SessionUebersichtScreen() {
                     ) {
                         // TODO: "$sessionCount" durch echten Wert aus der Datenbank ersetzen
                         SectionHeader(text = "$sessionCount Sessions")
-                        // TODO: Sortier-Logik implementieren (nach Datum, nach Halle etc.)
-                        Text(
-                            text = "Datum",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = BoulderBuddy.colors.textTertiary,
-                        )
+                        // Sortier-Steuerung. TODO: Sortier-Logik implementieren (nach Datum, nach Halle etc.)
+                        Row(
+                            modifier = Modifier.clickable { /* TODO: Sortierung umschalten */ },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingXS),
+                        ) {
+                            Text(
+                                text = "Datum",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = BoulderBuddy.colors.textTertiary,
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.SwapVert,
+                                contentDescription = "Sortierung ändern",
+                                tint = BoulderBuddy.colors.textTertiary,
+                                modifier = Modifier.size(Dimens.iconS),
+                            )
+                        }
                     }
                 }
 
@@ -123,18 +136,11 @@ fun SessionUebersichtScreen() {
                     SessionListItem(
                         gym = session.gym,
                         date = session.date,
-                        accentColor = when (session.accentColorKey) {
-                            "blue" -> BoulderBuddy.colors.routes.blue
-                            "green" -> BoulderBuddy.colors.routes.green
-                            "pink" -> BoulderBuddy.colors.routes.pink
-                            "red" -> BoulderBuddy.colors.routes.red
-                            "orange" -> BoulderBuddy.colors.routes.orange
-                            "yellow" -> BoulderBuddy.colors.routes.yellow
-                            "purple" -> BoulderBuddy.colors.routes.purple
-                            else -> BoulderBuddy.colors.borderSubtle
-                        },
+                        accentColor = routeColorForKey(session.accentColorKey),
                         badges = session.badges,
                         isActive = session.isActive,
+                        // TODO: Navigation zur Session (SessionRoute mit der jeweiligen sessionId).
+                        onClick = { /* TODO: Session öffnen */ },
                     )
                 }
             }

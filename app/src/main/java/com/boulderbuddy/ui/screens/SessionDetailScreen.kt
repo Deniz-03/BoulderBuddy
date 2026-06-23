@@ -2,11 +2,14 @@ package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -33,10 +36,13 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.theme.routeColorForKey
 import kotlinx.coroutines.delay
 
 // Platzhalter-Datenklasse bis das echte Datenmodell aus Room kommt.
 // status: "top" | "flash" | "projekt" — steuert das Status-Icon der RouteCard.
+// TODO: Vor dem Room-Anschluss mit Route.status (OPEN/SENT/PROJECT/SKIP) abgleichen
+//  und das Status-Vokabular screen-übergreifend vereinheitlichen (siehe AlteSessionScreen).
 private data class BoulderPreviewData(
     val grade: String,
     val name: String,
@@ -51,20 +57,6 @@ private val placeholderBoulders = listOf(
     BoulderPreviewData(grade = "6a", name = "Slab Talk", accentColorKey = "blue", versuche = 3, status = "projekt"),
     BoulderPreviewData(grade = "6b", name = "Überhang", accentColorKey = "green", versuche = 1, status = "top"),
 )
-
-// Übersetzt den gespeicherten Farb-Key in die zugehörige Routenfarbe.
-// Ausgelagert für bessere Lesbarkeit
-@Composable
-private fun routeColorFor(key: String): Color = when (key) {
-    "red" -> BoulderBuddy.colors.routes.red
-    "orange" -> BoulderBuddy.colors.routes.orange
-    "yellow" -> BoulderBuddy.colors.routes.yellow
-    "green" -> BoulderBuddy.colors.routes.green
-    "blue" -> BoulderBuddy.colors.routes.blue
-    "purple" -> BoulderBuddy.colors.routes.purple
-    "pink" -> BoulderBuddy.colors.routes.pink
-    else -> BoulderBuddy.colors.borderSubtle
-}
 
 // Status → Symbol fürs statusIcon-Slot der RouteCard.
 private fun statusSymbol(status: String): String = when (status) {
@@ -129,13 +121,35 @@ fun SessionDetailScreen() {
                 // --- Stats ---
                 item {
                     // TODO: Werte kommen aus der aktiven Session (Tops, Versuche, höchster Grad).
+                    // height(IntrinsicSize.Min) + fillMaxHeight() → alle drei Karten gleich hoch,
+                    // auch wenn ein Label umbricht.
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
                         horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
                     ) {
-                        StatCard(value = "5", label = "Tops", modifier = Modifier.weight(1f))
-                        StatCard(value = "8", label = "Versuche", modifier = Modifier.weight(1f))
-                        StatCard(value = "6b", label = "Top-Grade", modifier = Modifier.weight(1f))
+                        StatCard(
+                            value = "5",
+                            label = "Tops",
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                        StatCard(
+                            value = "8",
+                            label = "Versuche",
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                        StatCard(
+                            value = "6b",
+                            label = "Top-Grade",
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
                     }
                 }
 
@@ -163,7 +177,7 @@ fun SessionDetailScreen() {
                                             grade = cell.grade,
                                             name = cell.name,
                                             meta = "${cell.versuche} Vers.",
-                                            accentColor = routeColorFor(cell.accentColorKey),
+                                            accentColor = routeColorForKey(cell.accentColorKey),
                                             statusIcon = {
                                                 Text(
                                                     text = statusSymbol(cell.status),

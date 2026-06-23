@@ -2,11 +2,14 @@ package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -39,7 +42,7 @@ fun HomeScreen() {
     // TODO: Nutzername kommt aus dem User-Profil via ViewModel (Datenbank)
     val userName = "Deniz"
 
-    // Ermittlund des aktuellen Datums
+    // Ermittlung des aktuellen Datums
     // Remember spart Leistung und Akku, da es dafür sorgt, dass das Datum nicht bei jeder Änderung am Bildschirm neu geladen werden muss.
     val dateText = remember {
         LocalDate.now().format(
@@ -90,24 +93,34 @@ fun HomeScreen() {
                     //  - sessionsPerWeek: Anzahl Sessions in den letzten 7 Tagen
                     //  - totalTops: Summe aller getopp-ten Boulder
                     //  - topGrade: höchste je gekletterte Schwierigkeit
+                    // height(IntrinsicSize.Min) + fillMaxHeight() → alle drei Karten gleich hoch,
+                    // auch wenn ein Label umbricht (z.B. "Sessions / Woche").
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
                         horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
                     ) {
                         StatCard(
                             value = "4",
                             label = "Sessions / Woche",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                         )
                         StatCard(
                             value = "23",
                             label = "Tops gesamt",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                         )
                         StatCard(
                             value = "6c",
                             label = "Top Grade",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
                         )
                     }
                 }
@@ -156,6 +169,8 @@ fun HomeScreen() {
                             date = "12. Juni · 8 Boulder · Französisch",
                             accentColor = BoulderBuddy.colors.routes.green,
                             badges = emptyList(),
+                            // TODO: Navigation zur letzten Session (SessionRoute mit deren sessionId).
+                            onClick = { /* TODO: Session öffnen */ },
                         )
                     }
                 }

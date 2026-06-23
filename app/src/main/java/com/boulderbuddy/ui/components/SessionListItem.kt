@@ -2,6 +2,7 @@ package com.boulderbuddy.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,9 +35,12 @@ fun SessionListItem(
     badges: List<String>,
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
+    onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = MaterialTheme.shapes.medium,
         color = BoulderBuddy.colors.surfaceCard,
         border = BorderStroke(Dimens.borderSubtle, BoulderBuddy.colors.borderSubtle),
