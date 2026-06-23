@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
@@ -41,6 +42,10 @@ import java.util.Locale
 fun HomeScreen() {
     // TODO: Nutzername kommt aus dem User-Profil via ViewModel (Datenbank)
     val userName = "Deniz"
+
+    // TODO: aus dem ViewModel — gibt es eine aktive Session? (Session mit endedAt == null).
+    //  Steuert, ob die "Boulder hinzufügen"-Kachel erscheint. Platzhalter: true.
+    val hasActiveSession = true
 
     // Ermittlung des aktuellen Datums
     // Remember spart Leistung und Akku, da es dafür sorgt, dass das Datum nicht bei jeder Änderung am Bildschirm neu geladen werden muss.
@@ -142,10 +147,25 @@ fun HomeScreen() {
                                     .weight(1f)
                                     .aspectRatio(1f),
                             )
+                            // Nur bei aktiver Session: Boulder direkt in diese Session anlegen.
+                            if (hasActiveSession) {
+                                QuickActionButton(
+                                    text = "Boulder hinzufügen",
+                                    icon = Icons.Filled.Add,
+                                    // TODO: Navigation zu Route hinzufügen für die AKTIVE Session
+                                    //  (sessionId = activeSessionId); der neue Boulder wird mit
+                                    //  dieser sessionId in Room gespeichert.
+                                    onClick = { /* TODO: Boulder zur aktiven Session hinzufügen */ },
+                                    primary = false,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f),
+                                )
+                            }
                             QuickActionButton(
-                                text = "Boulder hinzufügen",
-                                icon = Icons.Filled.Add,
-                                onClick = { /* TODO: Navigation zu Route hinzufügen */ },
+                                text = "Alle Boulder",
+                                icon = Icons.Filled.GridView,
+                                onClick = { /* TODO: Navigation zur Boulder-Übersicht (BoulderUebersichtScreen) */ },
                                 primary = false,
                                 modifier = Modifier
                                     .weight(1f)

@@ -21,7 +21,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BoulderBuddyTheme {
-                // Navigation kommt hier rein — erst wenn erste Screens stehen
+                // Navigation kommt hier rein (NavHost) — erst wenn die Screens stehen.
+                //
+                // TODO: Noch fehlende Wireframe-Screens bauen:
+                //   - Boulder-Detailansicht (#6) — einzelner Boulder: Foto, Grade-Badge,
+                //     Stats (Versuche/Status/Rating), Notiz, Edit-Icon im Header.
+                //     Verlinkt von BoulderUebersichtScreen (RouteCard.onClick) und
+                //     vom Session-Detail.
+                //   - Statistiken (#10) — Quick-Stats, BarChart (Grade-Verteilung),
+                //     ActivityHeatmap. Bottom-Nav-Tab (BottomNavTab.Stats).
+                //
+                // Ghost Climber (#12): bewusst Post-MVP, kein Wireframe — nur Bottom-Nav-
+                //   Platzhalter, noch nicht zu bauen.
+                //
+                // Danach: NavHost verdrahten (alle TODO "Navigation ..." in den Screens)
+                //   und Daten-Schicht (Room + ViewModels) anbinden.
 
 
             }

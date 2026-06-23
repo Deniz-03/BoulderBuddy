@@ -1,6 +1,7 @@
 package com.boulderbuddy.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,9 +27,11 @@ fun RouteCard(
     modifier: Modifier = Modifier,
     meta: String? = null,
     statusIcon: @Composable (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = modifier,
+        modifier = modifier
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = MaterialTheme.shapes.medium,
         color = BoulderBuddy.colors.surfaceCard,
         border = BorderStroke(Dimens.borderAccent, accentColor),

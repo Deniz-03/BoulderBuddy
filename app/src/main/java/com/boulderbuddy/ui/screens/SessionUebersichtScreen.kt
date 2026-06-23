@@ -25,7 +25,7 @@ import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SessionListItem
-import com.boulderbuddy.ui.components.TopBar
+import com.boulderbuddy.ui.components.UebersichtTopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -65,6 +65,9 @@ private val placeholderSessions = listOf(
     ),
 )
 
+// Bottom-Nav Tab 2. Der Header trägt einen Dropdown, über den man zur Boulder-Übersicht
+// umschaltet (beide teilen sich diesen Tab). Das Umschalten ist eine Navigation zum
+// anderen Screen.
 @Composable
 fun SessionUebersichtScreen() {
     // TODO: Sessionanzahl kommt aus der Datenbank via ViewModel
@@ -72,8 +75,11 @@ fun SessionUebersichtScreen() {
 
     BoulderBuddyScaffold(
         topBar = {
-            TopBar(
-                title = "Sessions",
+            UebersichtTopBar(
+                current = "Sessions",
+                onSelectSessions = { /* bereits hier — Dropdown schließt nur */ },
+                // TODO: Navigation zur Boulder-Übersicht (BoulderUebersichtScreen).
+                onSelectBoulder = { /* TODO: zur Boulder-Übersicht wechseln */ },
                 actions = {
                     IconButton(onClick = { /* TODO: Navigation zu Einstellungen */ }) {
                         Icon(
