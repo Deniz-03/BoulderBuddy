@@ -37,9 +37,10 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 
 // Status eines Boulders. getoppt = als geschafft gewertet (Top oder Flash zählen beide
 // als Top; Projekt nicht). Das Symbol steckt am Status, damit es nur eine Quelle gibt.
+// Screen-übergreifend genutzt (auch BoulderDetailScreen) — daher nicht private.
 // TODO: Vor dem Room-Anschluss mit Route.status (OPEN/SENT/PROJECT/SKIP) abgleichen
-//  (z.B. ist Flash = SENT mit attempts == 1?) und Status-Modell screen-übergreifend teilen.
-private enum class BoulderStatus(val symbol: String) {
+//  (z.B. ist Flash = SENT mit attempts == 1?) und ggf. in eine eigene Datei auslagern.
+enum class BoulderStatus(val symbol: String) {
     TOP("✓"),
     FLASH("🔥"),
     PROJEKT("⏳");
