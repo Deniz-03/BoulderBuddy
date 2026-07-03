@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -78,7 +79,16 @@ fun AppNavigation() {
                     onAddBoulderToActiveSession = {
                         navController.navigate(RouteHinzufuegen(sessionId = 0))
                     },
-                    onOpenAllBoulders = { navController.navigate(BoulderUebersicht) },
+                    // BoulderUebersicht ist laut Design die "zweite Ansicht des Sessions-Tabs"
+                    // (Variante A, BottomNav bleibt sichtbar). Deshalb wie ein Tab-Wechsel
+                    // navigieren, NICHT als einfacher Push über Home. Ein einfacher navigate()
+                    // würde BoulderUebersicht direkt über Home legen; tippt man dann den Home-Tab,
+                    // sichert popUpTo(Home){saveState} die Ansicht unter Home und restoreState
+                    // stellt sie sofort wieder her → man käme nicht auf Home zurück (Nav-Quirk,
+                    // siehe topLevelNavOptions).
+                    onOpenAllBoulders = {
+                        navController.navigate(BoulderUebersicht) { topLevelNavOptions() }
+                    },
                     // Platzhalter: letzte Session ist eine abgeschlossene Beispiel-Session (id 1).
                     onOpenLastSession = { navController.navigate(Session(sessionId = 1)) },
                 )
@@ -197,18 +207,26 @@ private fun NavDestination?.toBottomNavTabOrNull(): BottomNavTab? {
     return topLevelDestinations.firstOrNull { dest.hasRoute(it.route::class) }?.tab
 }
 
-// Wechselt zu einem Top-Level-Tab, ohne den Back-Stack zu stapeln:
-// popUpTo(Home) mit saveState + launchSingleTop + restoreState.
+// Wechselt zu einem Top-Level-Tab, ohne den Back-Stack zu stapeln.
 private fun NavController.navigateToTab(tab: BottomNavTab) {
     val destination = topLevelDestinations.first { it.tab == tab }
-    navigate(destination.route) {
-        // Bis zum Start-Ziel zurückräumen und dessen Zustand sichern.
-        popUpTo(Home) { saveState = true }
-        // Nicht mehrfach dasselbe Ziel auf den Stack legen.
-        launchSingleTop = true
-        // Zustand eines zuvor besuchten Tabs wiederherstellen.
-        restoreState = true
-    }
+    navigate(destination.route) { topLevelNavOptions() }
+}
+
+// Gemeinsame Navigations-Optionen für die Top-Level-Ebene (Tabs + BoulderUebersicht als
+// zweite Ansicht des Sessions-Tabs): popUpTo(Home) mit saveState + launchSingleTop +
+// restoreState → kein Stacking, Tab-Zustände überleben den Wechsel.
+//
+// Wichtig gegen einen Nav-Quirk: popUpTo(Home){saveState} trägt Home in die interne
+// backStackMap ein ("pinnt" es). Ohne diesen Pin würde ein späterer Home-Tab-Tap die gerade
+// gesicherte Ansicht sofort per restoreState wiederherstellen (executePopOperations mappt den
+// gesicherten State auf das popUpTo-Ziel Home, und navigate() restauriert ihn direkt wieder)
+// — man käme dann nicht auf Home zurück. Alle Wege auf die Top-Level-Ebene müssen daher diese
+// Optionen nutzen, sonst bleibt Home ungepinnt und die Falle schnappt zu.
+private fun NavOptionsBuilder.topLevelNavOptions() {
+    popUpTo(Home) { saveState = true }
+    launchSingleTop = true
+    restoreState = true
 }
 
 // Platzhalter-Timer-State für Phase 1 (entspricht dem Preview-State, aber pausiert).
