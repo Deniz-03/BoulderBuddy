@@ -94,6 +94,9 @@ fun BoulderDetailScreen(
     // TODO: Wird von der Navigation übergeben (RouteCard.onClick → boulderId).
     //  Aktuell ungenutzt, weil noch Platzhalterdaten geladen werden.
     @Suppress("UNUSED_PARAMETER") boulderId: Int = 0,
+    // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
+    onBack: () -> Unit = {},
+    onEdit: () -> Unit = {},
 ) {
     val boulder = placeholderBoulder
     val accentColor = routeColorForKey(boulder.accentColorKey)
@@ -105,7 +108,7 @@ fun BoulderDetailScreen(
                 title = boulder.name,
                 subtitle = boulder.sektor,
                 navIcon = {
-                    IconButton(onClick = { /* TODO: Navigation zurück (popBackStack) */ }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
@@ -114,7 +117,9 @@ fun BoulderDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Navigation zu Route bearbeiten (RouteHinzufuegenScreen, boulderId) */ }) {
+                    // TODO: Bearbeiten-Modus mit boulderId (Phase 6.5/6.7); aktuell öffnet
+                    //  onEdit den "Boulder hinzufügen"-Screen als Platzhalter.
+                    IconButton(onClick = onEdit) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Bearbeiten",

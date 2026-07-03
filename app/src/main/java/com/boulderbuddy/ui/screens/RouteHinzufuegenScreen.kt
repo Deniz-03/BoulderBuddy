@@ -35,7 +35,15 @@ import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
 
 @Composable
-fun RouteHinzufuegenScreen() {
+fun RouteHinzufuegenScreen(
+    // sessionId: Session, zu der der Boulder gespeichert wird (aus der Route, Phase 2.8).
+    //  null = ohne aktive Session angelegt (offene Frage im Plan). Aktuell ungenutzt,
+    //  weil noch Platzhalterdaten gespeichert werden → erst in Phase 6.5 relevant.
+    @Suppress("UNUSED_PARAMETER") sessionId: Int? = null,
+    // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
+    onBack: () -> Unit = {},
+    onSaved: () -> Unit = {},
+) {
     // TODO: Edit-Modus — bei übergebener boulderId die Felder aus Room vorbefüllen
     //  und den Titel auf "Boulder bearbeiten" setzen (Wireframe #8 = hinzufügen/bearbeiten).
     // Speichern der Textfeldeingaben
@@ -62,7 +70,7 @@ fun RouteHinzufuegenScreen() {
             TopBar(
                 title = "Boulder hinzufügen",
                 navIcon = {
-                    IconButton(onClick = { /* TODO: Navigation zurück zur Session-Detail */ }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
@@ -132,7 +140,8 @@ fun RouteHinzufuegenScreen() {
                 PrimaryButton(
                     text = "Speichern",
                     icon = Icons.Filled.Check,
-                    onClick = { /* TODO: Speichern des Boulders und Navigation zur Boulder-Detailübersicht */ },
+                    // TODO: Boulder zur sessionId in Room speichern (Phase 6.5); danach zurück.
+                    onClick = onSaved,
                 )
             }
         }

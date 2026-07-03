@@ -49,7 +49,9 @@ enum class BoulderStatus(val symbol: String) {
 }
 
 // Read-only-Daten eines gekletterten Boulders. accentColor = Routenfarbe (Identifikation).
+// id: Platzhalter-Boulderschlüssel für die Navigation (später die echte Room-ID).
 private data class BoulderRowData(
+    val id: Int,
     val grade: String,
     val name: String,
     val accentColor: Color,
@@ -57,14 +59,18 @@ private data class BoulderRowData(
 )
 
 @Composable
-fun AlteSessionScreen() {
+fun AlteSessionScreen(
+    // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
+    onBack: () -> Unit = {},
+    onOpenBoulder: (Int) -> Unit = {},
+) {
     // TODO: Diese Daten kommen später aus dem ViewModel (abgeschlossene Session aus Room).
     val boulders = listOf(
-        BoulderRowData("6b", "Überhang", BoulderBuddy.colors.routes.green, BoulderStatus.TOP),
-        BoulderRowData("5c", "Dachrinne", BoulderBuddy.colors.routes.red, BoulderStatus.TOP),
-        BoulderRowData("5a", "Warmup", BoulderBuddy.colors.routes.yellow, BoulderStatus.FLASH),
-        BoulderRowData("6a", "Slab Talk", BoulderBuddy.colors.routes.blue, BoulderStatus.PROJEKT),
-        BoulderRowData("6c", "Dynamo", BoulderBuddy.colors.routes.purple, BoulderStatus.PROJEKT),
+        BoulderRowData(0, "6b", "Überhang", BoulderBuddy.colors.routes.green, BoulderStatus.TOP),
+        BoulderRowData(1, "5c", "Dachrinne", BoulderBuddy.colors.routes.red, BoulderStatus.TOP),
+        BoulderRowData(2, "5a", "Warmup", BoulderBuddy.colors.routes.yellow, BoulderStatus.FLASH),
+        BoulderRowData(3, "6a", "Slab Talk", BoulderBuddy.colors.routes.blue, BoulderStatus.PROJEKT),
+        BoulderRowData(4, "6c", "Dynamo", BoulderBuddy.colors.routes.purple, BoulderStatus.PROJEKT),
     )
     // TODO: Dauer aus Start-/Endzeitpunkt der Session berechnen und formatieren.
     val dauer = "1.5h"
@@ -84,7 +90,7 @@ fun AlteSessionScreen() {
                 title = "Boulderhalle Nord",
                 subtitle = "12. Juni · abgeschlossen",
                 navIcon = {
-                    IconButton(onClick = { /* TODO: Navigation zurück zur Session-Übersicht */ }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
@@ -167,6 +173,7 @@ fun AlteSessionScreen() {
                                             color = statusColorFor(boulder.status),
                                         )
                                     },
+                                    onClick = { onOpenBoulder(boulder.id) },
                                 )
                             }
                         }

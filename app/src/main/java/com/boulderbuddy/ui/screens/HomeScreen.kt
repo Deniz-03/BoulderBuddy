@@ -37,7 +37,14 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
+    onOpenSettings: () -> Unit = {},
+    onStartSession: () -> Unit = {},
+    onAddBoulderToActiveSession: () -> Unit = {},
+    onOpenAllBoulders: () -> Unit = {},
+    onOpenLastSession: () -> Unit = {},
+) {
     // TODO: Nutzername kommt aus dem User-Profil via ViewModel (Datenbank)
     val userName = "Deniz"
 
@@ -62,7 +69,7 @@ fun HomeScreen() {
                 title = "Hallo, $userName 👋",
                 subtitle = dateText,
                 actions = {
-                    IconButton(onClick = { /* TODO: Navigation zu Einstellungen */ }) {
+                    IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
@@ -134,7 +141,7 @@ fun HomeScreen() {
                             QuickActionButton(
                                 text = "Session starten",
                                 icon = Icons.Filled.PlayArrow,
-                                onClick = { /* TODO: Navigation zu Session erstellen */ },
+                                onClick = onStartSession,
                                 primary = true,
                                 modifier = Modifier
                                     .weight(1f)
@@ -145,10 +152,11 @@ fun HomeScreen() {
                                 QuickActionButton(
                                     text = "Boulder hinzufügen",
                                     icon = Icons.Filled.Add,
-                                    // TODO: Navigation zu Route hinzufügen für die AKTIVE Session
-                                    //  (sessionId = activeSessionId); der neue Boulder wird mit
-                                    //  dieser sessionId in Room gespeichert.
-                                    onClick = { /* TODO: Boulder zur aktiven Session hinzufügen */ },
+                                    // Navigation zu "Route hinzufügen" für die AKTIVE Session
+                                    // (sessionId = activeSessionId); der neue Boulder wird mit
+                                    // dieser sessionId in Room gespeichert (Ziel-ID liefert der
+                                    // NavHost, solange kein ViewModel existiert).
+                                    onClick = onAddBoulderToActiveSession,
                                     primary = false,
                                     modifier = Modifier
                                         .weight(1f)
@@ -158,7 +166,7 @@ fun HomeScreen() {
                             QuickActionButton(
                                 text = "Alle Boulder",
                                 icon = Icons.Filled.GridView,
-                                onClick = { /* TODO: Navigation zur Boulder-Übersicht (BoulderUebersichtScreen) */ },
+                                onClick = onOpenAllBoulders,
                                 primary = false,
                                 modifier = Modifier
                                     .weight(1f)
@@ -182,8 +190,9 @@ fun HomeScreen() {
                             date = "12. Juni · 8 Boulder · Französisch",
                             accentColor = BoulderBuddy.colors.routes.green,
                             badges = emptyList(),
-                            // TODO: Navigation zur letzten Session (SessionRoute mit deren sessionId).
-                            onClick = { /* TODO: Session öffnen */ },
+                            // Navigation zur letzten Session (SessionRoute mit deren sessionId).
+                            // Konkrete sessionId liefert der NavHost, bis das ViewModel steht.
+                            onClick = onOpenLastSession,
                         )
                     }
                 }

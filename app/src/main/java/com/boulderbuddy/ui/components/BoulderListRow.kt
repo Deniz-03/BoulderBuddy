@@ -2,6 +2,7 @@ package com.boulderbuddy.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -24,8 +25,9 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 
-// Kompakte Read-only-Zeile für gekletterte Boulder in der "Alte Session"-Ansicht.
-// Nicht editierbar — kein onClick. Gleiche Akzent-Balken-Logik wie SessionListItem,
+// Kompakte Zeile für gekletterte Boulder in der "Alte Session"-Ansicht. Die Werte sind
+// read-only; optional lässt sich die Zeile aber antippen, um den Boulder-Detail zu öffnen
+// (onClick == null → nicht klickbar). Gleiche Akzent-Balken-Logik wie SessionListItem,
 // aber mit shapes.small für ein schlankeres Erscheinungsbild.
 @Composable
 fun BoulderListRow(
@@ -34,9 +36,12 @@ fun BoulderListRow(
     accentColor: Color,
     modifier: Modifier = Modifier,
     statusIcon: @Composable (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = MaterialTheme.shapes.small,
         color = BoulderBuddy.colors.surfaceCard,
         border = BorderStroke(Dimens.borderSubtle, BoulderBuddy.colors.borderSubtle),
