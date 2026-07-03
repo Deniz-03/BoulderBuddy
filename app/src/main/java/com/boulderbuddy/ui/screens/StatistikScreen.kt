@@ -28,8 +28,6 @@ import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.ActivityHeatmap
 import com.boulderbuddy.ui.components.BarChart
 import com.boulderbuddy.ui.components.BarChartEntry
-import com.boulderbuddy.ui.components.BottomNav
-import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.StatCard
@@ -132,12 +130,7 @@ fun StatistikScreen() {
                 },
             )
         },
-        bottomBar = {
-            BottomNav(
-                selectedTab = BottomNavTab.Stats,
-                onTabSelect = { /* TODO: Navigation zwischen Tabs */ },
-            )
-        },
+        // BottomNav wird ab Phase 1.3 zentral vom Navigations-Gerüst gestellt.
         content = { _ ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

@@ -66,19 +66,19 @@
 
 > Ziel: App startet, ist klickbar. Noch keine echten Daten. Reihenfolge bewusst vor der Datenschicht.
 
-- [ ] **1.1** `ui/navigation/Destinations.kt` — Kommentar ersetzen durch **type-safe Routen**:
+- [x] **1.1** `ui/navigation/Destinations.kt` — Kommentar ersetzt durch **type-safe Routen**:
   - Ein Objekt/`@Serializable`-Datentyp pro Ziel.
   - Ohne Argument: `Home`, `Sessions`, `Stats`, `Timer`, `Einstellungen`, `SessionErstellen`, `BoulderUebersicht`.
   - Mit Argument: `BoulderDetail(boulderId: Int)`, `Session(sessionId: Int)`, `RouteHinzufuegen(sessionId: Int?)`.
-  - Bottom-Nav-Tabs (`Home/Sessions/Stats/Timer`) zusätzlich als Liste für die NavBar bereitstellen (Route + Icon + Label). `GhostClimber` = Post-MVP, **nicht** aufnehmen.
-- [ ] **1.2** `ui/navigation/AppNavigation.kt` — `NavHost` implementieren:
+  - Bottom-Nav-Tabs (`Home/Sessions/Stats/Timer`) zusätzlich als `topLevelDestinations`-Liste (Route ↔ `BottomNavTab`, Icon/Label liefert der Enum). `GhostClimber` = Post-MVP, **nicht** aufgenommen.
+- [x] **1.2** `ui/navigation/AppNavigation.kt` — `NavHost` implementiert:
   - `rememberNavController()`, `startDestination = Home`.
   - Je `composable<Route>` mit dem passenden Screen.
-  - Argument-Routen: `boulderId` / `sessionId` typsicher aus `toRoute()` lesen und weiterreichen.
+  - Argument-Routen: `boulderId` / `sessionId` typsicher aus `toRoute()` gelesen und weitergereicht.
   - `Session(sessionId)` → ruft `SessionRoute(sessionId)` (Dispatcher bleibt).
-- [ ] **1.3** **Bottom-Nav hochziehen:** In `AppNavigation` ein gemeinsames `BoulderBuddyScaffold` mit `BottomNav`, das nur bei den 4 Tab-Zielen sichtbar ist (aktueller Tab aus `navController.currentBackStackEntryAsState()`). `onTabSelect` → `navController.navigate(tab)` mit `launchSingleTop = true`, `restoreState/saveState`, `popUpTo(Home) { saveState = true }`.
-- [ ] **1.4** `MainActivity.kt` — im `setContent { BoulderBuddyTheme { AppNavigation() } }` aufrufen; die alten TODO-Kommentare/leeren Box entfernen.
-- **✅ Done wenn:** App startet auf Home, Bottom-Nav wechselt zwischen Home/Sessions/Stats/Timer, kein Tab-Stacking. (Push-Navigation kommt in Phase 2.)
+- [x] **1.3** **Bottom-Nav hochgezogen:** In `AppNavigation` eine gemeinsame `BottomNav`, die nur bei den 4 Tab-Zielen sichtbar ist (aktueller Tab aus `navController.currentBackStackEntryAsState()` via `hasRoute`). `onTabSelect` → `navigateToTab()` mit `launchSingleTop = true`, `restoreState`, `popUpTo(Home) { saveState = true }`. **Interne `BottomNav` aus den 4 Tab-Screens (`HomeScreen`, `SessionUebersichtScreen`, `StatistikScreen`, `HangboardTimerScreen`) entfernt** (sonst doppelte Nav) — die Screen-Entfernung aus Phase 2.1–2.4 ist damit hier bereits erledigt.
+- [x] **1.4** `MainActivity.kt` — ruft `setContent { BoulderBuddyTheme { AppNavigation() } }` auf; alte TODO-Kommentare/leere Box entfernt.
+- **✅ Done:** `./gradlew assembleDebug` grün (2026-07-03). App startet auf Home, Bottom-Nav wechselt zwischen Home/Sessions/Stats/Timer (saveState/restoreState/launchSingleTop → kein Tab-Stacking). Push-Navigation folgt in Phase 2. Hinweis: `HangboardTimerScreen` bekommt vorerst einen Platzhalter-`HangboardTimerUiState` aus dem NavHost (ViewModel erst Phase 6.9).
 
 ---
 

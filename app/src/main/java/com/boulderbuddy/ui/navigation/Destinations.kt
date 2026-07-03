@@ -1,57 +1,77 @@
 package com.boulderbuddy.ui.navigation
 
+import com.boulderbuddy.ui.components.BottomNavTab
+import kotlinx.serialization.Serializable
+
 // =============================================================================
-// Destinations — zentrale Definition aller Navigations-Ziele (Routen)
+// Destinations — zentrale, type-safe Definition aller Navigations-Ziele
 // =============================================================================
 //
-// Noch NICHTS implementiert — erst mit Deniz besprechen. Hier wird nur
-// festgehalten, WAS rein muss.
-//
-// Aufgabe dieser Datei:
-//   Jede Route, die der NavHost (AppNavigation.kt) kennt, an EINER Stelle
-//   definieren — statt Route-Strings wie "home" überall im Code zu verstreuen.
-//   Empfehlung: eine sealed class / sealed interface mit je einem Objekt pro Ziel.
+// Statt Route-Strings ("home", "boulder_detail/{id}") überall im Code zu
+// verstreuen, ist jede Route ein @Serializable-Typ. Der NavHost (AppNavigation.kt)
+// referenziert diese Typen direkt (composable<Home> { ... }); Argumente werden
+// typsicher aus toRoute() gelesen. Braucht kotlinx-serialization (Phase 0).
 //
 // -----------------------------------------------------------------------------
-// 1) Die Screens, die als Routen gebraucht werden:
+// Bottom-Nav-Tabs (Hauptebene) — zugleich Einträge der NavBar (siehe unten):
 // -----------------------------------------------------------------------------
-//
-//   Bottom-Nav-Tabs (Hauptebene):
-//     - Home              -> HomeScreen
-//     - Sessions          -> SessionUebersichtScreen
-//     - Stats             -> StatistikScreen
-//     - Timer             -> HangboardTimerScreen
-//     - GhostClimber      -> Post-MVP, nur Platzhalter (noch kein Screen)
-//
-//   Push-Ziele OHNE Argument:
-//     - Einstellungen     -> EinstellungenScreen
-//     - SessionErstellen  -> SessionErstellenScreen
-//     - BoulderUebersicht -> BoulderUebersichtScreen
-//
-//   Push-Ziele MIT Argument:
-//     - BoulderDetail(boulderId)   -> BoulderDetailScreen
-//     - Session(sessionId)         -> SessionRoute (entscheidet selbst:
-//                                       aktiv -> SessionDetailScreen,
-//                                       beendet -> AlteSessionScreen)
-//     - RouteHinzufuegen(sessionId?) -> RouteHinzufuegenScreen
-//                                       (Boulder wird zu einer Session gespeichert
-//                                        -> braucht vermutlich die sessionId.
-//                                        MIT DENIZ KLÄREN.)
-//
+
+@Serializable
+object Home            // -> HomeScreen
+
+@Serializable
+object Sessions       // -> SessionUebersichtScreen
+
+@Serializable
+object Stats          // -> StatistikScreen
+
+@Serializable
+object Timer          // -> HangboardTimerScreen
+
 // -----------------------------------------------------------------------------
-// 2) Offene Entscheidungen (mit Deniz besprechen):
+// Push-Ziele OHNE Argument:
 // -----------------------------------------------------------------------------
-//
-//   a) Routen-Stil:
-//        - String-basiert: sealed class mit route = "boulder_detail/{boulderId}"
-//          (keine neuen Dependencies, passt zum bisherigen Code-Stil)
-//        - ODER type-safe @Serializable-Objekte
-//          (moderner, braucht aber zusätzlich kotlinx-serialization im Gradle)
-//
-//   b) Wie werden Argumente übergeben? (boulderId, sessionId)
-//        - bei String-Routen: Hilfsfunktionen zum Bauen der konkreten Route,
-//          z.B. fun boulderDetail(boulderId: Int) = "boulder_detail/$boulderId"
-//
-//   c) Start-Ziel des NavHost = Home (zur Bestätigung).
-//
-// =============================================================================
+
+@Serializable
+object Einstellungen      // -> EinstellungenScreen
+
+@Serializable
+object SessionErstellen   // -> SessionErstellenScreen
+
+@Serializable
+object BoulderUebersicht  // -> BoulderUebersichtScreen
+
+// -----------------------------------------------------------------------------
+// Push-Ziele MIT Argument:
+// -----------------------------------------------------------------------------
+
+@Serializable
+data class BoulderDetail(val boulderId: Int)   // -> BoulderDetailScreen
+
+@Serializable
+data class Session(val sessionId: Int)         // -> SessionRoute (aktiv/beendet)
+
+// sessionId nullable: Annahme laut Plan ist "mit sessionId", aber die offene Frage
+// (Boulder ohne aktive Session anlegen?) bleibt bewusst offen -> default null.
+@Serializable
+data class RouteHinzufuegen(val sessionId: Int? = null) // -> RouteHinzufuegenScreen
+
+// -----------------------------------------------------------------------------
+// Tab-Liste für die BottomNav (Route + zugehöriger BottomNavTab mit Icon/Label).
+// GhostClimber = Post-MVP -> bewusst NICHT enthalten.
+// Reihenfolge = Reihenfolge in der NavBar.
+// -----------------------------------------------------------------------------
+
+// Verknüpft ein Top-Level-Ziel (Route-Objekt) mit seinem BottomNavTab.
+// Icon + Label liefert der BottomNavTab selbst (siehe BottomNav.kt).
+data class TopLevelDestination(
+    val route: Any,
+    val tab: BottomNavTab,
+)
+
+val topLevelDestinations: List<TopLevelDestination> = listOf(
+    TopLevelDestination(Home, BottomNavTab.Home),
+    TopLevelDestination(Sessions, BottomNavTab.Sessions),
+    TopLevelDestination(Stats, BottomNavTab.Stats),
+    TopLevelDestination(Timer, BottomNavTab.Timer),
+)

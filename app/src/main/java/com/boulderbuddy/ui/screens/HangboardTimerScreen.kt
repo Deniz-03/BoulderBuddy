@@ -18,8 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
-import com.boulderbuddy.ui.components.BottomNav
-import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.TimerControls
 import com.boulderbuddy.ui.components.TimerRing
@@ -85,13 +83,7 @@ fun HangboardTimerScreen(
                 }
             )
         },
-        bottomBar = {
-            BottomNav(
-                selectedTab = BottomNavTab.Timer,
-                // TODO: Tab-Wechsel über den zentralen NavHost (noch nicht angelegt).
-                onTabSelect = { /* TODO: Navigation zwischen Tabs */ },
-            )
-        },
+        // BottomNav wird ab Phase 1.3 zentral vom Navigations-Gerüst gestellt.
         content = { _ ->
             Column(
                 modifier = Modifier
