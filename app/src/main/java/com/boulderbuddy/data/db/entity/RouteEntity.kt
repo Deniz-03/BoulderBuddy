@@ -35,6 +35,10 @@ data class RouteEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val sessionId: Int,
     val gradeId: Int? = null,
+    /** Name des Boulders (z.B. "Dachrinne"). Leer erlaubt, wenn ohne Namen geloggt. */
+    val name: String = "",
+    /** Sektor/Bereich in der Halle (z.B. "A"). Optional. */
+    val sektor: String? = null,
     val attempts: Int = 0,
     val status: RouteStatus = RouteStatus.OPEN,
     /** URI eines Fotos oder Videos. */

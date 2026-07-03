@@ -23,6 +23,12 @@ interface GradeRepository {
     /** Die Grade eines Systems, nach `sortOrder`. */
     fun observeGradesBySystem(systemId: Int): Flow<List<GradeEntity>>
 
+    /** Alle Grade (hallenübergreifend) — zum Auflösen von `Route.gradeId`. */
+    fun observeAllGrades(): Flow<List<GradeEntity>>
+
+    /** Einzelnen Grad laden; `null`, wenn keiner mit [gradeId] existiert. */
+    suspend fun getGradeById(gradeId: Int): GradeEntity?
+
     /** Legt ein Gradsystem an und gibt seine neue ID zurück. */
     suspend fun createSystem(system: GradeSystemEntity): Int
 
@@ -51,6 +57,10 @@ class GradeRepositoryImpl @Inject constructor(
 
     override fun observeGradesBySystem(systemId: Int): Flow<List<GradeEntity>> =
         gradeDao.observeBySystem(systemId)
+
+    override fun observeAllGrades(): Flow<List<GradeEntity>> = gradeDao.observeAll()
+
+    override suspend fun getGradeById(gradeId: Int): GradeEntity? = gradeDao.getById(gradeId)
 
     override suspend fun createSystem(system: GradeSystemEntity): Int =
         gradeSystemDao.insert(system).toInt()

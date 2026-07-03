@@ -36,6 +36,8 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import androidx.compose.ui.graphics.Color
+import com.boulderbuddy.ui.viewmodel.StatistikUiState
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Statistik-Screen (#10 der Wireframes). Bottom-Nav-Tab "Statistik".
@@ -53,70 +55,23 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 //   — NICHT im Composable.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// TODO(DB): Diese Quick-Stat-Werte kommen aus dem StatistikViewModel/Room.
-//  - flashRate:  Anteil Boulder mit Status = FLASH an allen getopp-ten Boulder.
-//                Query-Idee: COUNT(status=FLASH) * 100 / COUNT(status IN (TOP,FLASH)).
-//                Format: "42%". Wenn keine Tops existieren → "–" statt Division durch 0.
-//  - totalTops:  Anzahl aller Boulder mit status IN (TOP, FLASH) über alle Sessions.
-//  - totalSessions: COUNT(*) aus der Session-Tabelle (alle abgeschlossenen Sessions).
-//  - topGrade:   höchste je gekletterte Schwierigkeit. ACHTUNG: Max über Grade ist
-//                NICHT lexikografisch ("6c" > "10a" wäre falsch) — braucht eine
-//                numerische Sortierordnung je Grading-System (Code-Entscheidung offen,
-//                siehe Datenbankschema / "Eigenes…"-Grading-Entscheidung).
+// Ein Quick-Stat-Kärtchen (Label + fertig formatierter Wert).
 private data class QuickStat(val label: String, val value: String)
-
-private val placeholderQuickStats = listOf(
-    QuickStat(label = "Flash Rate", value = "42%"),
-    QuickStat(label = "Tops gesamt", value = "23"),
-    QuickStat(label = "Sessions", value = "12"),
-)
-
-// TODO(DB): Grade-Verteilung — GROUP BY grade über alle getopp-ten Boulder.
-//  value = Anzahl Boulder pro Grade-Bucket. Die Farbe ist hier die Routenfarbe;
-//  bei der Grade-Verteilung ist die Zuordnung Grade→Farbe aber NICHT fix (eine
-//  6a kann rot oder blau sein). Vor der Anbindung mit Deniz klären, ob die Balken
-//  - eine neutrale Akzentfarbe bekommen, oder
-//  - nach der häufigsten Routenfarbe je Grade eingefärbt werden.
-//  Buckets/Reihenfolge müssen aus dem gewählten Grading-System abgeleitet werden
-//  (analog zu filterOptions in BoulderUebersichtScreen), nicht fest verdrahtet.
-private val placeholderGradeDistribution: List<BarChartEntry>
-    @Composable get() {
-        val routes = BoulderBuddy.colors.routes
-        return listOf(
-            BarChartEntry("5", 3f, routes.green),
-            BarChartEntry("6a", 7f, routes.blue),
-            BarChartEntry("6b", 5f, routes.orange),
-            BarChartEntry("6c", 4f, routes.red),
-            BarChartEntry("7a", 2f, routes.purple),
-        )
-    }
-
-// TODO(DB): Aktivitäts-Heatmap — ein intensity-Wert (0f..1f) pro Tag, in
-//  chronologischer Reihenfolge (älteste zuerst), z.B. die letzten 28 Tage (4×7).
-//  Roh-Query: GROUP BY date(session.startedAt) → Anzahl Boulder bzw. Sessiondauer
-//  pro Tag. Anschließend auf 0f..1f normalisieren (Tageswert / Maximum im Zeitraum).
-//  Tage ohne Aktivität = 0f (bleiben als blasse Zelle sichtbar).
-//  Anzahl der Tage = columns * Wochen; columns ist im Heatmap-Default 7.
-private val placeholderActivity = listOf(
-    0f, 0.2f, 0f, 0.6f, 1f, 0.4f, 0f,
-    0.3f, 0f, 0.8f, 0.5f, 0f, 0.2f, 0.9f,
-    1f, 0.7f, 0.3f, 0f, 0.6f, 0.4f, 0.1f,
-    0f, 0.5f, 0.9f, 0.2f, 0.7f, 0f, 0.3f,
-)
 
 @Composable
 fun StatistikScreen(
+    // Anzeige-Zustand aus dem StatistikViewModel (Phase 6.8, aus Room aggregiert).
+    state: StatistikUiState = StatistikUiState(),
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onOpenSettings: () -> Unit = {},
 ) {
-    // TODO(DB): Statt der drei placeholder-* Konstanten hier den StatistikUiState
-    //  aus dem ViewModel lesen:
-    //    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    //  und Lade-/Leer-Zustand behandeln (noch keine Sessions → freundlicher
-    //  Empty-State statt leerer Diagramme).
-    val quickStats = placeholderQuickStats
-    val gradeDistribution = placeholderGradeDistribution
-    val activity = placeholderActivity
+    val quickStats = listOf(
+        QuickStat(label = "Flash Rate", value = state.flashRate),
+        QuickStat(label = "Tops gesamt", value = state.totalTops.toString()),
+        QuickStat(label = "Sessions", value = state.totalSessions.toString()),
+    )
+    val gradeDistribution = state.gradeDistribution
+    val activity = state.activity
 
     BoulderBuddyScaffold(
         topBar = {
@@ -240,6 +195,25 @@ private fun ActivityLegend(modifier: Modifier = Modifier) {
 @Composable
 private fun StatistikScreenPreview() {
     BoulderBuddyTheme {
-        StatistikScreen()
+        StatistikScreen(
+            state = StatistikUiState(
+                flashRate = "42%",
+                totalTops = 23,
+                totalSessions = 12,
+                gradeDistribution = listOf(
+                    BarChartEntry("5", 3f, Color(0xFF2E9E52)),
+                    BarChartEntry("6a", 7f, Color(0xFF2F6FE0)),
+                    BarChartEntry("6b", 5f, Color(0xFFF39C12)),
+                    BarChartEntry("6c", 4f, Color(0xFFD64541)),
+                    BarChartEntry("7a", 2f, Color(0xFF8E44AD)),
+                ),
+                activity = listOf(
+                    0f, 0.2f, 0f, 0.6f, 1f, 0.4f, 0f,
+                    0.3f, 0f, 0.8f, 0.5f, 0f, 0.2f, 0.9f,
+                    1f, 0.7f, 0.3f, 0f, 0.6f, 0.4f, 0.1f,
+                    0f, 0.5f, 0.9f, 0.2f, 0.7f, 0f, 0.3f,
+                ),
+            ),
+        )
     }
 }

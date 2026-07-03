@@ -34,12 +34,11 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 
 // Status eines Boulders. getoppt = als geschafft gewertet (Top oder Flash zählen beide
 // als Top; Projekt nicht). Das Symbol steckt am Status, damit es nur eine Quelle gibt.
-// Screen-übergreifend genutzt (auch BoulderDetailScreen) — daher nicht private.
-// TODO: Vor dem Room-Anschluss mit Route.status (OPEN/SENT/PROJECT/SKIP) abgleichen
-//  (z.B. ist Flash = SENT mit attempts == 1?) und ggf. in eine eigene Datei auslagern.
+// Screen-übergreifend genutzt (SessionDetail, BoulderDetail, Mapper) — daher nicht private.
 enum class BoulderStatus(val symbol: String) {
     TOP("✓"),
     FLASH("🔥"),
@@ -48,47 +47,31 @@ enum class BoulderStatus(val symbol: String) {
     val getoppt: Boolean get() = this == TOP || this == FLASH
 }
 
-// Read-only-Daten eines gekletterten Boulders. accentColor = Routenfarbe (Identifikation).
-// id: Platzhalter-Boulderschlüssel für die Navigation (später die echte Room-ID).
-private data class BoulderRowData(
-    val id: Int,
-    val grade: String,
-    val name: String,
-    val accentColor: Color,
-    val status: BoulderStatus,
-)
-
 @Composable
 fun AlteSessionScreen(
+    // Anzeige-Daten der abgeschlossenen Session (Phase 6.4, aus SessionViewModel).
+    gym: String = "Boulderhalle Nord",
+    dateSubtitle: String = "12. Juni · abgeschlossen",
+    durationText: String = "1.5h",
+    notes: String = "",
+    boulders: List<SessionBoulderUi> = emptyList(),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
     onOpenBoulder: (Int) -> Unit = {},
 ) {
-    // TODO: Diese Daten kommen später aus dem ViewModel (abgeschlossene Session aus Room).
-    val boulders = listOf(
-        BoulderRowData(0, "6b", "Überhang", BoulderBuddy.colors.routes.green, BoulderStatus.TOP),
-        BoulderRowData(1, "5c", "Dachrinne", BoulderBuddy.colors.routes.red, BoulderStatus.TOP),
-        BoulderRowData(2, "5a", "Warmup", BoulderBuddy.colors.routes.yellow, BoulderStatus.FLASH),
-        BoulderRowData(3, "6a", "Slab Talk", BoulderBuddy.colors.routes.blue, BoulderStatus.PROJEKT),
-        BoulderRowData(4, "6c", "Dynamo", BoulderBuddy.colors.routes.purple, BoulderStatus.PROJEKT),
-    )
-    // TODO: Dauer aus Start-/Endzeitpunkt der Session berechnen und formatieren.
-    val dauer = "1.5h"
-    // Editierbare Session-Notiz. Startet leer; der Beispieltext ist nur Placeholder.
-    // TODO: bestehende Notiz aus Room laden und Änderungen zurückschreiben (ViewModel).
-    var notiz by remember { mutableStateOf("") }
+    // Session-Notiz. Read-only-Ansicht: zeigt die gespeicherte Notiz.
+    // TODO(6.4+): Änderungen zurückschreiben (aktuell nur lokale Anzeige, nicht persistiert).
+    var notiz by remember(notes) { mutableStateOf(notes) }
 
-    // Stat-Werte werden aus den Daten ABGELEITET, nicht separat hartkodiert:
-    //  Boulder = Anzahl gekletterter Boulder, Tops = davon geschaffte.
+    // Stat-Werte werden aus den Daten ABGELEITET: Boulder = Anzahl, Tops = davon geschaffte.
     val boulderAnzahl = boulders.size
     val topAnzahl = boulders.count { it.status.getoppt }
 
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                // TODO: Halle + Datum kommen aus der abgeschlossenen Session.
-                title = "Boulderhalle Nord",
-                subtitle = "12. Juni · abgeschlossen",
+                title = gym,
+                subtitle = dateSubtitle,
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -111,8 +94,6 @@ fun AlteSessionScreen(
             ) {
                 // --- Stats ---
                 item {
-                    // height(IntrinsicSize.Min) + fillMaxHeight() → alle drei Karten gleich hoch,
-                    // auch wenn ein Label umbricht.
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -122,23 +103,17 @@ fun AlteSessionScreen(
                         StatCard(
                             value = boulderAnzahl.toString(),
                             label = "Boulder",
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
                             value = topAnzahl.toString(),
                             label = "Tops",
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
-                            value = dauer,
+                            value = durationText,
                             label = "Dauer",
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
                 }
@@ -149,8 +124,7 @@ fun AlteSessionScreen(
                         value = notiz,
                         onChange = { notiz = it },
                         label = "NOTIZ",
-                        placeholder = "Überhang endlich geschafft. Linke Schulter zwickt - " +
-                                "nächstes Mal mehr aufwärmen.",
+                        placeholder = "Keine Notiz zu dieser Session.",
                         singleLine = false,
                         minLines = 3,
                     )
@@ -196,6 +170,15 @@ private fun statusColorFor(status: BoulderStatus): Color = when (status) {
 @Composable
 private fun AlteSessionScreenPreview() {
     BoulderBuddyTheme {
-        AlteSessionScreen()
+        val routes = BoulderBuddy.colors.routes
+        AlteSessionScreen(
+            notes = "Überhang endlich geschafft. Linke Schulter zwickt.",
+            boulders = listOf(
+                SessionBoulderUi(0, "6b", "Überhang", routes.green, BoulderStatus.TOP, 2),
+                SessionBoulderUi(1, "5c", "Dachrinne", routes.red, BoulderStatus.TOP, 1),
+                SessionBoulderUi(2, "5a", "Warmup", routes.yellow, BoulderStatus.FLASH, 1),
+                SessionBoulderUi(3, "6a", "Slab Talk", routes.blue, BoulderStatus.PROJEKT, 4),
+            ),
+        )
     }
 }

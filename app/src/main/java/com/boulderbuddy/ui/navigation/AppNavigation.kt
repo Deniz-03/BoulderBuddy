@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -25,14 +27,22 @@ import com.boulderbuddy.ui.screens.BoulderDetailScreen
 import com.boulderbuddy.ui.screens.BoulderUebersichtScreen
 import com.boulderbuddy.ui.screens.EinstellungenScreen
 import com.boulderbuddy.ui.screens.HangboardTimerScreen
-import com.boulderbuddy.ui.screens.HangboardTimerUiState
 import com.boulderbuddy.ui.screens.HomeScreen
 import com.boulderbuddy.ui.screens.RouteHinzufuegenScreen
 import com.boulderbuddy.ui.screens.SessionErstellenScreen
 import com.boulderbuddy.ui.screens.SessionRoute
 import com.boulderbuddy.ui.screens.SessionUebersichtScreen
 import com.boulderbuddy.ui.screens.StatistikScreen
-import com.boulderbuddy.ui.screens.TimerPhase
+import com.boulderbuddy.ui.model.toHexRgb
+import com.boulderbuddy.ui.viewmodel.BoulderDetailViewModel
+import com.boulderbuddy.ui.viewmodel.BoulderUebersichtViewModel
+import com.boulderbuddy.ui.viewmodel.EinstellungenViewModel
+import com.boulderbuddy.ui.viewmodel.HangboardTimerViewModel
+import com.boulderbuddy.ui.viewmodel.HomeViewModel
+import com.boulderbuddy.ui.viewmodel.RouteHinzufuegenViewModel
+import com.boulderbuddy.ui.viewmodel.SessionErstellenViewModel
+import com.boulderbuddy.ui.viewmodel.SessionListViewModel
+import com.boulderbuddy.ui.viewmodel.StatistikViewModel
 
 // =============================================================================
 // AppNavigation — der NavHost: verbindet jede Route aus Destinations.kt mit
@@ -71,13 +81,16 @@ fun AppNavigation() {
         ) {
             // --- Bottom-Nav-Tabs -------------------------------------------------
             composable<Home> {
+                val viewModel: HomeViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 HomeScreen(
+                    state = state,
                     onOpenSettings = { navController.navigate(Einstellungen) },
                     onStartSession = { navController.navigate(SessionErstellen) },
-                    // Platzhalter: aktive Session hat (per SessionRoute-Konvention) id 0,
-                    // bis das ViewModel die echte aktive sessionId liefert (Phase 6.1).
+                    // Boulder zur AKTIVEN Session hinzufügen (echte sessionId aus dem ViewModel).
+                    // Ohne aktive Session tut der Klick nichts (die Kachel erscheint dann ohnehin nicht).
                     onAddBoulderToActiveSession = {
-                        navController.navigate(RouteHinzufuegen(sessionId = 0))
+                        state.activeSessionId?.let { navController.navigate(RouteHinzufuegen(sessionId = it)) }
                     },
                     // BoulderUebersicht ist laut Design die "zweite Ansicht des Sessions-Tabs"
                     // (Variante A, BottomNav bleibt sichtbar). Deshalb wie ein Tab-Wechsel
@@ -89,12 +102,17 @@ fun AppNavigation() {
                     onOpenAllBoulders = {
                         navController.navigate(BoulderUebersicht) { topLevelNavOptions() }
                     },
-                    // Platzhalter: letzte Session ist eine abgeschlossene Beispiel-Session (id 1).
-                    onOpenLastSession = { navController.navigate(Session(sessionId = 1)) },
+                    // Letzte Session öffnen (echte sessionId aus dem ViewModel).
+                    onOpenLastSession = {
+                        state.lastSession?.let { navController.navigate(Session(sessionId = it.sessionId)) }
+                    },
                 )
             }
             composable<Sessions> {
+                val viewModel: SessionListViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 SessionUebersichtScreen(
+                    state = state,
                     onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
                     onCreateSession = { navController.navigate(SessionErstellen) },
                     // Umschalten auf die Boulder-Ansicht desselben Tabs (Variante A):
@@ -109,38 +127,58 @@ fun AppNavigation() {
                 )
             }
             composable<Stats> {
+                val viewModel: StatistikViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 StatistikScreen(
+                    state = state,
                     onOpenSettings = { navController.navigate(Einstellungen) },
                 )
             }
             composable<Timer> {
+                val viewModel: HangboardTimerViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 HangboardTimerScreen(
-                    // Platzhalter-State, bis das HangboardTimerViewModel steht (Phase 6.9).
-                    state = placeholderTimerState,
-                    onPlayPause = { /* TODO: Phase 6.9 */ },
-                    onReset = { /* TODO: Phase 6.9 */ },
+                    state = state,
+                    onPlayPause = viewModel::onPlayPause,
+                    onReset = viewModel::onReset,
                     onSettings = { navController.navigate(Einstellungen) },
                 )
             }
 
             // --- Push-Ziele ohne Argument ---------------------------------------
             composable<Einstellungen> {
-                EinstellungenScreen(onBack = { navController.popBackStack() })
+                val viewModel: EinstellungenViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                EinstellungenScreen(
+                    state = state,
+                    // Color → Hex passiert hier, damit das ViewModel UI-Farbtypen-frei bleibt.
+                    onCreateColorSystem = { name, colors ->
+                        viewModel.createColorSystem(name, colors.map { it.first to it.second.toHexRgb() })
+                    },
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable<SessionErstellen> {
+                val viewModel: SessionErstellenViewModel = hiltViewModel()
                 SessionErstellenScreen(
                     onBack = { navController.popBackStack() },
-                    // Nach dem Anlegen zur (aktiven) Session; das Erstellen-Formular wird dabei
-                    // vom Back-Stack genommen, damit Back von der Session direkt nach Home führt.
-                    onSessionCreated = { newSessionId ->
-                        navController.navigate(Session(newSessionId)) {
-                            popUpTo(SessionErstellen) { inclusive = true }
+                    // Session anlegen (Room) und danach zur neuen aktiven Session navigieren;
+                    // das Erstellen-Formular wird dabei vom Back-Stack genommen, damit Back von
+                    // der Session direkt nach Home führt.
+                    onCreateSession = { ort, notiz ->
+                        viewModel.createSession(ort, notiz) { newSessionId ->
+                            navController.navigate(Session(newSessionId)) {
+                                popUpTo(SessionErstellen) { inclusive = true }
+                            }
                         }
                     },
                 )
             }
             composable<BoulderUebersicht> {
+                val viewModel: BoulderUebersichtViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 BoulderUebersichtScreen(
+                    state = state,
                     onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
                     // Dropdown "Sessions": zurück auf die Sessions-Ansicht desselben Tabs
                     // (Variante A); ersetzt Boulder, statt es zu stapeln.
@@ -153,23 +191,24 @@ fun AppNavigation() {
                     onOpenSettings = { navController.navigate(Einstellungen) },
                 )
             }
-            composable<RouteHinzufuegen> { entry ->
-                val args = entry.toRoute<RouteHinzufuegen>()
+            composable<RouteHinzufuegen> {
+                val viewModel: RouteHinzufuegenViewModel = hiltViewModel()
                 RouteHinzufuegenScreen(
-                    sessionId = args.sessionId,
                     onBack = { navController.popBackStack() },
-                    onSaved = { navController.popBackStack() },
+                    // sessionId liest das ViewModel selbst aus den Nav-Argumenten.
+                    onSave = { input -> viewModel.save(input) { navController.popBackStack() } },
                 )
             }
 
             // --- Push-Ziele mit Argument (typsicher aus toRoute()) --------------
-            composable<BoulderDetail> { entry ->
-                val args = entry.toRoute<BoulderDetail>()
+            composable<BoulderDetail> {
+                val viewModel: BoulderDetailViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 BoulderDetailScreen(
-                    boulderId = args.boulderId,
+                    state = state,
                     onBack = { navController.popBackStack() },
                     // Platzhalter: Bearbeiten öffnet vorerst "Boulder hinzufügen" (ohne Vorbefüllung),
-                    // bis der Edit-Modus mit boulderId steht (Phase 6.5/6.7).
+                    // bis der Edit-Modus mit boulderId steht (Phase 6.7-Nacharbeit).
                     onEdit = { navController.navigate(RouteHinzufuegen()) },
                 )
             }
@@ -185,7 +224,7 @@ fun AppNavigation() {
             }
         }
 
-        // Gemeinsame BottomNav: nur auf den 4 Tab-Zielen sichtbar.
+        // BottomNav: nur auf den 4 Tab-Zielen sichtbar.
         if (currentTab != null) {
             Box(modifier = Modifier.navigationBarsPadding()) {
                 BottomNav(
@@ -228,15 +267,3 @@ private fun NavOptionsBuilder.topLevelNavOptions() {
     launchSingleTop = true
     restoreState = true
 }
-
-// Platzhalter-Timer-State für Phase 1 (entspricht dem Preview-State, aber pausiert).
-// TODO: In Phase 6.9 durch echten StateFlow des HangboardTimerViewModel ersetzen.
-private val placeholderTimerState = HangboardTimerUiState(
-    progress = 0f,
-    time = "00:07",
-    restTime = "00:03",
-    phase = TimerPhase.HANG,
-    currentSet = 1,
-    totalSets = 6,
-    isRunning = false,
-)

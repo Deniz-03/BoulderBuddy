@@ -28,16 +28,21 @@ import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SessionListItem
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
-import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.viewmodel.HomeUiState
+import com.boulderbuddy.ui.viewmodel.LastSessionUi
+import androidx.compose.ui.graphics.Color
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
 fun HomeScreen(
+    // Anzeige-Zustand aus dem HomeViewModel (Phase 6.1). Default = leerer State hält
+    // Preview & Tests lauffähig.
+    state: HomeUiState = HomeUiState(),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onOpenSettings: () -> Unit = {},
     onStartSession: () -> Unit = {},
@@ -45,12 +50,8 @@ fun HomeScreen(
     onOpenAllBoulders: () -> Unit = {},
     onOpenLastSession: () -> Unit = {},
 ) {
-    // TODO: Nutzername kommt aus dem User-Profil via ViewModel (Datenbank)
-    val userName = "Deniz"
-
-    // TODO: aus dem ViewModel — gibt es eine aktive Session? (Session mit endedAt == null).
-    //  Steuert, ob die "Boulder hinzufügen"-Kachel erscheint. Platzhalter: true.
-    val hasActiveSession = true
+    val userName = state.userName
+    val hasActiveSession = state.hasActiveSession
 
     // Ermittlung des aktuellen Datums
     // Remember spart Leistung und Akku, da es dafür sorgt, dass das Datum nicht bei jeder Änderung am Bildschirm neu geladen werden muss.
@@ -94,10 +95,8 @@ fun HomeScreen(
             ) {
                 // --- Stats ---
                 item {
-                    // TODO: Werte kommen aus der Datenbank via ViewModel
-                    //  - sessionsPerWeek: Anzahl Sessions in den letzten 7 Tagen
-                    //  - totalTops: Summe aller getopp-ten Boulder
-                    //  - topGrade: höchste je gekletterte Schwierigkeit
+                    // Werte aus dem HomeViewModel (Room): Sessions der Woche, Tops gesamt,
+                    // höchster getoppter Grad.
                     // height(IntrinsicSize.Min) + fillMaxHeight() → alle drei Karten gleich hoch,
                     // auch wenn ein Label umbricht (z.B. "Sessions / Woche").
                     Row(
@@ -107,21 +106,21 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
                     ) {
                         StatCard(
-                            value = "4",
+                            value = state.sessionsPerWeek.toString(),
                             label = "Sessions / Woche",
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
                         )
                         StatCard(
-                            value = "23",
+                            value = state.totalTops.toString(),
                             label = "Tops gesamt",
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
                         )
                         StatCard(
-                            value = "6c",
+                            value = state.topGrade,
                             label = "Top Grade",
                             modifier = Modifier
                                 .weight(1f)
@@ -177,23 +176,21 @@ fun HomeScreen(
                 }
 
                 // --- Letzte Session ---
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                        SectionHeader(text = "Letzte Session")
-                        // TODO: Letzte Session kommt aus der Datenbank via ViewModel
-                        //  - gym: Name der Halle
-                        //  - date: formatiertes Datum + Grading-System
-                        //  - accentColor: Farbe der Session (z.B. häufigste Routenfarbe)
-                        //  - badges: z.B. Anzahl Boulder, Tops
-                        SessionListItem(
-                            gym = "Boulderhalle Nord",
-                            date = "12. Juni · 8 Boulder · Französisch",
-                            accentColor = BoulderBuddy.colors.routes.green,
-                            badges = emptyList(),
-                            // Navigation zur letzten Session (SessionRoute mit deren sessionId).
-                            // Konkrete sessionId liefert der NavHost, bis das ViewModel steht.
-                            onClick = onOpenLastSession,
-                        )
+                // Nur anzeigen, wenn es überhaupt schon eine Session gibt.
+                state.lastSession?.let { last ->
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                            SectionHeader(text = "Letzte Session")
+                            SessionListItem(
+                                gym = last.gym,
+                                date = last.subtitle,
+                                accentColor = last.accentColor,
+                                badges = emptyList(),
+                                isActive = last.isActive,
+                                // Navigation zur letzten Session (SessionRoute mit deren sessionId).
+                                onClick = onOpenLastSession,
+                            )
+                        }
                     }
                 }
             }
@@ -205,6 +202,21 @@ fun HomeScreen(
 @Composable
 private fun HomeScreenPreview() {
     BoulderBuddyTheme {
-        HomeScreen()
+        HomeScreen(
+            state = HomeUiState(
+                sessionsPerWeek = 4,
+                totalTops = 23,
+                topGrade = "6c",
+                hasActiveSession = true,
+                activeSessionId = 1,
+                lastSession = LastSessionUi(
+                    sessionId = 1,
+                    gym = "Boulderhalle Nord",
+                    subtitle = "12. Juni · 8 Boulder",
+                    accentColor = Color(0xFF2E9E52),
+                    isActive = false,
+                ),
+            ),
+        )
     }
 }

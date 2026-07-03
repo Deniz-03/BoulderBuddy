@@ -35,6 +35,10 @@ object DatabaseModule {
         )
             // Beispieldaten beim ersten Erstellen der DB (siehe SeedData.onCreate).
             .addCallback(SeedData)
+            // Pre-Release ohne Bestandsnutzer: Schema-Änderungen (z.B. v1→v2, Route.name/sektor)
+            // verwerfen die alte DB, statt Migrationen zu pflegen. Vor dem ersten Release durch
+            // echte Migrationen ersetzen.
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
 
     @Provides

@@ -146,7 +146,7 @@
 - [x] **5.2** `RouteRepository` — Routen einer Session, alle Routen, anlegen, aktualisieren, einzelne laden.
 - [x] **5.3** `GymRepository` / `GradeRepository` — Gyms + Gradsysteme/Grades (für Custom-Gradsystem & Session-Erstellung). `GradeRepository` bündelt `GradeSystemDao` + `GradeDao`.
 - [x] **5.4** `HangboardRepository` — Timer-Templates (Should-Have; kann zunächst statisch/leer bleiben).
-- [ ] **5.5** (Optional) `domain/`-Mapper: Entity → UI-Modell, falls UI-Datentypen von den Entities abweichen. **Auf Phase 6 verschoben:** das konkrete Mapping (z.B. `RouteStatus` → UI-`BoulderStatus`) entsteht erst mit den ViewModels, wenn die UI-Zieltypen feststehen — vorher wäre der Mapper Spekulation.
+- [x] **5.5** (Optional) `domain/`-Mapper: Entity → UI-Modell. **In Phase 6 erledigt** als `ui/model/UiMappers.kt`: Hexfarbe→Compose-`Color`, `RouteStatus`→UI-`BoulderStatus` (Flash = SENT mit `attempts <= 1`), epoch-millis→deutsche Datums-/Dauer-Strings, `Color`→Hex.
 - **✅ Done:** `./gradlew assembleDebug` grün (2026-07-03). Alle 5 Repositories (Interface + `@Inject`-Impl) in `data/repository/`, per `@Binds` als `@Singleton` gebunden (`di/RepositoryModule.kt`, erledigt zugleich 4.5). Hilt-DI-Graph baut. `create(...)` gibt jeweils die neue Row-ID als `Int` zurück (DAO-`Long` → `toInt()`); `endSession` hat Default `System.currentTimeMillis()`. **Kein Verhaltensunterschied zu den DAOs — reine Kapselungsschicht.**
 
 ---
@@ -157,18 +157,22 @@
 > `@HiltViewModel class XViewModel @Inject constructor(repo) : ViewModel()` mit `uiState: StateFlow<XUiState>`;
 > im NavHost per `hiltViewModel()` holen und `collectAsStateWithLifecycle()`.
 
-- [ ] **6.1** `HomeViewModel` + `HomeScreen` — Stats (Sessions/Woche, Tops, Top-Grade), aktive Session (`hasActiveSession`), letzte Session. Platzhalter in `HomeScreen.kt` entfernen.
-- [ ] **6.2** `SessionListViewModel` + `SessionUebersichtScreen` — Session-Liste aus Room.
-- [ ] **6.3** `SessionErstellenViewModel` + `SessionErstellenScreen` — Gym/Gradsystem wählen, Session anlegen → `endedAt = null`.
-- [ ] **6.4** `SessionViewModel` + `SessionRoute`/`SessionDetailScreen`/`AlteSessionScreen` — echte Session laden; `ladeSessionMeta`-Platzhalter durch Repository ersetzen; Session beenden (setzt `endedAt`).
-- [ ] **6.5** `RouteHinzufuegenViewModel` + `RouteHinzufuegenScreen` — Route mit Foto (Coil/PhotoPicker), Grad, Versuche, Status, Notiz zur `sessionId` speichern.
-- [ ] **6.6** `BoulderUebersichtViewModel` + `BoulderUebersichtScreen` — alle Routen, Filter (FilterChip).
-- [ ] **6.7** `BoulderDetailViewModel` + `BoulderDetailScreen` — einzelnen Boulder per `boulderId` laden.
-- [ ] **6.8** `StatistikViewModel` + `StatistikScreen` — Grade-Verteilung (BarChart) + Activity-Heatmap aus echten Sessions/Routen.
-- [ ] **6.9** `HangboardTimerViewModel` + `HangboardTimerScreen` — Timer-Logik (Sets/Hang/Rest), optional Templates.
-- [ ] **6.10** `EinstellungenScreen` — Gym-/Gradsystem-CRUD (Custom-Gradsystem, MVP-Must-Have) an Repository anbinden.
-- [ ] **6.11** Coil einrichten (`AsyncImage`) für `RouteEntity.mediaUri` in Detail-/Übersicht-Screens.
-- **✅ Done wenn:** Kein hartkodierter Platzhalter mehr in den Screens; Daten überleben App-Neustart (Room).
+- [x] **6.1** `HomeViewModel` + `HomeScreen` — Stats (Sessions/Woche, Tops, Top-Grade), aktive Session (`hasActiveSession` + echte `activeSessionId`), letzte Session. Platzhalter entfernt.
+- [x] **6.2** `SessionListViewModel` + `SessionUebersichtScreen` — Session-Liste aus Room (aktive zuerst).
+- [x] **6.3** `SessionErstellenViewModel` + `SessionErstellenScreen` — Halle "find-or-create" nach Name, Session anlegen → `endedAt = null`, echte `sessionId`. (Grading-Chips bleiben UI-only: `SessionEntity` speichert kein Gradsystem.)
+- [x] **6.4** `SessionViewModel` + `SessionRoute`/`SessionDetailScreen`/`AlteSessionScreen` — echte Session per Nav-Arg laden (`SavedStateHandle.toRoute`), `ladeSessionMeta` ersetzt; **Session beenden** über neue ✓-Aktion in der Top-Bar (setzt `endedAt`, Dispatcher kippt reaktiv auf die Alt-Ansicht).
+- [x] **6.5** `RouteHinzufuegenViewModel` + `RouteHinzufuegenScreen` — Foto via System-PhotoPicker (`PickVisualMedia` + persistierte Lese-Permission), Grade+Farbe, **neue Versuche-/Status-/Notiz-Controls**, Speichern zur `sessionId`. Grade wird als `GradeEntity` im Gradsystem der Halle *find-or-create*.
+- [x] **6.6** `BoulderUebersichtViewModel` + `BoulderUebersichtScreen` — alle Routen; Grade-Filter (FilterChip) client-seitig implementiert.
+- [x] **6.7** `BoulderDetailViewModel` + `BoulderDetailScreen` — Boulder per `boulderId` laden; not-found-Zustand. (Zweite Stat-Karte: **Sektor** statt „Bewertung" — Rating ist nicht im Schema.)
+- [x] **6.8** `StatistikViewModel` + `StatistikScreen` — Flash-Rate/Tops/Sessions, Grade-Verteilung (BarChart in Grad-Farbe) + Activity-Heatmap (28 Tage) aus echten Daten.
+- [x] **6.9** `HangboardTimerViewModel` + `HangboardTimerScreen` — Timer-Logik (Sets/Hang/Rest) im ViewModel, Play/Pause/Reset live. Templates: TODO.
+- [x] **6.10** `EinstellungenScreen` — Farbsystem-Verwaltung + **Custom-Farbsystem anlegen** (Name + Farbauswahl → `GradeSystemEntity` + `GradeEntity`) an Repository angebunden.
+- [x] **6.11** Coil `AsyncImage` für `RouteEntity.mediaUri` im Boulder-Detail und im PhotoPicker-Slot (gewähltes Foto).
+- **✅ Done (heute):** `./gradlew assembleDebug` grün. Kein hartkodierter Screen-Platzhalter mehr; Daten überleben App-Neustart (Room). **Abweichungen/Ergänzungen vom Plan:**
+  1. **Schema v1→v2:** `RouteEntity` um `name` + `sektor` erweitert (Boulder tragen im UI einen Namen; das Add-Formular erfasst beides). DB via `fallbackToDestructiveMigration(dropAllTables=true)` (Pre-Release, keine Bestandsnutzer) — vor Release durch echte Migration ersetzen. SeedData um 3 Beispiel-Boulder erweitert.
+  2. **Neue Dependency:** `androidx.lifecycle:lifecycle-runtime-compose` (für `collectAsStateWithLifecycle`, war nicht im Katalog).
+  3. **Neue DAO-/Repo-Query:** `GradeDao.observeAll()`/`getById` (Auflösen von `Route.gradeId` in den ViewModels).
+  4. ViewModels liegen in `ui/viewmodel/`, Mapper in `ui/model/` (siehe 5.5).
 
 ---
 

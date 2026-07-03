@@ -38,7 +38,9 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 fun SessionErstellenScreen(
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
-    onSessionCreated: (Int) -> Unit = {},
+    // Übergibt die Formularwerte nach oben; das Anlegen + die Navigation zur neuen
+    // Session übernimmt der NavHost via SessionErstellenViewModel (Phase 6.3).
+    onCreateSession: (ort: String, notiz: String) -> Unit = { _, _ -> },
 ) {
     var ort by remember { mutableStateOf("") }
     var gradingIndex by remember { mutableIntStateOf(0) }
@@ -126,12 +128,9 @@ fun SessionErstellenScreen(
                 PrimaryButton(
                     text = "Session starten",
                     icon = Icons.Filled.PlayArrow,
-                    onClick = {
-                        // TODO: Session aus ort/gradingIndex/notiz in Room speichern und die
-                        //  echte, neu vergebene sessionId liefern (Phase 6.3). Bis dahin liefert
-                        //  der NavHost eine Platzhalter-ID für die aktive Session.
-                        onSessionCreated(0)
-                    },
+                    // Halle + Notiz nach oben reichen; das ViewModel legt die Session an.
+                    // gradingIndex bleibt vorerst UI-only (Session speichert kein Gradsystem).
+                    onClick = { onCreateSession(ort, notiz) },
                 )
             }
         },

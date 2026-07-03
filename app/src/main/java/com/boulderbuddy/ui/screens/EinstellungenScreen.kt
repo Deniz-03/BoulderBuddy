@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,22 +32,28 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SelectableChip
 import com.boulderbuddy.ui.components.SettingsRow
+import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.ToggleSwitch
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.viewmodel.EinstellungenUiState
+import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 
 // Auswahl-Optionen fürs Standard-Grading. Identisch zu SessionErstellenScreen.
 // TODO: zentral halten (gemeinsame Quelle/DB), sobald Custom-Farbsysteme dazukommen
@@ -55,6 +62,9 @@ private val gradingOptions = listOf("Französisch", "V-Scale", "Farbsystem", "Ei
 
 @Composable
 fun EinstellungenScreen(
+    // Farbsystem-Verwaltung aus dem EinstellungenViewModel (Phase 6.10).
+    state: EinstellungenUiState = EinstellungenUiState(),
+    onCreateColorSystem: (String, List<Pair<String, Color>>) -> Unit = { _, _ -> },
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
@@ -67,6 +77,9 @@ fun EinstellungenScreen(
 
     // Steuert den Standard-Grading-Auswahldialog.
     var showGradingDialog by remember { mutableStateOf(false) }
+    // Farbsystem-Verwaltung: Liste (manage) bzw. Anlege-Dialog (create).
+    var showFarbsystemDialog by remember { mutableStateOf(false) }
+    var showCreateSystemDialog by remember { mutableStateOf(false) }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -112,20 +125,26 @@ fun EinstellungenScreen(
                         value = gradingOptions[standardGradingIndex],
                         onClick = { showGradingDialog = true },
                     )
-                    // Reine Navigations-Zeile: Chevron als trailing, kein Wert.
-                    // TODO: Farbsystem-Verwaltung (CRUD) — Mechanismus noch offen
-                    //  (eigener Screen vs. Bottom Sheet). Vorerst Platzhalter.
+                    // Öffnet die Farbsystem-Verwaltung (Liste + Anlegen). Zeigt die Anzahl
+                    // vorhandener Systeme als Wert.
                     SettingsRow(
                         icon = Icons.Outlined.Palette,
                         label = "Farbsystem verwalten",
-                        onClick = { /* TODO: Farbsystem-Verwaltung öffnen */ },
+                        onClick = { showFarbsystemDialog = true },
                         trailing = {
-                            Icon(
-                                imageVector = Icons.Outlined.ChevronRight,
-                                contentDescription = null,
-                                tint = BoulderBuddy.colors.textTertiary,
-                                modifier = Modifier.size(Dimens.iconS),
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${state.systems.size}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = BoulderBuddy.colors.textTertiary,
+                                )
+                                Icon(
+                                    imageVector = Icons.Outlined.ChevronRight,
+                                    contentDescription = null,
+                                    tint = BoulderBuddy.colors.textTertiary,
+                                    modifier = Modifier.size(Dimens.iconS),
+                                )
+                            }
                         },
                     )
                 }
@@ -199,6 +218,126 @@ fun EinstellungenScreen(
             onDismiss = { showGradingDialog = false },
         )
     }
+
+    // Farbsystem-Verwaltung: Liste der Systeme + Einstieg zum Anlegen.
+    if (showFarbsystemDialog) {
+        FarbsystemVerwaltenDialog(
+            systems = state.systems,
+            onCreateNew = {
+                showFarbsystemDialog = false
+                showCreateSystemDialog = true
+            },
+            onDismiss = { showFarbsystemDialog = false },
+        )
+    }
+
+    // Anlege-Dialog fürs Custom-Farbsystem (MVP-Must-Have).
+    if (showCreateSystemDialog) {
+        FarbsystemAnlegenDialog(
+            onCreate = { name, colors ->
+                onCreateColorSystem(name, colors)
+                showCreateSystemDialog = false
+            },
+            onDismiss = { showCreateSystemDialog = false },
+        )
+    }
+}
+
+// Listet die vorhandenen Farbsysteme und bietet den Einstieg zum Anlegen eines neuen.
+@Composable
+private fun FarbsystemVerwaltenDialog(
+    systems: List<GradeSystemUi>,
+    onCreateNew: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Farbsysteme") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                if (systems.isEmpty()) {
+                    Text(
+                        text = "Noch keine Farbsysteme angelegt.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BoulderBuddy.colors.textSecondary,
+                    )
+                } else {
+                    systems.forEach { system ->
+                        Text(
+                            text = "${system.name} · ${system.gradeCount} Grade",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onCreateNew) { Text("Neues System") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
+    )
+}
+
+// Legt ein Custom-Farbsystem an: Name + Auswahl der Routenfarben (je Farbe ein Grad).
+@Composable
+private fun FarbsystemAnlegenDialog(
+    onCreate: (String, List<Pair<String, Color>>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val routes = BoulderBuddy.colors.routes
+    val palette = listOf(
+        "Rot" to routes.red,
+        "Orange" to routes.orange,
+        "Gelb" to routes.yellow,
+        "Grün" to routes.green,
+        "Blau" to routes.blue,
+        "Lila" to routes.purple,
+        "Pink" to routes.pink,
+    )
+    var name by remember { mutableStateOf("") }
+    // Auswahl per Farbname (stabiler Schlüssel).
+    val selected = remember { mutableStateListOf<String>() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Neues Farbsystem") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                TextField(
+                    value = name,
+                    onChange = { name = it },
+                    label = "NAME",
+                    placeholder = "z.B. Halle Süd",
+                )
+                Text(
+                    text = "Farben",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = BoulderBuddy.colors.textTertiary,
+                )
+                palette.chunked(4).forEach { rowColors ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                        rowColors.forEach { (label, _) ->
+                            SelectableChip(
+                                label = label,
+                                selected = label in selected,
+                                onClick = {
+                                    if (label in selected) selected.remove(label) else selected.add(label)
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        repeat(4 - rowColors.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.isNotBlank() && selected.isNotEmpty(),
+                onClick = { onCreate(name, palette.filter { it.first in selected }) },
+            ) { Text("Anlegen") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
 }
 
 // Das 2×2-Chip-Raster der Grading-Auswahl. Verwendet dieselben SelectableChip wie
