@@ -20,8 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.boulderbuddy.ui.components.BottomNav
-import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SessionListItem
@@ -91,12 +89,7 @@ fun SessionUebersichtScreen() {
                 },
             )
         },
-        bottomBar = {
-            BottomNav(
-                selectedTab = BottomNavTab.Sessions,
-                onTabSelect = { /* TODO: Navigation zwischen Tabs */ },
-            )
-        },
+        // BottomNav wird ab Phase 1.3 zentral vom Navigations-Gerüst gestellt.
         content = { _ ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

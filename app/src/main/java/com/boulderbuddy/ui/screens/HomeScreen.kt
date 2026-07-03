@@ -22,8 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.boulderbuddy.ui.components.BottomNav
-import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.QuickActionButton
 import com.boulderbuddy.ui.components.SectionHeader
@@ -74,13 +72,8 @@ fun HomeScreen() {
                 },
             )
         },
-        // Unterer Bereich
-        bottomBar = {
-            BottomNav(
-                selectedTab = BottomNavTab.Home,
-                onTabSelect = { /* TODO: Navigation zwischen Tabs */ },
-            )
-        },
+        // BottomNav wird ab Phase 1.3 zentral vom Navigations-Gerüst (AppNavigation)
+        // gestellt — dieser Screen rendert sie nicht mehr selbst.
         // Mittlerer Hauptbereich
         content = { _ ->
             // Scrollbare Leiste die nur die Elemente Lädt die gerade auf dem Bildschirm sind -> Spart Leistung
