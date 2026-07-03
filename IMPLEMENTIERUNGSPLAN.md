@@ -107,8 +107,8 @@
 
 > Ziel: DB gemäß dokumentiertem Schema (`03 – Architektur & Tech/Datenbankschema.md`). Package `data/`.
 
-- [ ] **3.1** `data/model/` — Enum(s) & Status: `RouteStatus { OPEN, SENT, PROJECT, SKIP }` (bestehende UI-Enum `BoulderStatus` prüfen/mappen, nicht doppeln).
-- [ ] **3.2** `data/db/entity/` — `@Entity`-Klassen 1:1 zum Schema:
+- [x] **3.1** `data/model/RouteStatus.kt` — `RouteStatus { OPEN, SENT, PROJECT, SKIP }`. UI-Enum `BoulderStatus` (TOP/FLASH/PROJEKT) **bewusst nicht gedoppelt** — sie ist eine abgeleitete Darstellung (z.B. Flash = SENT mit `attempts == 1`); das Mapping folgt in Phase 6.
+- [x] **3.2** `data/db/entity/` — `@Entity`-Klassen 1:1 zum Schema:
   - `GymEntity` (id, name, location?)
   - `GradeSystemEntity` (id, gymId FK, name)
   - `GradeEntity` (id, systemId FK, label, color, order)
@@ -116,14 +116,14 @@
   - `RouteEntity` (id, sessionId FK, gradeId FK?, attempts, status, mediaUri?, notes?)
   - `HangboardTemplateEntity` (id, name, sets, hangSec, restSec, repRestSec)
   - Bei allen FKs `@ForeignKey` + `@Index` setzen.
-- [ ] **3.3** `data/db/Converters.kt` — TypeConverter für `RouteStatus` ↔ String (Datum bleibt `Long`, kein Converter nötig).
-- [ ] **3.4** `data/db/dao/` — je ein DAO mit den für die Screens nötigen Queries (`Flow<List<…>>` für reaktive Listen):
+- [x] **3.3** `data/db/Converters.kt` — TypeConverter für `RouteStatus` ↔ String (Datum bleibt `Long`, kein Converter nötig).
+- [x] **3.4** `data/db/dao/` — je ein DAO mit den für die Screens nötigen Queries (`Flow<List<…>>` für reaktive Listen):
   - `SessionDao` (insert, update/endSession, `getById`, `observeAll`, `observeActive` = `WHERE endedAt IS NULL`)
   - `RouteDao` (insert, update, `observeBySession`, `getById`, `observeAll` für Boulder-Übersicht)
   - `GymDao`, `GradeSystemDao`, `GradeDao`, `HangboardTemplateDao`.
-- [ ] **3.5** `data/db/BoulderBuddyDatabase.kt` — `@Database(entities=[...], version=1)`, `@TypeConverters`, abstrakte DAO-Getter.
-- [ ] **3.6** (Optional) `data/db/SeedData` — Beispiel-Gym + Gradsystem + eine Session, damit die App nicht leer wirkt (via `RoomDatabase.Callback` beim ersten Erstellen).
-- **✅ Done wenn:** Projekt kompiliert, Room generiert DAO-Impl ohne Fehler (`./gradlew assembleDebug`).
+- [x] **3.5** `data/db/BoulderBuddyDatabase.kt` — `@Database(entities=[...], version=1)`, `@TypeConverters`, abstrakte DAO-Getter.
+- [x] **3.6** (Optional) `data/db/SeedData.kt` — `RoomDatabase.Callback`, das in `onCreate` ein Beispiel-Gym + Gradsystem (5 Farbgrade) + eine aktive Session einfügt. Registrierung beim DB-Aufbau folgt in Phase 4 (Hilt).
+- **✅ Done:** `./gradlew assembleDebug` grün (2026-07-03). Room-Codegen (`kspDebugKotlin`) fehlerfrei, Schema nach `app/schemas/…/1.json` exportiert. **Abweichungen vom Plan:** (1) `GradeEntity.order` ist als Spalte `sortOrder` abgelegt (`@ColumnInfo`), da `order` ein SQL-Schlüsselwort ist. (2) FK-`onDelete`: GradeSystem/Grade/Route→Session = `CASCADE`, Route→Grade = `SET_NULL` (Route bleibt bei gelöschtem Grad erhalten, `gradeId` ist ohnehin nullable).
 
 ---
 
