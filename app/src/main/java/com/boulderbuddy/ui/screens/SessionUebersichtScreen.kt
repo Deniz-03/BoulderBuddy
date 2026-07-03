@@ -33,60 +33,24 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
-import com.boulderbuddy.ui.theme.routeColorForKey
-
-// Platzhalter-Datenklasse bis das echte Datenmodell aus Room kommt.
-// id: Platzhalter-Sessionschlüssel für die Navigation (später die echte Room-ID).
-// Konvention wie in SessionRoute: id 0 = laufende Session, sonst abgeschlossen.
-private data class SessionPreviewData(
-    val id: Int,
-    val gym: String,
-    val date: String,
-    val accentColorKey: String,
-    val badges: List<String>,
-    val isActive: Boolean = false,
-)
-
-// TODO: Diese Liste kommt später aus dem ViewModel (Datenbank via Room).
-//  Aktive Session steht immer zuerst, danach nach Datum absteigend sortiert.
-private val placeholderSessions = listOf(
-    SessionPreviewData(
-        id = 0,
-        gym = "Boulderhalle Nord",
-        date = "Heute · läuft gerade",
-        accentColorKey = "blue",
-        badges = listOf("5 Boulder"),
-        isActive = true,
-    ),
-    SessionPreviewData(
-        id = 1,
-        gym = "Boulderhalle Nord",
-        date = "12. Juni · Französisch",
-        accentColorKey = "green",
-        badges = listOf("8 Boulder", "3 Tops"),
-    ),
-    SessionPreviewData(
-        id = 2,
-        gym = "Kletterzentrum Süd",
-        date = "9. Juni · V-Scale",
-        accentColorKey = "pink",
-        badges = listOf("6 Boulder"),
-    ),
-)
+import androidx.compose.ui.graphics.Color
+import com.boulderbuddy.ui.viewmodel.SessionListItemUi
+import com.boulderbuddy.ui.viewmodel.SessionListUiState
 
 // Bottom-Nav Tab 2. Der Header trägt einen Dropdown, über den man zur Boulder-Übersicht
 // umschaltet (beide teilen sich diesen Tab). Das Umschalten ist eine Navigation zum
 // anderen Screen.
 @Composable
 fun SessionUebersichtScreen(
+    // Anzeige-Zustand aus dem SessionListViewModel (Phase 6.2).
+    state: SessionListUiState = SessionListUiState(),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onOpenSession: (Int) -> Unit = {},
     onCreateSession: () -> Unit = {},
     onOpenBoulderOverview: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
 ) {
-    // TODO: Sessionanzahl kommt aus der Datenbank via ViewModel
-    val sessionCount = placeholderSessions.size
+    val sessionCount = state.sessions.size
 
     BoulderBuddyScaffold(
         topBar = {
@@ -150,13 +114,12 @@ fun SessionUebersichtScreen(
                     }
                 }
 
-                // TODO: Sessions kommen aus der Datenbank via ViewModel.
-                //  accentColor wird aus dem gespeicherten Farbwert der Session gelesen.
-                items(placeholderSessions) { session ->
+                // Sessions aus dem ViewModel (Room). accentColor = häufigste Grade-Farbe.
+                items(state.sessions) { session ->
                     SessionListItem(
                         gym = session.gym,
                         date = session.date,
-                        accentColor = routeColorForKey(session.accentColorKey),
+                        accentColor = session.accentColor,
                         badges = session.badges,
                         isActive = session.isActive,
                         // Navigation zur Session (SessionRoute mit der jeweiligen sessionId).
@@ -187,6 +150,17 @@ fun SessionUebersichtScreen(
 @Composable
 private fun SessionUebersichtScreenPreview() {
     BoulderBuddyTheme {
-        SessionUebersichtScreen()
+        SessionUebersichtScreen(
+            state = SessionListUiState(
+                sessions = listOf(
+                    SessionListItemUi(0, "Boulderhalle Nord", "Heute · läuft gerade",
+                        Color(0xFF2F6FE0), listOf("5 Boulder"), isActive = true),
+                    SessionListItemUi(1, "Boulderhalle Nord", "12. Juni",
+                        Color(0xFF2E9E52), listOf("8 Boulder", "3 Tops"), isActive = false),
+                    SessionListItemUi(2, "Kletterzentrum Süd", "9. Juni",
+                        Color(0xFFD64541), listOf("6 Boulder"), isActive = false),
+                ),
+            ),
+        )
     }
 }

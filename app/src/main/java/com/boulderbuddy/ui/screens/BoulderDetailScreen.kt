@@ -29,7 +29,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
+import coil3.compose.AsyncImage
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.StatCard
@@ -39,74 +41,30 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
-import com.boulderbuddy.ui.theme.routeColorForKey
+import com.boulderbuddy.ui.viewmodel.BoulderDetailUiState
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Boulder-Detailansicht (#6 der Wireframes). Zeigt GENAU EINEN Boulder.
-//
-// Im Gegensatz zum Statistik-Screen braucht dieser Screen keine Aggregation,
-// sondern nur eine einzige Zeile aus der Boulder/Route-Tabelle:
-//   SELECT * FROM Route WHERE id = :boulderId
-//
-// Erreichbar von:
-//   - BoulderUebersichtScreen (RouteCard.onClick, übergibt boulderId)
-//   - SessionDetailScreen (RouteCard im aktiven Session-Grid)
-// Das Edit-Icon im Header führt zu RouteHinzufuegenScreen im Bearbeiten-Modus
-// (mit boulderId, vorbefüllt).
+// Boulder-Detailansicht (#6 der Wireframes). Zeigt GENAU EINEN Boulder, geladen
+// per boulderId aus dem BoulderDetailViewModel (Phase 6.7).
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Status (TOP/FLASH/PROJEKT) wird mit AlteSessionScreen geteilt (gleiches Package).
-
-// TODO(DB): Diese Felder kommen aus dem BoulderDetailViewModel/Room — eine Zeile
-//  pro boulderId. Die meisten existieren schon im Boulder-Modell (vgl.
-//  BoulderUebersichtScreen): grade, name, sektor, accentColorKey. Neu hier:
-//  versuche, status, rating, notiz, fotoUri.
-private data class BoulderDetailData(
-    val grade: String,
-    val name: String,
-    val sektor: String,
-    val accentColorKey: String,  // → routeColorForKey(); färbt alle Akzente
-    val versuche: Int,
-    val status: BoulderStatus,
-    val rating: Int,             // 1..5
-    val notiz: String?,          // nullable → Abschnitt entfällt, wenn leer
-    val fotoUri: String?,        // nullable → Platzhalter statt Foto
-)
-
-// TODO(DB): Platzhalter, bis ViewModel/Room existiert. Ersetzen durch
-//  boulderDetailViewModel.uiState (collectAsStateWithLifecycle) + Lade-/Fehler-
-//  Zustand (boulderId nicht gefunden → freundlicher Hinweis statt leerer Screen).
-private val placeholderBoulder = BoulderDetailData(
-    grade = "6b",
-    name = "Überhang-Killer",
-    sektor = "Sektor C",
-    accentColorKey = "green",
-    versuche = 4,
-    status = BoulderStatus.TOP,
-    rating = 4,
-    notiz = "Schlüsselstelle ist der dynamische Zug zum Henkel. " +
-        "Beim nächsten Mal mit mehr Spannung im Oberkörper probieren.",
-    fotoUri = null,
-)
 
 @Composable
 fun BoulderDetailScreen(
-    // TODO: Wird von der Navigation übergeben (RouteCard.onClick → boulderId).
-    //  Aktuell ungenutzt, weil noch Platzhalterdaten geladen werden.
-    @Suppress("UNUSED_PARAMETER") boulderId: Int = 0,
+    // Anzeige-Zustand aus dem BoulderDetailViewModel.
+    state: BoulderDetailUiState = BoulderDetailUiState(),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
     onEdit: () -> Unit = {},
 ) {
-    val boulder = placeholderBoulder
-    val accentColor = routeColorForKey(boulder.accentColorKey)
-    val (statusText, statusColor) = statusBadgeStyle(boulder.status)
+    val accentColor = state.accentColor
+    val (statusText, statusColor) = statusBadgeStyle(state.status)
+    val subtitle = if (state.sektor.isBlank()) null else "Sektor ${state.sektor}"
 
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = boulder.name,
-                subtitle = boulder.sektor,
+                title = state.name.ifBlank { "Boulder" },
+                subtitle = subtitle,
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -117,8 +75,8 @@ fun BoulderDetailScreen(
                     }
                 },
                 actions = {
-                    // TODO: Bearbeiten-Modus mit boulderId (Phase 6.5/6.7); aktuell öffnet
-                    //  onEdit den "Boulder hinzufügen"-Screen als Platzhalter.
+                    // TODO: Bearbeiten-Modus mit boulderId; aktuell öffnet onEdit den
+                    //  "Boulder hinzufügen"-Screen als Platzhalter.
                     IconButton(onClick = onEdit) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
@@ -130,6 +88,17 @@ fun BoulderDetailScreen(
             )
         },
         content = { _ ->
+            if (!state.loading && !state.exists) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Boulder nicht gefunden.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                return@BoulderBuddyScaffold
+            }
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
@@ -140,7 +109,7 @@ fun BoulderDetailScreen(
             ) {
                 // --- Foto mit farbigem Rahmen (Routenfarbe) ---
                 item {
-                    BoulderFoto(fotoUri = boulder.fotoUri, accentColor = accentColor)
+                    BoulderFoto(fotoUri = state.fotoUri, accentColor = accentColor)
                 }
 
                 // --- Grade-Badge + Status ---
@@ -150,14 +119,12 @@ fun BoulderDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // Grade-Badge in Routenfarbe.
-                        StatusBadge(text = boulder.grade, color = accentColor)
+                        StatusBadge(text = state.grade, color = accentColor)
                         StatusBadge(text = statusText, color = statusColor)
                     }
                 }
 
-                // --- Stats (Versuche, Bewertung) ---
-                // Status ist oben bereits als Badge dargestellt; hier die zählbaren Werte.
+                // --- Stats (Versuche, Sektor) ---
                 item {
                     Row(
                         modifier = Modifier
@@ -166,25 +133,20 @@ fun BoulderDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
                     ) {
                         StatCard(
-                            value = boulder.versuche.toString(),
+                            value = state.versuche.toString(),
                             label = "Versuche",
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
-                            value = "${boulder.rating}/5",
-                            label = "Bewertung",
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            value = state.sektor.ifBlank { "–" },
+                            label = "Sektor",
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
                 }
 
-                // --- Notiz ---
-                // Nur anzeigen, wenn eine Notiz hinterlegt ist.
-                boulder.notiz?.let { notiz ->
+                // --- Notiz (nur wenn vorhanden) ---
+                state.notiz?.takeIf { it.isNotBlank() }?.let { notiz ->
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                             SectionHeader(text = "Notiz")
@@ -202,6 +164,7 @@ fun BoulderDetailScreen(
 }
 
 // Foto-Bereich. Rahmen in der Routenfarbe (Wireframe: "Foto mit farbigem Rahmen").
+// Zeigt das gespeicherte Foto (Coil, Phase 6.11) oder einen Platzhalter, wenn keins da ist.
 @Composable
 private fun BoulderFoto(
     fotoUri: String?,
@@ -217,8 +180,6 @@ private fun BoulderFoto(
             .border(BorderStroke(Dimens.borderAccent, accentColor), MaterialTheme.shapes.medium),
         contentAlignment = Alignment.Center,
     ) {
-        // TODO(DB): fotoUri laden (z.B. Coil AsyncImage), sobald Fotos gespeichert
-        //  werden. Bis dahin Platzhalter-Icon für Boulder ohne Foto.
         if (fotoUri == null) {
             Icon(
                 imageVector = Icons.Outlined.Image,
@@ -226,12 +187,18 @@ private fun BoulderFoto(
                 tint = accentColor,
                 modifier = Modifier.size(Dimens.iconL),
             )
+        } else {
+            AsyncImage(
+                model = fotoUri,
+                contentDescription = "Boulder-Foto",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium),
+            )
         }
     }
 }
 
-// Text + Farbe des StatusBadge je Status. Das Symbol kommt aus dem (geteilten) Enum,
-// damit es nur eine Quelle gibt; hier nur Beschriftung + Routenfarbe ergänzt.
+// Text + Farbe des StatusBadge je Status.
 @Composable
 private fun statusBadgeStyle(status: BoulderStatus): Pair<String, Color> {
     val routes = BoulderBuddy.colors.routes
@@ -246,6 +213,19 @@ private fun statusBadgeStyle(status: BoulderStatus): Pair<String, Color> {
 @Composable
 private fun BoulderDetailScreenPreview() {
     BoulderBuddyTheme {
-        BoulderDetailScreen()
+        BoulderDetailScreen(
+            state = BoulderDetailUiState(
+                loading = false,
+                exists = true,
+                name = "Überhang-Killer",
+                sektor = "C",
+                grade = "6b",
+                accentColor = Color(0xFF2E9E52),
+                status = BoulderStatus.TOP,
+                versuche = 4,
+                notiz = "Schlüsselstelle ist der dynamische Zug zum Henkel.",
+                fotoUri = null,
+            ),
+        )
     }
 }

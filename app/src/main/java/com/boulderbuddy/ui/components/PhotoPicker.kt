@@ -22,7 +22,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
+import coil3.compose.AsyncImage
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -32,11 +34,13 @@ import com.boulderbuddy.ui.theme.Dimens
 // weil BorderStroke kein PathEffect unterstützt.
 // onClick gehört zum Kern-UI: der Slot IST der Auslöser für Kamera/Galerie —
 // das Öffnen des Pickers selbst bleibt Sache des Screens.
+// imageUri (Phase 6.11): ist es gesetzt, zeigt der Slot das gewählte Foto via Coil.
 @Composable
 fun PhotoPicker(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     label: String = "Foto aufnehmen",
+    imageUri: String? = null,
 ) {
     val borderColor = BoulderBuddy.colors.borderSubtle
     // 16:9 als natürliches Foto-Seitenverhältnis. aspectRatio statt fester Höhe,
@@ -67,23 +71,35 @@ fun PhotoPicker(
             },
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.PhotoCamera,
-                // null: der sichtbare Label-Text beschreibt die Aktion bereits,
-                // doppelte Ansage für TalkBack vermeiden.
-                contentDescription = null,
-                tint = borderColor,
-                modifier = Modifier.size(Dimens.iconL),
+        if (imageUri != null) {
+            AsyncImage(
+                model = imageUri,
+                contentDescription = "Gewähltes Foto",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(photoRatio)
+                    .clip(MaterialTheme.shapes.medium),
             )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = borderColor,
-            )
+        } else {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.PhotoCamera,
+                    // null: der sichtbare Label-Text beschreibt die Aktion bereits,
+                    // doppelte Ansage für TalkBack vermeiden.
+                    contentDescription = null,
+                    tint = borderColor,
+                    modifier = Modifier.size(Dimens.iconL),
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = borderColor,
+                )
+            }
         }
     }
 }

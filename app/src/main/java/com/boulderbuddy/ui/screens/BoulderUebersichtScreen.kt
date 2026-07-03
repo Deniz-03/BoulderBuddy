@@ -29,40 +29,45 @@ import com.boulderbuddy.ui.components.UebersichtTopBar
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
-import com.boulderbuddy.ui.theme.routeColorForKey
+import androidx.compose.ui.graphics.Color
+import com.boulderbuddy.ui.viewmodel.BoulderOverviewItemUi
+import com.boulderbuddy.ui.viewmodel.BoulderUebersichtUiState
 
 // Grade-Filter über der Liste. "Alle" ist der Default (kein Filter).
 // TODO: Bereiche/Optionen aus dem gewählten Grading-System ableiten (Room),
 //  statt sie hier fest zu verdrahten.
 private val filterOptions = listOf("Alle", "5a–6a", "6b–7a", "7b+")
 
-// Platzhalter-Daten eines Boulders. accentColorKey = gespeicherter Farbwert,
-// wird via routeColorForKey() in die Routenfarbe übersetzt.
-// id: Platzhalter-Boulderschlüssel für die Navigation (später die echte Room-ID).
-private data class BoulderData(
-    val id: Int,
-    val grade: String,
-    val name: String,
-    val sektor: String,
-    val accentColorKey: String,
-)
+// Übersetzt ein französisches Grade-Label ("6b") in einen vergleichbaren Wert (Zahl*10 + a/b/c).
+// Nicht-numerische Labels (z.B. Farbnamen "Grün") liefern null → passen nur zu "Alle".
+private fun gradeValue(label: String): Int? {
+    val match = Regex("""(\d+)\s*([abcABC])?""").find(label.trim()) ?: return null
+    val number = match.groupValues[1].toIntOrNull() ?: return null
+    val letter = when (match.groupValues[2].lowercase()) {
+        "a" -> 0; "b" -> 1; "c" -> 2; else -> 0
+    }
+    return number * 10 + letter
+}
 
-// TODO: Diese Liste kommt später aus dem ViewModel — ALLE Boulder, unabhängig von
-//  Sessions (Room: SELECT * FROM Route bzw. eigene Boulder-Tabelle).
-private val placeholderBoulders = listOf(
-    BoulderData(0, "5c", "Dachrinne", "Sektor A", "red"),
-    BoulderData(1, "6a", "Slab Talk", "Sektor A", "blue"),
-    BoulderData(2, "5a", "Warmup", "Sektor D", "yellow"),
-    BoulderData(3, "6b", "Überhang", "Sektor C", "green"),
-    BoulderData(4, "6c", "Dynamo", "Sektor B", "purple"),
-    BoulderData(5, "7a", "Crux", "Sektor B", "orange"),
-)
+// Ordnet einen Boulder dem gewählten Filter zu (Index in filterOptions).
+private fun matchesFilter(grade: String, filterIndex: Int): Boolean {
+    if (filterIndex == 0) return true
+    val value = gradeValue(grade) ?: return false
+    return when (filterIndex) {
+        1 -> value in 50..60   // 5a–6a
+        2 -> value in 61..70   // 6b–7a
+        3 -> value >= 71       // 7b+
+        else -> true
+    }
+}
 
 // Teilt sich mit der Session-Übersicht den Bottom-Nav-Tab 2; der Header-Dropdown schaltet
 // zwischen beiden um. Zusätzlich über die "Alle Boulder"-Schnellaktion auf dem Home-Screen
 // erreichbar (Navigation hierher).
 @Composable
 fun BoulderUebersichtScreen(
+    // Anzeige-Zustand aus dem BoulderUebersichtViewModel (Phase 6.6).
+    state: BoulderUebersichtUiState = BoulderUebersichtUiState(),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     // Kein onBack: die UebersichtTopBar trägt keinen Zurück-Pfeil — System-Back genügt.
     onOpenBoulder: (Int) -> Unit = {},
@@ -72,9 +77,7 @@ fun BoulderUebersichtScreen(
     // Aktiver Grade-Filter (Index in filterOptions). Start: "Alle".
     var selectedFilter by remember { mutableIntStateOf(0) }
 
-    // TODO: Liste nach selectedFilter filtern, sobald echte Grade-Daten vorliegen.
-    //  Vorerst werden immer alle Platzhalter-Boulder gezeigt.
-    val boulders = placeholderBoulders
+    val boulders = state.boulders.filter { matchesFilter(it.grade, selectedFilter) }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -140,8 +143,8 @@ fun BoulderUebersichtScreen(
                             RouteCard(
                                 grade = boulder.grade,
                                 name = boulder.name,
-                                meta = boulder.sektor,
-                                accentColor = routeColorForKey(boulder.accentColorKey),
+                                meta = boulder.meta,
+                                accentColor = boulder.accentColor,
                                 // Navigation zur Boulder-Detailansicht (mit boulderId).
                                 onClick = { onOpenBoulder(boulder.id) },
                                 modifier = Modifier.weight(1f),
@@ -162,6 +165,15 @@ fun BoulderUebersichtScreen(
 @Composable
 private fun BoulderUebersichtScreenPreview() {
     BoulderBuddyTheme {
-        BoulderUebersichtScreen()
+        BoulderUebersichtScreen(
+            state = BoulderUebersichtUiState(
+                boulders = listOf(
+                    BoulderOverviewItemUi(0, "5c", "Dachrinne", "Sektor A", Color(0xFFD64541)),
+                    BoulderOverviewItemUi(1, "6a", "Slab Talk", "Sektor A", Color(0xFF2F6FE0)),
+                    BoulderOverviewItemUi(2, "5a", "Warmup", "Sektor D", Color(0xFFF4C20D)),
+                    BoulderOverviewItemUi(3, "6b", "Überhang", "Sektor C", Color(0xFF2E9E52)),
+                ),
+            ),
+        )
     }
 }

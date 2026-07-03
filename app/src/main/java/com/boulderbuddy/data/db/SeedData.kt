@@ -45,5 +45,21 @@ object SeedData : RoomDatabase.Callback() {
             "INSERT INTO session (id, gymId, date, durationMin, notes, endedAt) " +
                 "VALUES (1, 1, ${System.currentTimeMillis()}, NULL, NULL, NULL)"
         )
+
+        // Ein paar Beispiel-Boulder in der aktiven Session, damit die App nach dem ersten
+        // Start nicht leer wirkt. status wird als Enum-Name gespeichert (siehe Converters).
+        // (routeId, gradeId, name, sektor, attempts, status)
+        val routes = listOf(
+            Triple("Dachrinne", "A", Triple(4, 1, "SENT")),
+            Triple("Slab Talk", "A", Triple(3, 3, "PROJECT")),
+            Triple("Warmup", "D", Triple(2, 1, "SENT")),
+        )
+        routes.forEachIndexed { index, (name, sektor, meta) ->
+            val (gradeId, attempts, status) = meta
+            db.execSQL(
+                "INSERT INTO route (id, sessionId, gradeId, name, sektor, attempts, status, mediaUri, notes) " +
+                    "VALUES (${index + 1}, 1, $gradeId, '$name', '$sektor', $attempts, '$status', NULL, NULL)"
+            )
+        }
     }
 }

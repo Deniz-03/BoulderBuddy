@@ -29,7 +29,9 @@ import com.boulderbuddy.data.db.entity.SessionEntity
         RouteEntity::class,
         HangboardTemplateEntity::class,
     ],
-    version = 1,
+    // v2 (Phase 6): RouteEntity um name + sektor erweitert (Boulder tragen im UI einen
+    // Namen; das "Boulder hinzufügen"-Formular erfasst beides).
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

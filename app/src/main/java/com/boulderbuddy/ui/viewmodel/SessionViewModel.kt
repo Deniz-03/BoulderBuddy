@@ -1,0 +1,133 @@
+package com.boulderbuddy.ui.viewmodel
+
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
+import com.boulderbuddy.data.db.entity.GradeEntity
+import com.boulderbuddy.data.db.entity.RouteEntity
+import com.boulderbuddy.data.db.entity.SessionEntity
+import com.boulderbuddy.data.repository.GradeRepository
+import com.boulderbuddy.data.repository.GymRepository
+import com.boulderbuddy.data.repository.RouteRepository
+import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.ui.model.formatDayMonth
+import com.boulderbuddy.ui.model.formatDurationShort
+import com.boulderbuddy.ui.model.istGetoppt
+import com.boulderbuddy.ui.model.parseHexColor
+import com.boulderbuddy.ui.model.toBoulderStatus
+import com.boulderbuddy.ui.navigation.Session
+import com.boulderbuddy.ui.screens.BoulderStatus
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+/** Eine Boulder-Kachel/-Zeile innerhalb einer Session (aktiv wie abgeschlossen). */
+data class SessionBoulderUi(
+    val id: Int,
+    val grade: String,
+    val name: String,
+    val accentColor: Color,
+    val status: BoulderStatus,
+    val versuche: Int,
+)
+
+/**
+ * Gemeinsamer Zustand für die beiden Session-Ansichten. [istAktiv] entscheidet,
+ * ob [com.boulderbuddy.ui.screens.SessionDetailScreen] (aktiv) oder
+ * [com.boulderbuddy.ui.screens.AlteSessionScreen] (read-only) gerendert wird.
+ */
+data class SessionUiState(
+    val loading: Boolean = true,
+    val exists: Boolean = false,
+    val istAktiv: Boolean = false,
+    val gym: String = "",
+    val dateSubtitle: String = "",
+    val startMillis: Long = 0L,
+    val durationText: String = "",
+    val topGrade: String = "–",
+    val notes: String = "",
+    val boulders: List<SessionBoulderUi> = emptyList(),
+)
+
+@HiltViewModel
+class SessionViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val sessionRepository: SessionRepository,
+    routeRepository: RouteRepository,
+    gymRepository: GymRepository,
+    gradeRepository: GradeRepository,
+) : ViewModel() {
+
+    // sessionId aus den type-safe Navigations-Argumenten der Session-Route.
+    private val sessionId: Int = savedStateHandle.toRoute<Session>().sessionId
+
+    val uiState: StateFlow<SessionUiState> = combine(
+        // observeAll (statt eines observeById) macht die Ansicht reaktiv auf endSession:
+        // sobald endedAt gesetzt wird, kippt istAktiv und der Dispatcher zeigt die Alt-Ansicht.
+        sessionRepository.observeAll(),
+        routeRepository.observeBySession(sessionId),
+        gymRepository.observeAll(),
+        gradeRepository.observeAllGrades(),
+    ) { sessions, routes, gyms, grades ->
+        val session = sessions.firstOrNull { it.id == sessionId }
+            ?: return@combine SessionUiState(loading = false, exists = false)
+        buildState(session, routes, grades.associateBy { it.id },
+            gymName = gyms.firstOrNull { it.id == session.gymId }?.name ?: "Unbekannte Halle")
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = SessionUiState(),
+    )
+
+    fun endSession() {
+        viewModelScope.launch { sessionRepository.endSession(sessionId) }
+    }
+
+    private fun buildState(
+        session: SessionEntity,
+        routes: List<RouteEntity>,
+        gradesById: Map<Int, GradeEntity>,
+        gymName: String,
+    ): SessionUiState {
+        val istAktiv = session.endedAt == null
+        val boulders = routes.map { route ->
+            val grade = route.gradeId?.let(gradesById::get)
+            SessionBoulderUi(
+                id = route.id,
+                grade = grade?.label ?: "—",
+                name = route.name.ifBlank { grade?.label ?: "Boulder" },
+                accentColor = grade?.color?.let(::parseHexColor) ?: Color(0xFF888888),
+                status = route.status.toBoulderStatus(route.attempts),
+                versuche = route.attempts,
+            )
+        }
+        val topGrade = routes
+            .filter { it.status.istGetoppt }
+            .mapNotNull { it.gradeId?.let(gradesById::get) }
+            .maxByOrNull { it.order }
+            ?.label
+            ?: "–"
+        val durationText = session.endedAt
+            ?.let { formatDurationShort(it - session.date) }
+            .orEmpty()
+
+        return SessionUiState(
+            loading = false,
+            exists = true,
+            istAktiv = istAktiv,
+            gym = gymName,
+            dateSubtitle = if (istAktiv) "" else "${formatDayMonth(session.date)} · abgeschlossen",
+            startMillis = session.date,
+            durationText = durationText,
+            topGrade = topGrade,
+            notes = session.notes.orEmpty(),
+            boulders = boulders,
+        )
+    }
+}

@@ -20,4 +20,11 @@ interface GradeDao {
 
     @Query("SELECT * FROM grade WHERE systemId = :systemId ORDER BY sortOrder")
     fun observeBySystem(systemId: Int): Flow<List<GradeEntity>>
+
+    /** Alle Grade (hallenübergreifend) — zum Auflösen von `Route.gradeId` in den ViewModels. */
+    @Query("SELECT * FROM grade")
+    fun observeAll(): Flow<List<GradeEntity>>
+
+    @Query("SELECT * FROM grade WHERE id = :gradeId")
+    suspend fun getById(gradeId: Int): GradeEntity?
 }

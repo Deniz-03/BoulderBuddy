@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,62 +37,37 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
-import com.boulderbuddy.ui.theme.routeColorForKey
+import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 import kotlinx.coroutines.delay
 
-// Platzhalter-Datenklasse bis das echte Datenmodell aus Room kommt.
-// status: "top" | "flash" | "projekt" — steuert das Status-Icon der RouteCard.
-// TODO: Vor dem Room-Anschluss mit Route.status (OPEN/SENT/PROJECT/SKIP) abgleichen
-//  und das Status-Vokabular screen-übergreifend vereinheitlichen (siehe AlteSessionScreen).
-private data class BoulderPreviewData(
-    val id: Int,
-    val grade: String,
-    val name: String,
-    val accentColorKey: String,
-    val versuche: Int,
-    val status: String,
-)
-
-// TODO: Diese Liste kommt später aus dem ViewModel (Boulder dieser Session via Room).
-private val placeholderBoulders = listOf(
-    BoulderPreviewData(id = 0, grade = "5c", name = "Dachrinne", accentColorKey = "red", versuche = 1, status = "top"),
-    BoulderPreviewData(id = 1, grade = "6a", name = "Slab Talk", accentColorKey = "blue", versuche = 3, status = "projekt"),
-    BoulderPreviewData(id = 2, grade = "6b", name = "Überhang", accentColorKey = "green", versuche = 1, status = "top"),
-)
-
-// Status → Symbol fürs statusIcon-Slot der RouteCard.
-private fun statusSymbol(status: String): String = when (status) {
-    "top" -> "✓"
-    "flash" -> "🔥"
-    "projekt" -> "⏳"
-    else -> ""
-}
-
-// Ausgelagert für bessere Lesbarkeit
+// Status → Farbe fürs Status-Symbol der RouteCard. Top grün, Flash orange, Projekt dezent.
 @Composable
-private fun statusColorFor(status: String): Color = when (status) {
-    "top" -> BoulderBuddy.colors.routes.green
-    "flash" -> BoulderBuddy.colors.routes.orange
-    else -> BoulderBuddy.colors.textTertiary
+private fun statusColorFor(status: BoulderStatus): Color = when (status) {
+    BoulderStatus.TOP -> BoulderBuddy.colors.routes.green
+    BoulderStatus.FLASH -> BoulderBuddy.colors.routes.orange
+    BoulderStatus.PROJEKT -> BoulderBuddy.colors.textTertiary
 }
 
 @Composable
 fun SessionDetailScreen(
-    // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
-    // onAddRoute ist von SessionRoute bereits an die sessionId dieser Session gebunden.
+    // Anzeige-Daten der aktiven Session (Phase 6.4, aus SessionViewModel).
+    gym: String = "Boulderhalle Nord",
+    startMillis: Long = System.currentTimeMillis(),
+    topGrade: String = "–",
+    boulders: List<SessionBoulderUi> = emptyList(),
+    // Navigations-Callbacks (Phase 2). onAddRoute ist von SessionRoute bereits an die
+    // sessionId dieser Session gebunden.
     onBack: () -> Unit = {},
     onOpenBoulder: (Int) -> Unit = {},
     onAddRoute: () -> Unit = {},
+    onEndSession: () -> Unit = {},
 ) {
-    // Verstrichene Session-Dauer als "HH:mm" für den Header ("● Läuft · 01:12 h").
-    // TODO: sessionStartMillis kommt später aus der DB (Startzeitpunkt der aktiven Session).
-    val sessionStartMillis = remember { System.currentTimeMillis() }
+    // Verstrichene Session-Dauer als "HH:mm" für den Header ("● Läuft · 01:12 h"),
+    // gerechnet ab dem echten Startzeitpunkt der Session.
     var elapsed by remember { mutableStateOf("00:00") }
-
-    // Aktualisiert die Anzeige jede Sekunde: Differenz zwischen jetzt und dem Start.
-    LaunchedEffect(Unit) {
+    LaunchedEffect(startMillis) {
         while (true) {
-            val totalSeconds = (System.currentTimeMillis() - sessionStartMillis) / 1000
+            val totalSeconds = ((System.currentTimeMillis() - startMillis) / 1000).coerceAtLeast(0)
             val hours = totalSeconds / 3600
             val minutes = (totalSeconds % 3600) / 60
             elapsed = "%02d:%02d".format(hours, minutes)
@@ -99,17 +75,31 @@ fun SessionDetailScreen(
         }
     }
 
+    // Stats aus den Bouldern ableiten: Tops = geschaffte, Versuche = Summe.
+    val tops = boulders.count { it.status.getoppt }
+    val versuche = boulders.sumOf { it.versuche }
+
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                // TODO: Halle kommt aus der aktiven Session (ViewModel/Room).
-                title = "Boulderhalle Nord",
+                title = gym,
                 subtitle = "● Läuft · $elapsed h",
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
+                            tint = M3OnPrimary,
+                        )
+                    }
+                },
+                actions = {
+                    // Session beenden: setzt endedAt (SessionViewModel.endSession). Danach
+                    // kippt der Dispatcher automatisch in die abgeschlossene Ansicht.
+                    IconButton(onClick = onEndSession) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = "Session beenden",
                             tint = M3OnPrimary,
                         )
                     }
@@ -127,9 +117,6 @@ fun SessionDetailScreen(
             ) {
                 // --- Stats ---
                 item {
-                    // TODO: Werte kommen aus der aktiven Session (Tops, Versuche, höchster Grad).
-                    // height(IntrinsicSize.Min) + fillMaxHeight() → alle drei Karten gleich hoch,
-                    // auch wenn ein Label umbricht.
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -137,25 +124,19 @@ fun SessionDetailScreen(
                         horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
                     ) {
                         StatCard(
-                            value = "5",
+                            value = tops.toString(),
                             label = "Tops",
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
-                            value = "8",
+                            value = versuche.toString(),
                             label = "Versuche",
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
-                            value = "6b",
+                            value = topGrade,
                             label = "Top-Grade",
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
                 }
@@ -165,9 +146,8 @@ fun SessionDetailScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                         SectionHeader(text = "Boulder dieser Session")
 
-                        // null = Platzhalter für die AddRouteCard, die immer als letzte
-                        // Kachel ans Ende des Grids gehängt wird.
-                        val cells: List<BoulderPreviewData?> = placeholderBoulders + null
+                        // null = Platzhalter für die AddRouteCard, immer als letzte Kachel.
+                        val cells: List<SessionBoulderUi?> = boulders + null
                         cells.chunked(2).forEach { rowCells ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -184,10 +164,10 @@ fun SessionDetailScreen(
                                             grade = cell.grade,
                                             name = cell.name,
                                             meta = "${cell.versuche} Vers.",
-                                            accentColor = routeColorForKey(cell.accentColorKey),
+                                            accentColor = cell.accentColor,
                                             statusIcon = {
                                                 Text(
-                                                    text = statusSymbol(cell.status),
+                                                    text = cell.status.symbol,
                                                     style = MaterialTheme.typography.labelMedium,
                                                     color = statusColorFor(cell.status),
                                                 )
@@ -214,6 +194,14 @@ fun SessionDetailScreen(
 @Composable
 private fun SessionDetailScreenPreview() {
     BoulderBuddyTheme {
-        SessionDetailScreen()
+        val routes = BoulderBuddy.colors.routes
+        SessionDetailScreen(
+            topGrade = "6b",
+            boulders = listOf(
+                SessionBoulderUi(0, "5c", "Dachrinne", routes.red, BoulderStatus.FLASH, 1),
+                SessionBoulderUi(1, "6a", "Slab Talk", routes.blue, BoulderStatus.PROJEKT, 3),
+                SessionBoulderUi(2, "6b", "Überhang", routes.green, BoulderStatus.TOP, 2),
+            ),
+        )
     }
 }
