@@ -44,6 +44,7 @@ import kotlinx.coroutines.delay
 // TODO: Vor dem Room-Anschluss mit Route.status (OPEN/SENT/PROJECT/SKIP) abgleichen
 //  und das Status-Vokabular screen-übergreifend vereinheitlichen (siehe AlteSessionScreen).
 private data class BoulderPreviewData(
+    val id: Int,
     val grade: String,
     val name: String,
     val accentColorKey: String,
@@ -53,9 +54,9 @@ private data class BoulderPreviewData(
 
 // TODO: Diese Liste kommt später aus dem ViewModel (Boulder dieser Session via Room).
 private val placeholderBoulders = listOf(
-    BoulderPreviewData(grade = "5c", name = "Dachrinne", accentColorKey = "red", versuche = 1, status = "top"),
-    BoulderPreviewData(grade = "6a", name = "Slab Talk", accentColorKey = "blue", versuche = 3, status = "projekt"),
-    BoulderPreviewData(grade = "6b", name = "Überhang", accentColorKey = "green", versuche = 1, status = "top"),
+    BoulderPreviewData(id = 0, grade = "5c", name = "Dachrinne", accentColorKey = "red", versuche = 1, status = "top"),
+    BoulderPreviewData(id = 1, grade = "6a", name = "Slab Talk", accentColorKey = "blue", versuche = 3, status = "projekt"),
+    BoulderPreviewData(id = 2, grade = "6b", name = "Überhang", accentColorKey = "green", versuche = 1, status = "top"),
 )
 
 // Status → Symbol fürs statusIcon-Slot der RouteCard.
@@ -75,7 +76,13 @@ private fun statusColorFor(status: String): Color = when (status) {
 }
 
 @Composable
-fun SessionDetailScreen() {
+fun SessionDetailScreen(
+    // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
+    // onAddRoute ist von SessionRoute bereits an die sessionId dieser Session gebunden.
+    onBack: () -> Unit = {},
+    onOpenBoulder: (Int) -> Unit = {},
+    onAddRoute: () -> Unit = {},
+) {
     // Verstrichene Session-Dauer als "HH:mm" für den Header ("● Läuft · 01:12 h").
     // TODO: sessionStartMillis kommt später aus der DB (Startzeitpunkt der aktiven Session).
     val sessionStartMillis = remember { System.currentTimeMillis() }
@@ -99,7 +106,7 @@ fun SessionDetailScreen() {
                 title = "Boulderhalle Nord",
                 subtitle = "● Läuft · $elapsed h",
                 navIcon = {
-                    IconButton(onClick = { /* TODO: Navigation zurück zur Session-Übersicht */ }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
@@ -169,7 +176,7 @@ fun SessionDetailScreen() {
                                 rowCells.forEach { cell ->
                                     if (cell == null) {
                                         AddRouteCard(
-                                            onClick = { /* TODO: Navigation zu "Route hinzufügen" */ },
+                                            onClick = onAddRoute,
                                             modifier = Modifier.weight(1f),
                                         )
                                     } else {
@@ -185,6 +192,7 @@ fun SessionDetailScreen() {
                                                     color = statusColorFor(cell.status),
                                                 )
                                             },
+                                            onClick = { onOpenBoulder(cell.id) },
                                             modifier = Modifier.weight(1f),
                                         )
                                     }

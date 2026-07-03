@@ -88,18 +88,18 @@
 > Muster: Screen bekommt Lambda-Parameter (`onOpenX: () -> Unit`), NavHost übergibt `{ navController.navigate(...) }`.
 > **Bottom-Nav aus den 4 Tab-Screens entfernen** (wird jetzt vom Scaffold in Phase 1.3 gestellt).
 
-- [ ] **2.1** `HomeScreen` — Params: `onOpenSettings`, `onStartSession`, `onAddBoulderToActiveSession`, `onOpenAllBoulders`, `onOpenLastSession(sessionId)`. Eigene `BottomNav` entfernen.
-- [ ] **2.2** `SessionUebersichtScreen` — `onOpenSession(sessionId)`, `onCreateSession`. BottomNav entfernen.
-- [ ] **2.3** `StatistikScreen` — (ggf. nur BottomNav entfernen, falls keine Push-Ziele).
-- [ ] **2.4** `HangboardTimerScreen` — BottomNav entfernen, ggf. `onOpenSettings`.
-- [ ] **2.5** `EinstellungenScreen` — `onBack`.
-- [ ] **2.6** `SessionErstellenScreen` — `onBack`, `onSessionCreated(sessionId)` (nach dem Anlegen zur Session navigieren).
-- [ ] **2.7** `BoulderUebersichtScreen` — `onBack`, `onOpenBoulder(boulderId)`.
-- [ ] **2.8** `RouteHinzufuegenScreen` — `onBack`, `onSaved`. **Offene Frage klären:** braucht `sessionId` als Argument (Boulder wird zu einer Session gespeichert) → in Destinations als `RouteHinzufuegen(sessionId)`.
-- [ ] **2.9** `BoulderDetailScreen` — `onBack`, `onEdit`.
-- [ ] **2.10** `SessionDetailScreen` / `AlteSessionScreen` — `onBack`, `onOpenBoulder(boulderId)`, `onAddRoute(sessionId)` (nur aktive Session).
-- [ ] **2.11** NavHost (`AppNavigation`) — alle Callbacks verdrahten.
-- **✅ Done wenn:** Man kann per Klick durch alle Screens navigieren (mit Platzhalter-Daten), Back funktioniert überall.
+- [x] **2.1** `HomeScreen` — Params `onOpenSettings`, `onStartSession`, `onAddBoulderToActiveSession`, `onOpenAllBoulders`, `onOpenLastSession`. Alle als `() -> Unit` (Home kennt vor dem ViewModel keine echten IDs → die konkrete Ziel-`sessionId` liefert der NavHost). Eigene `BottomNav` war bereits in Phase 1.3 entfernt.
+- [x] **2.2** `SessionUebersichtScreen` — `onOpenSession(sessionId)`, `onOpenBoulderOverview` (Dropdown→Boulder), `onOpenSettings`. Platzhalter-Sessions haben jetzt `id` (Konvention: id 0 = aktiv). **`onCreateSession` weggelassen:** der Screen hat keinen Erstellen-Button — Session-Erstellung läuft über Home „Session starten".
+- [x] **2.3** `StatistikScreen` — nur `onOpenSettings` (keine weiteren Push-Ziele).
+- [x] **2.4** `HangboardTimerScreen` — keine Screen-Änderung nötig (BottomNav schon in 1.3 weg, `onSettings`-Param existiert); im NavHost `onSettings` → Einstellungen verdrahtet.
+- [x] **2.5** `EinstellungenScreen` — `onBack`.
+- [x] **2.6** `SessionErstellenScreen` — `onBack`, `onSessionCreated(sessionId)`; Button ruft `onSessionCreated(0)` (Platzhalter-ID der neuen aktiven Session), NavHost nimmt das Formular per `popUpTo(inclusive)` vom Back-Stack.
+- [x] **2.7** `BoulderUebersichtScreen` — `onOpenBoulder(boulderId)`, `onOpenSessionOverview` (Dropdown→Sessions), `onOpenSettings`. **Kein `onBack`** (die `UebersichtTopBar` hat keinen Zurück-Pfeil → System-Back genügt). **Übrig gebliebene, funktionslose `BottomNav` entfernt** (Push-Ziel, kein Top-Level-Tab). Platzhalter-Boulder haben jetzt `id`.
+- [x] **2.8** `RouteHinzufuegenScreen` — `onBack`, `onSaved`, plus `sessionId: Int?` aus der Route (`RouteHinzufuegen(sessionId)`). Offene Frage (Boulder ohne aktive Session?) bleibt via nullable `sessionId` bewusst offen.
+- [x] **2.9** `BoulderDetailScreen` — `onBack`, `onEdit` (öffnet vorerst „Boulder hinzufügen" als Platzhalter, Edit-Modus folgt Phase 6.5/6.7).
+- [x] **2.10** `SessionDetailScreen` / `AlteSessionScreen` — `onBack`, `onOpenBoulder(boulderId)`, `onAddRoute` (nur aktiv, von `SessionRoute` an die `sessionId` gebunden). `SessionRoute` reicht die Callbacks durch. **`BoulderListRow` um optionales `onClick` erweitert** (analog `RouteCard`), damit auch read-only-Boulder öffenbar sind.
+- [x] **2.11** NavHost (`AppNavigation`) — alle Callbacks verdrahtet; Tab-Wechsel via `navigateToTab` (kein Stacking), Push-Ziele via `navigate`, Zurück via `popBackStack`.
+- **✅ Done:** `./gradlew assembleDebug` grün (2026-07-03). Klick-Navigation durch alle Screens (Platzhalter-Daten), Back überall. Platzhalter-ID-Konvention: `sessionId` 0 = aktive Session (→ `SessionDetailScreen`), sonst abgeschlossen (→ `AlteSessionScreen`).
 
 ---
 

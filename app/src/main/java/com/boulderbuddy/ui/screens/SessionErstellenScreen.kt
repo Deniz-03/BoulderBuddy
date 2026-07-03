@@ -35,7 +35,11 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 
 
 @Composable
-fun SessionErstellenScreen() {
+fun SessionErstellenScreen(
+    // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
+    onBack: () -> Unit = {},
+    onSessionCreated: (Int) -> Unit = {},
+) {
     var ort by remember { mutableStateOf("") }
     var gradingIndex by remember { mutableIntStateOf(0) }
     var notiz by remember { mutableStateOf("") }
@@ -45,7 +49,7 @@ fun SessionErstellenScreen() {
             TopBar(
                 title = "Neue Session",
                 navIcon = {
-                    IconButton(onClick = { /* TODO: Navigation zurück zum HomeScreen */ }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
@@ -123,8 +127,10 @@ fun SessionErstellenScreen() {
                     text = "Session starten",
                     icon = Icons.Filled.PlayArrow,
                     onClick = {
-                        // TODO: Session aus ort/gradingIndex/notiz in Room speichern,
-                        //  als aktiv markieren, dann zur Session-Detail-Ansicht navigieren.
+                        // TODO: Session aus ort/gradingIndex/notiz in Room speichern und die
+                        //  echte, neu vergebene sessionId liefern (Phase 6.3). Bis dahin liefert
+                        //  der NavHost eine Platzhalter-ID für die aktive Session.
+                        onSessionCreated(0)
                     },
                 )
             }

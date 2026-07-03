@@ -105,7 +105,10 @@ private val placeholderActivity = listOf(
 )
 
 @Composable
-fun StatistikScreen() {
+fun StatistikScreen(
+    // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
+    onOpenSettings: () -> Unit = {},
+) {
     // TODO(DB): Statt der drei placeholder-* Konstanten hier den StatistikUiState
     //  aus dem ViewModel lesen:
     //    val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -120,7 +123,7 @@ fun StatistikScreen() {
             TopBar(
                 title = "Statistik",
                 actions = {
-                    IconButton(onClick = { /* TODO: Navigation zu Einstellungen */ }) {
+                    IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",

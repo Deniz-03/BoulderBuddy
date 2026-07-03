@@ -22,8 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.boulderbuddy.ui.components.BottomNav
-import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.FilterChip
 import com.boulderbuddy.ui.components.RouteCard
@@ -40,7 +38,9 @@ private val filterOptions = listOf("Alle", "5a–6a", "6b–7a", "7b+")
 
 // Platzhalter-Daten eines Boulders. accentColorKey = gespeicherter Farbwert,
 // wird via routeColorForKey() in die Routenfarbe übersetzt.
+// id: Platzhalter-Boulderschlüssel für die Navigation (später die echte Room-ID).
 private data class BoulderData(
+    val id: Int,
     val grade: String,
     val name: String,
     val sektor: String,
@@ -50,19 +50,25 @@ private data class BoulderData(
 // TODO: Diese Liste kommt später aus dem ViewModel — ALLE Boulder, unabhängig von
 //  Sessions (Room: SELECT * FROM Route bzw. eigene Boulder-Tabelle).
 private val placeholderBoulders = listOf(
-    BoulderData("5c", "Dachrinne", "Sektor A", "red"),
-    BoulderData("6a", "Slab Talk", "Sektor A", "blue"),
-    BoulderData("5a", "Warmup", "Sektor D", "yellow"),
-    BoulderData("6b", "Überhang", "Sektor C", "green"),
-    BoulderData("6c", "Dynamo", "Sektor B", "purple"),
-    BoulderData("7a", "Crux", "Sektor B", "orange"),
+    BoulderData(0, "5c", "Dachrinne", "Sektor A", "red"),
+    BoulderData(1, "6a", "Slab Talk", "Sektor A", "blue"),
+    BoulderData(2, "5a", "Warmup", "Sektor D", "yellow"),
+    BoulderData(3, "6b", "Überhang", "Sektor C", "green"),
+    BoulderData(4, "6c", "Dynamo", "Sektor B", "purple"),
+    BoulderData(5, "7a", "Crux", "Sektor B", "orange"),
 )
 
 // Teilt sich mit der Session-Übersicht den Bottom-Nav-Tab 2; der Header-Dropdown schaltet
 // zwischen beiden um. Zusätzlich über die "Alle Boulder"-Schnellaktion auf dem Home-Screen
 // erreichbar (Navigation hierher).
 @Composable
-fun BoulderUebersichtScreen() {
+fun BoulderUebersichtScreen(
+    // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
+    // Kein onBack: die UebersichtTopBar trägt keinen Zurück-Pfeil — System-Back genügt.
+    onOpenBoulder: (Int) -> Unit = {},
+    onOpenSessionOverview: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+) {
     // Aktiver Grade-Filter (Index in filterOptions). Start: "Alle".
     var selectedFilter by remember { mutableIntStateOf(0) }
 
@@ -74,8 +80,8 @@ fun BoulderUebersichtScreen() {
         topBar = {
             UebersichtTopBar(
                 current = "Boulder",
-                // TODO: Navigation zur Session-Übersicht (SessionUebersichtScreen).
-                onSelectSessions = { /* TODO: zur Session-Übersicht wechseln */ },
+                // Navigation zur Session-Übersicht (SessionUebersichtScreen).
+                onSelectSessions = onOpenSessionOverview,
                 onSelectBoulder = { /* bereits hier — Dropdown schließt nur */ },
                 actions = {
                     IconButton(onClick = { /* TODO: Boulder-Suche öffnen */ }) {
@@ -85,7 +91,7 @@ fun BoulderUebersichtScreen() {
                             tint = M3OnPrimary,
                         )
                     }
-                    IconButton(onClick = { /* TODO: Navigation zu Einstellungen */ }) {
+                    IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
@@ -95,12 +101,8 @@ fun BoulderUebersichtScreen() {
                 },
             )
         },
-        bottomBar = {
-            BottomNav(
-                selectedTab = BottomNavTab.Sessions,
-                onTabSelect = { /* TODO: Navigation zwischen Tabs */ },
-            )
-        },
+        // Keine BottomNav: Dies ist ein Push-Ziel (kein Top-Level-Tab). Die gemeinsame
+        // BottomNav stellt das Navigations-Gerüst nur auf den 4 Tab-Zielen (Phase 1.3).
         content = { _ ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -140,8 +142,8 @@ fun BoulderUebersichtScreen() {
                                 name = boulder.name,
                                 meta = boulder.sektor,
                                 accentColor = routeColorForKey(boulder.accentColorKey),
-                                // TODO: Navigation zur Boulder-Detailansicht (mit boulderId).
-                                onClick = { /* TODO: Boulder-Detail öffnen */ },
+                                // Navigation zur Boulder-Detailansicht (mit boulderId).
+                                onClick = { onOpenBoulder(boulder.id) },
                                 modifier = Modifier.weight(1f),
                             )
                         }

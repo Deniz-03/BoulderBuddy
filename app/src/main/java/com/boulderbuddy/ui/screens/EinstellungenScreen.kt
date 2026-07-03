@@ -54,7 +54,10 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 private val gradingOptions = listOf("Französisch", "V-Scale", "Farbsystem", "Eigenes…")
 
 @Composable
-fun EinstellungenScreen() {
+fun EinstellungenScreen(
+    // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
+    onBack: () -> Unit = {},
+) {
     // Lokaler UI-State. Hält die Werte vorerst nur in der Komposition.
     // TODO: aus den App-Einstellungen lesen/schreiben (DataStore via ViewModel).
     var standardGradingIndex by remember { mutableIntStateOf(0) }
@@ -70,7 +73,7 @@ fun EinstellungenScreen() {
             TopBar(
                 title = "Einstellungen",
                 navIcon = {
-                    IconButton(onClick = { /* TODO: Navigation zurück zum Screen von wo die Einstellungen aufgerufen wurden */ }) {
+                    IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",

@@ -25,15 +25,31 @@ private fun ladeSessionMeta(sessionId: Int): SessionMeta =
     }
 
 // Routing-/Dispatcher-Ebene für die beiden Session-Ansichten — KEIN sichtbarer Screen,
-// rendert nichts Eigenes. Der Aufrufer (später die Navigation) übergibt nur die
-// sessionId; welches UI geladen wird, erkennt das System selbst am Aktiv-Marker.
+// rendert nichts Eigenes. Der Aufrufer (die Navigation) übergibt nur die sessionId und
+// die Navigations-Callbacks; welches UI geladen wird, erkennt das System selbst am
+// Aktiv-Marker. onAddRoute wird hier an die sessionId gebunden, bevor es (nur an die
+// aktive Ansicht) weitergereicht wird.
 @Composable
-fun SessionRoute(sessionId: Int) {
+fun SessionRoute(
+    sessionId: Int,
+    onBack: () -> Unit = {},
+    onOpenBoulder: (Int) -> Unit = {},
+    onAddRoute: (Int) -> Unit = {},
+) {
     val session = ladeSessionMeta(sessionId)
     if (session.istAktiv) {
-        SessionDetailScreen()   // aktiv: editierbar, Live-Timer, Add-Button
+        // aktiv: editierbar, Live-Timer, Add-Button
+        SessionDetailScreen(
+            onBack = onBack,
+            onOpenBoulder = onOpenBoulder,
+            onAddRoute = { onAddRoute(sessionId) },
+        )
     } else {
-        AlteSessionScreen()     // abgeschlossen: read-only
+        // abgeschlossen: read-only
+        AlteSessionScreen(
+            onBack = onBack,
+            onOpenBoulder = onOpenBoulder,
+        )
     }
 }
 

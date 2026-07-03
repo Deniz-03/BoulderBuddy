@@ -1,5 +1,8 @@
 package com.boulderbuddy.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,36 +60,118 @@ fun AppNavigation() {
             navController = navController,
             startDestination = Home,
             modifier = Modifier.weight(1f),
+            // Kurzer Crossfade (~120 ms): das Default-~700-ms-Fade des NavHost wirkt träge,
+            // ein harter Instant-Wechsel lässt kurz alte Komponenten aufblitzen. Der kurze
+            // Fade blendet die alte Ansicht sauber aus. Gilt für Push- UND Tab-Wechsel.
+            enterTransition = { fadeIn(tween(120)) },
+            exitTransition = { fadeOut(tween(120)) },
+            popEnterTransition = { fadeIn(tween(120)) },
+            popExitTransition = { fadeOut(tween(120)) },
         ) {
             // --- Bottom-Nav-Tabs -------------------------------------------------
-            composable<Home> { HomeScreen() }
-            composable<Sessions> { SessionUebersichtScreen() }
-            composable<Stats> { StatistikScreen() }
+            composable<Home> {
+                HomeScreen(
+                    onOpenSettings = { navController.navigate(Einstellungen) },
+                    onStartSession = { navController.navigate(SessionErstellen) },
+                    // Platzhalter: aktive Session hat (per SessionRoute-Konvention) id 0,
+                    // bis das ViewModel die echte aktive sessionId liefert (Phase 6.1).
+                    onAddBoulderToActiveSession = {
+                        navController.navigate(RouteHinzufuegen(sessionId = 0))
+                    },
+                    onOpenAllBoulders = { navController.navigate(BoulderUebersicht) },
+                    // Platzhalter: letzte Session ist eine abgeschlossene Beispiel-Session (id 1).
+                    onOpenLastSession = { navController.navigate(Session(sessionId = 1)) },
+                )
+            }
+            composable<Sessions> {
+                SessionUebersichtScreen(
+                    onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
+                    onCreateSession = { navController.navigate(SessionErstellen) },
+                    // Umschalten auf die Boulder-Ansicht desselben Tabs (Variante A):
+                    // ersetzt Sessions, statt es zu stapeln → Zurück-Umschalten bleibt möglich.
+                    onOpenBoulderOverview = {
+                        navController.navigate(BoulderUebersicht) {
+                            popUpTo(Sessions) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onOpenSettings = { navController.navigate(Einstellungen) },
+                )
+            }
+            composable<Stats> {
+                StatistikScreen(
+                    onOpenSettings = { navController.navigate(Einstellungen) },
+                )
+            }
             composable<Timer> {
                 HangboardTimerScreen(
                     // Platzhalter-State, bis das HangboardTimerViewModel steht (Phase 6.9).
                     state = placeholderTimerState,
                     onPlayPause = { /* TODO: Phase 6.9 */ },
                     onReset = { /* TODO: Phase 6.9 */ },
-                    onSettings = { /* TODO: Phase 2 – Navigation */ },
+                    onSettings = { navController.navigate(Einstellungen) },
                 )
             }
 
             // --- Push-Ziele ohne Argument ---------------------------------------
-            composable<Einstellungen> { EinstellungenScreen() }
-            composable<SessionErstellen> { SessionErstellenScreen() }
-            composable<BoulderUebersicht> { BoulderUebersichtScreen() }
-            composable<RouteHinzufuegen> { RouteHinzufuegenScreen() }
+            composable<Einstellungen> {
+                EinstellungenScreen(onBack = { navController.popBackStack() })
+            }
+            composable<SessionErstellen> {
+                SessionErstellenScreen(
+                    onBack = { navController.popBackStack() },
+                    // Nach dem Anlegen zur (aktiven) Session; das Erstellen-Formular wird dabei
+                    // vom Back-Stack genommen, damit Back von der Session direkt nach Home führt.
+                    onSessionCreated = { newSessionId ->
+                        navController.navigate(Session(newSessionId)) {
+                            popUpTo(SessionErstellen) { inclusive = true }
+                        }
+                    },
+                )
+            }
+            composable<BoulderUebersicht> {
+                BoulderUebersichtScreen(
+                    onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
+                    // Dropdown "Sessions": zurück auf die Sessions-Ansicht desselben Tabs
+                    // (Variante A); ersetzt Boulder, statt es zu stapeln.
+                    onOpenSessionOverview = {
+                        navController.navigate(Sessions) {
+                            popUpTo(BoulderUebersicht) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onOpenSettings = { navController.navigate(Einstellungen) },
+                )
+            }
+            composable<RouteHinzufuegen> { entry ->
+                val args = entry.toRoute<RouteHinzufuegen>()
+                RouteHinzufuegenScreen(
+                    sessionId = args.sessionId,
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                )
+            }
 
             // --- Push-Ziele mit Argument (typsicher aus toRoute()) --------------
             composable<BoulderDetail> { entry ->
                 val args = entry.toRoute<BoulderDetail>()
-                BoulderDetailScreen(boulderId = args.boulderId)
+                BoulderDetailScreen(
+                    boulderId = args.boulderId,
+                    onBack = { navController.popBackStack() },
+                    // Platzhalter: Bearbeiten öffnet vorerst "Boulder hinzufügen" (ohne Vorbefüllung),
+                    // bis der Edit-Modus mit boulderId steht (Phase 6.5/6.7).
+                    onEdit = { navController.navigate(RouteHinzufuegen()) },
+                )
             }
             composable<Session> { entry ->
                 val args = entry.toRoute<Session>()
                 // Dispatcher: entscheidet selbst aktiv (SessionDetail) vs. beendet (AlteSession).
-                SessionRoute(sessionId = args.sessionId)
+                SessionRoute(
+                    sessionId = args.sessionId,
+                    onBack = { navController.popBackStack() },
+                    onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
+                    onAddRoute = { sessionId -> navController.navigate(RouteHinzufuegen(sessionId)) },
+                )
             }
         }
 
@@ -104,10 +189,13 @@ fun AppNavigation() {
 
 // Ermittelt den aktiven BottomNavTab für das aktuelle Ziel — oder null, wenn das
 // Ziel kein Top-Level-Tab ist (Push-Screens zeigen keine BottomNav).
-private fun NavDestination?.toBottomNavTabOrNull(): BottomNavTab? =
-    this?.let { dest ->
-        topLevelDestinations.firstOrNull { dest.hasRoute(it.route::class) }?.tab
-    }
+private fun NavDestination?.toBottomNavTabOrNull(): BottomNavTab? {
+    val dest = this ?: return null
+    // Boulder-Übersicht ist die zweite Ansicht des Sessions-Tabs (Variante A): BottomNav
+    // bleibt sichtbar, der Sessions-Tab bleibt markiert.
+    if (dest.hasRoute(BoulderUebersicht::class)) return BottomNavTab.Sessions
+    return topLevelDestinations.firstOrNull { dest.hasRoute(it.route::class) }?.tab
+}
 
 // Wechselt zu einem Top-Level-Tab, ohne den Back-Stack zu stapeln:
 // popUpTo(Home) mit saveState + launchSingleTop + restoreState.
