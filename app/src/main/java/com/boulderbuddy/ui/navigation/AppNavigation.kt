@@ -1,5 +1,8 @@
 package com.boulderbuddy.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,6 +60,13 @@ fun AppNavigation() {
             navController = navController,
             startDestination = Home,
             modifier = Modifier.weight(1f),
+            // Kurzer Crossfade (~120 ms): das Default-~700-ms-Fade des NavHost wirkt träge,
+            // ein harter Instant-Wechsel lässt kurz alte Komponenten aufblitzen. Der kurze
+            // Fade blendet die alte Ansicht sauber aus. Gilt für Push- UND Tab-Wechsel.
+            enterTransition = { fadeIn(tween(120)) },
+            exitTransition = { fadeOut(tween(120)) },
+            popEnterTransition = { fadeIn(tween(120)) },
+            popExitTransition = { fadeOut(tween(120)) },
         ) {
             // --- Bottom-Nav-Tabs -------------------------------------------------
             composable<Home> {
@@ -76,7 +86,15 @@ fun AppNavigation() {
             composable<Sessions> {
                 SessionUebersichtScreen(
                     onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
-                    onOpenBoulderOverview = { navController.navigate(BoulderUebersicht) },
+                    onCreateSession = { navController.navigate(SessionErstellen) },
+                    // Umschalten auf die Boulder-Ansicht desselben Tabs (Variante A):
+                    // ersetzt Sessions, statt es zu stapeln → Zurück-Umschalten bleibt möglich.
+                    onOpenBoulderOverview = {
+                        navController.navigate(BoulderUebersicht) {
+                            popUpTo(Sessions) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                     onOpenSettings = { navController.navigate(Einstellungen) },
                 )
             }
@@ -114,8 +132,14 @@ fun AppNavigation() {
             composable<BoulderUebersicht> {
                 BoulderUebersichtScreen(
                     onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
-                    // Dropdown "Sessions": zurück auf den Sessions-Tab (kein neues Stacking).
-                    onOpenSessionOverview = { navController.navigateToTab(BottomNavTab.Sessions) },
+                    // Dropdown "Sessions": zurück auf die Sessions-Ansicht desselben Tabs
+                    // (Variante A); ersetzt Boulder, statt es zu stapeln.
+                    onOpenSessionOverview = {
+                        navController.navigate(Sessions) {
+                            popUpTo(BoulderUebersicht) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                     onOpenSettings = { navController.navigate(Einstellungen) },
                 )
             }
@@ -165,10 +189,13 @@ fun AppNavigation() {
 
 // Ermittelt den aktiven BottomNavTab für das aktuelle Ziel — oder null, wenn das
 // Ziel kein Top-Level-Tab ist (Push-Screens zeigen keine BottomNav).
-private fun NavDestination?.toBottomNavTabOrNull(): BottomNavTab? =
-    this?.let { dest ->
-        topLevelDestinations.firstOrNull { dest.hasRoute(it.route::class) }?.tab
-    }
+private fun NavDestination?.toBottomNavTabOrNull(): BottomNavTab? {
+    val dest = this ?: return null
+    // Boulder-Übersicht ist die zweite Ansicht des Sessions-Tabs (Variante A): BottomNav
+    // bleibt sichtbar, der Sessions-Tab bleibt markiert.
+    if (dest.hasRoute(BoulderUebersicht::class)) return BottomNavTab.Sessions
+    return topLevelDestinations.firstOrNull { dest.hasRoute(it.route::class) }?.tab
+}
 
 // Wechselt zu einem Top-Level-Tab, ohne den Back-Stack zu stapeln:
 // popUpTo(Home) mit saveState + launchSingleTop + restoreState.
