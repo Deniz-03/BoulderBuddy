@@ -129,12 +129,12 @@
 
 ## Phase 4 — Dependency Injection: Hilt
 
-- [ ] **4.1** `BoulderBuddyApp.kt` — `@HiltAndroidApp`-Application-Klasse.
-- [ ] **4.2** `AndroidManifest.xml` — `android:name=".BoulderBuddyApp"` eintragen.
-- [ ] **4.3** `MainActivity.kt` — `@AndroidEntryPoint` annotieren.
-- [ ] **4.4** `di/DatabaseModule.kt` — `@Module @InstallIn(SingletonComponent::class)`: provide `BoulderBuddyDatabase` (Room.databaseBuilder) + jedes DAO.
-- [ ] **4.5** `di/RepositoryModule.kt` — Repository-Interfaces an Implementierungen binden (`@Binds`) — erst nach Phase 5 relevant, kann zusammen erstellt werden.
-- **✅ Done wenn:** App startet weiterhin (Hilt-Graph baut ohne Laufzeitfehler).
+- [x] **4.1** `BoulderBuddyApp.kt` — `@HiltAndroidApp`-Application-Klasse.
+- [x] **4.2** `AndroidManifest.xml` — `android:name=".BoulderBuddyApp"` eingetragen.
+- [x] **4.3** `MainActivity.kt` — `@AndroidEntryPoint` annotiert.
+- [x] **4.4** `di/DatabaseModule.kt` — `@Module @InstallIn(SingletonComponent::class)`: provide `BoulderBuddyDatabase` (Room.databaseBuilder mit `SeedData`-Callback aus Phase 3.6) + jedes DAO.
+- [ ] **4.5** `di/RepositoryModule.kt` — Repository-Interfaces an Implementierungen binden (`@Binds`). **Auf Phase 5 verschoben:** noch keine Repositories zum Binden; leeres Modul wäre nutzlos. Wird zusammen mit den Repos in Phase 5 erstellt.
+- **✅ Done:** `./gradlew assembleDebug` grün (2026-07-03). Hilt-Codegen (`hiltAggregateDepsDebug`/`hiltJavaCompileDebug`) fehlerfrei, DI-Graph baut. DB + alle 6 DAOs app-weit als Singletons injizierbar. 4.5 folgt in Phase 5.
 
 ---
 
