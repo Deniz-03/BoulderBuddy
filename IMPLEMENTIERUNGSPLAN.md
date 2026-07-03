@@ -133,7 +133,7 @@
 - [x] **4.2** `AndroidManifest.xml` — `android:name=".BoulderBuddyApp"` eingetragen.
 - [x] **4.3** `MainActivity.kt` — `@AndroidEntryPoint` annotiert.
 - [x] **4.4** `di/DatabaseModule.kt` — `@Module @InstallIn(SingletonComponent::class)`: provide `BoulderBuddyDatabase` (Room.databaseBuilder mit `SeedData`-Callback aus Phase 3.6) + jedes DAO.
-- [ ] **4.5** `di/RepositoryModule.kt` — Repository-Interfaces an Implementierungen binden (`@Binds`). **Auf Phase 5 verschoben:** noch keine Repositories zum Binden; leeres Modul wäre nutzlos. Wird zusammen mit den Repos in Phase 5 erstellt.
+- [x] **4.5** `di/RepositoryModule.kt` — Repository-Interfaces an Implementierungen binden (`@Binds`). **In Phase 5 nachgeholt:** `abstract class` mit `@Binds`-Bindings für alle 5 Repositories (`@Singleton`).
 - **✅ Done:** `./gradlew assembleDebug` grün (2026-07-03). Hilt-Codegen (`hiltAggregateDepsDebug`/`hiltJavaCompileDebug`) fehlerfrei, DI-Graph baut. DB + alle 6 DAOs app-weit als Singletons injizierbar. 4.5 folgt in Phase 5.
 
 ---
@@ -142,12 +142,12 @@
 
 > Ziel: DAOs hinter Repositories kapseln (MVVM + Repository laut Tech-Stack). Package `data/repository/`.
 
-- [ ] **5.1** `SessionRepository` (Interface + Impl) — aktive Session beobachten, anlegen, beenden (`endedAt` setzen), einzelne laden.
-- [ ] **5.2** `RouteRepository` — Routen einer Session, alle Routen, anlegen, aktualisieren, einzelne laden.
-- [ ] **5.3** `GymRepository` / `GradeRepository` — Gyms + Gradsysteme/Grades (für Custom-Gradsystem & Session-Erstellung).
-- [ ] **5.4** `HangboardRepository` — Timer-Templates (Should-Have; kann zunächst statisch/leer bleiben).
-- [ ] **5.5** (Optional) `domain/`-Mapper: Entity → UI-Modell, falls UI-Datentypen von den Entities abweichen.
-- **✅ Done wenn:** Repositories per Hilt injizierbar, kompiliert.
+- [x] **5.1** `SessionRepository` (Interface + Impl) — aktive Session beobachten, anlegen, beenden (`endedAt` setzen), einzelne laden.
+- [x] **5.2** `RouteRepository` — Routen einer Session, alle Routen, anlegen, aktualisieren, einzelne laden.
+- [x] **5.3** `GymRepository` / `GradeRepository` — Gyms + Gradsysteme/Grades (für Custom-Gradsystem & Session-Erstellung). `GradeRepository` bündelt `GradeSystemDao` + `GradeDao`.
+- [x] **5.4** `HangboardRepository` — Timer-Templates (Should-Have; kann zunächst statisch/leer bleiben).
+- [ ] **5.5** (Optional) `domain/`-Mapper: Entity → UI-Modell, falls UI-Datentypen von den Entities abweichen. **Auf Phase 6 verschoben:** das konkrete Mapping (z.B. `RouteStatus` → UI-`BoulderStatus`) entsteht erst mit den ViewModels, wenn die UI-Zieltypen feststehen — vorher wäre der Mapper Spekulation.
+- **✅ Done:** `./gradlew assembleDebug` grün (2026-07-03). Alle 5 Repositories (Interface + `@Inject`-Impl) in `data/repository/`, per `@Binds` als `@Singleton` gebunden (`di/RepositoryModule.kt`, erledigt zugleich 4.5). Hilt-DI-Graph baut. `create(...)` gibt jeweils die neue Row-ID als `Int` zurück (DAO-`Long` → `toInt()`); `endSession` hat Default `System.currentTimeMillis()`. **Kein Verhaltensunterschied zu den DAOs — reine Kapselungsschicht.**
 
 ---
 

@@ -1,0 +1,46 @@
+package com.boulderbuddy.di
+
+import com.boulderbuddy.data.repository.GradeRepository
+import com.boulderbuddy.data.repository.GradeRepositoryImpl
+import com.boulderbuddy.data.repository.GymRepository
+import com.boulderbuddy.data.repository.GymRepositoryImpl
+import com.boulderbuddy.data.repository.HangboardRepository
+import com.boulderbuddy.data.repository.HangboardRepositoryImpl
+import com.boulderbuddy.data.repository.RouteRepository
+import com.boulderbuddy.data.repository.RouteRepositoryImpl
+import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.data.repository.SessionRepositoryImpl
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+/**
+ * Bindet die Repository-Interfaces an ihre Implementierungen (`@Binds`).
+ * Die Impls beziehen ihre DAOs per Konstruktor-Injektion aus dem [DatabaseModule].
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class RepositoryModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindSessionRepository(impl: SessionRepositoryImpl): SessionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRouteRepository(impl: RouteRepositoryImpl): RouteRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGymRepository(impl: GymRepositoryImpl): GymRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGradeRepository(impl: GradeRepositoryImpl): GradeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHangboardRepository(impl: HangboardRepositoryImpl): HangboardRepository
+}
