@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.AddRouteCard
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.RouteCard
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.StatCard
@@ -37,6 +40,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.viewmodel.HangboardSessionUi
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 import kotlinx.coroutines.delay
 
@@ -55,6 +59,8 @@ fun SessionDetailScreen(
     startMillis: Long = System.currentTimeMillis(),
     topGrade: String = "–",
     boulders: List<SessionBoulderUi> = emptyList(),
+    // Getrackte Hangboard-Durchläufe dieser Session; leer = Block wird ausgeblendet.
+    hangboardSessions: List<HangboardSessionUi> = emptyList(),
     // Navigations-Callbacks (Phase 2). onAddRoute ist von SessionRoute bereits an die
     // sessionId dieser Session gebunden.
     onBack: () -> Unit = {},
@@ -79,6 +85,9 @@ fun SessionDetailScreen(
     val tops = boulders.count { it.status.getoppt }
     val versuche = boulders.sumOf { it.versuche }
 
+    // Steuert den Bestätigungsdialog des zentralen "Session beenden"-Buttons.
+    var showEndDialog by remember { mutableStateOf(false) }
+
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
@@ -89,17 +98,6 @@ fun SessionDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
-                        )
-                    }
-                },
-                actions = {
-                    // Session beenden: setzt endedAt (SessionViewModel.endSession). Danach
-                    // kippt der Dispatcher automatisch in die abgeschlossene Ansicht.
-                    IconButton(onClick = onEndSession) {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = "Session beenden",
                             tint = M3OnPrimary,
                         )
                     }
@@ -185,9 +183,57 @@ fun SessionDetailScreen(
                         }
                     }
                 }
+
+                // --- Hangboard-Training (nur wenn damit trainiert wurde) ---
+                if (hangboardSessions.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                            SectionHeader(text = "Hangboard-Training")
+                            hangboardSessions.forEach { hb ->
+                                Text(
+                                    text = "• ${hb.summary}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // --- Zentraler "Session beenden"-Button ---
+                // Setzt (nach Bestätigung) endedAt (SessionViewModel.endSession); danach kippt
+                // der Dispatcher automatisch in die abgeschlossene Ansicht.
+                item {
+                    PrimaryButton(
+                        text = "Session beenden",
+                        icon = Icons.Filled.Flag,
+                        onClick = { showEndDialog = true },
+                    )
+                }
             }
         },
     )
+
+    if (showEndDialog) {
+        AlertDialog(
+            onDismissRequest = { showEndDialog = false },
+            title = { Text("Session beenden?") },
+            text = {
+                Text("Die Session wird abgeschlossen und lässt sich danach nicht mehr bearbeiten.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showEndDialog = false
+                        onEndSession()
+                    },
+                ) { Text("Beenden") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndDialog = false }) { Text("Abbrechen") }
+            },
+        )
+    }
 }
 
 @Preview(showBackground = true)

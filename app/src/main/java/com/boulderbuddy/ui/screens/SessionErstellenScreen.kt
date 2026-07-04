@@ -17,7 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,19 +31,27 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.viewmodel.GradeSystemUi
+import com.boulderbuddy.ui.viewmodel.SessionErstellenUiState
 
 
 @Composable
 fun SessionErstellenScreen(
+    // Anzeige-Zustand aus dem SessionErstellenViewModel (wählbare Grading-Systeme).
+    state: SessionErstellenUiState = SessionErstellenUiState(),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
-    // Übergibt die Formularwerte nach oben; das Anlegen + die Navigation zur neuen
-    // Session übernimmt der NavHost via SessionErstellenViewModel (Phase 6.3).
-    onCreateSession: (ort: String, notiz: String) -> Unit = { _, _ -> },
+    // Übergibt die Formularwerte (inkl. gewähltem Gradsystem) nach oben; das Anlegen + die
+    // Navigation zur neuen Session übernimmt der NavHost via SessionErstellenViewModel.
+    onCreateSession: (ort: String, gradeSystemId: Int?, notiz: String) -> Unit = { _, _, _ -> },
 ) {
     var ort by remember { mutableStateOf("") }
-    var gradingIndex by remember { mutableIntStateOf(0) }
+    // Gewähltes Gradsystem (ID); null = noch nichts aktiv gewählt → Fallback aufs erste System.
+    var selectedSystemId by remember { mutableStateOf<Int?>(null) }
     var notiz by remember { mutableStateOf("") }
+
+    // Effektiv gewähltes System: die aktive Auswahl, sonst das erste vorhandene.
+    val effectiveSystemId = selectedSystemId ?: state.systems.firstOrNull()?.id
 
     BoulderBuddyScaffold(
         topBar = {
@@ -79,33 +86,42 @@ fun SessionErstellenScreen(
                     label = "HALLE/ORT",
                 )
 
-                // Grading-System: eigenes Label + festes 2×2-Raster. Bewusst nicht die
-                // SelectableChipGroup (FlowRow bricht je nach Breite 3+1 um) — hier zwei
-                // Rows mit je zwei Chips à weight(1f), damit immer 2 oben / 2 unten und
-                // alle gleich breit sind.
+                // Grading-System: eigenes Label + festes 2-Spalten-Raster aus den real
+                // vorhandenen Systemen (Standards + Custom). Zwei Chips à weight(1f) je Reihe,
+                // damit alle gleich breit sind. Die Auswahl wird auf der Session gespeichert
+                // und steuert später die Grade-Auswahl beim Boulder-Anlegen.
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     Text(
                         text = "GRADING-SYSTEM",
                         style = MaterialTheme.typography.labelSmall,
                         color = BoulderBuddy.colors.textTertiary,
                     )
-                    // TODO: "Eigenes…" lädt später die Custom-Farbsysteme aus der DB (Room).
-                    val gradingOptions = listOf("Französisch", "V-Scale", "Farbsystem", "Eigenes…")
-                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
-                        // chunked(2) teilt die 4 Optionen in 2er-Reihen → 2×2-Raster.
-                        gradingOptions.chunked(2).forEachIndexed { rowIndex, rowOptions ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-                            ) {
-                                rowOptions.forEachIndexed { colIndex, label ->
-                                    val index = rowIndex * 2 + colIndex
-                                    SelectableChip(
-                                        label = label,
-                                        selected = gradingIndex == index,
-                                        onClick = { gradingIndex = index },
-                                        modifier = Modifier.weight(1f),
-                                    )
+                    if (state.systems.isEmpty()) {
+                        Text(
+                            text = "Noch keine Grading-Systeme vorhanden.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BoulderBuddy.colors.textSecondary,
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                            // chunked(2) teilt die Systeme in 2er-Reihen → 2-Spalten-Raster.
+                            state.systems.chunked(2).forEach { rowSystems ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                                ) {
+                                    rowSystems.forEach { system ->
+                                        SelectableChip(
+                                            label = system.name,
+                                            selected = system.id == effectiveSystemId,
+                                            onClick = { selectedSystemId = system.id },
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
+                                    // Ungerade Reihe: Spacer hält den einzelnen Chip auf halber Breite.
+                                    if (rowSystems.size == 1) {
+                                        Spacer(Modifier.weight(1f))
+                                    }
                                 }
                             }
                         }
@@ -128,9 +144,9 @@ fun SessionErstellenScreen(
                 PrimaryButton(
                     text = "Session starten",
                     icon = Icons.Filled.PlayArrow,
-                    // Halle + Notiz nach oben reichen; das ViewModel legt die Session an.
-                    // gradingIndex bleibt vorerst UI-only (Session speichert kein Gradsystem).
-                    onClick = { onCreateSession(ort, notiz) },
+                    // Halle + gewähltes Gradsystem + Notiz nach oben reichen; das ViewModel
+                    // legt die Session an.
+                    onClick = { onCreateSession(ort, effectiveSystemId, notiz) },
                 )
             }
         },
@@ -141,6 +157,14 @@ fun SessionErstellenScreen(
 @Composable
 private fun SessionErstellenScreenPreview() {
     BoulderBuddyTheme {
-        SessionErstellenScreen()
+        SessionErstellenScreen(
+            state = SessionErstellenUiState(
+                systems = listOf(
+                    GradeSystemUi(id = 1, name = "Halle Nord", gradeCount = 5),
+                    GradeSystemUi(id = 2, name = "V-Scale", gradeCount = 11),
+                    GradeSystemUi(id = 3, name = "Französisch", gradeCount = 14),
+                ),
+            ),
+        )
     }
 }
