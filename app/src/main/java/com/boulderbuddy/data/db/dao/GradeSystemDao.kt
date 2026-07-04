@@ -20,4 +20,12 @@ interface GradeSystemDao {
 
     @Query("SELECT * FROM grade_system ORDER BY name")
     fun observeAll(): Flow<List<GradeSystemEntity>>
+
+    /**
+     * Löscht ein Gradsystem. Seine Grade verschwinden mit (FK CASCADE); Routen/Sessions, die
+     * darauf verwiesen, werden auf `null` gesetzt (FK SET_NULL) — nichts geht verloren außer der
+     * Grad-Zuordnung.
+     */
+    @Query("DELETE FROM grade_system WHERE id = :systemId")
+    suspend fun deleteById(systemId: Int)
 }

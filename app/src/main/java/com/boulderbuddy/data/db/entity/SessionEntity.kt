@@ -21,12 +21,23 @@ import androidx.room.PrimaryKey
             childColumns = ["gymId"],
             onDelete = ForeignKey.CASCADE,
         ),
+        ForeignKey(
+            entity = GradeSystemEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["gradeSystemId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
     ],
-    indices = [Index("gymId")],
+    indices = [Index("gymId"), Index("gradeSystemId")],
 )
 data class SessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val gymId: Int,
+    /**
+     * Für diese Session gewähltes Gradsystem — steuert die Grade-Auswahl beim Boulder-Anlegen.
+     * `null` = keins gewählt (Formular fällt auf den globalen Standard/erstes System zurück).
+     */
+    val gradeSystemId: Int? = null,
     /** Start-Timestamp (epoch millis). */
     val date: Long,
     val durationMin: Int? = null,

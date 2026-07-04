@@ -6,12 +6,14 @@ import androidx.room.TypeConverters
 import com.boulderbuddy.data.db.dao.GradeDao
 import com.boulderbuddy.data.db.dao.GradeSystemDao
 import com.boulderbuddy.data.db.dao.GymDao
+import com.boulderbuddy.data.db.dao.HangboardSessionDao
 import com.boulderbuddy.data.db.dao.HangboardTemplateDao
 import com.boulderbuddy.data.db.dao.RouteDao
 import com.boulderbuddy.data.db.dao.SessionDao
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.db.entity.HangboardSessionEntity
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
@@ -28,10 +30,14 @@ import com.boulderbuddy.data.db.entity.SessionEntity
         SessionEntity::class,
         RouteEntity::class,
         HangboardTemplateEntity::class,
+        HangboardSessionEntity::class,
     ],
-    // v2 (Phase 6): RouteEntity um name + sektor erweitert (Boulder tragen im UI einen
-    // Namen; das "Boulder hinzufügen"-Formular erfasst beides).
-    version = 2,
+    // v2 (Phase 6): RouteEntity um name + sektor erweitert.
+    // v3 (MVP-Polish): GradeSystem.gymId nullable (globale Standard-Systeme) +
+    // neue hangboard_session-Tabelle (getrackte Timer-Durchläufe).
+    // v4 (MVP-Polish): Farbe von der Schwierigkeit entkoppelt — Grade.color entfernt,
+    // Route.color (eigener Farb-Key) ergänzt; Session.gradeSystemId (Grading pro Session).
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -42,6 +48,7 @@ abstract class BoulderBuddyDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun routeDao(): RouteDao
     abstract fun hangboardTemplateDao(): HangboardTemplateDao
+    abstract fun hangboardSessionDao(): HangboardSessionDao
 
     companion object {
         const val NAME = "boulderbuddy.db"
