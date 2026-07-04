@@ -2,18 +2,29 @@ package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,8 +45,7 @@ enum class TimerPhase { HANG, REST, DONE }
 
 // Reiner UI-Zustand des Timer-Screens. Bewusst ohne Logik und ohne Theme-Farben:
 // Der Screen ist stateless und rendert nur, was hier drinsteht.
-// TODO: Später vom HangboardTimerViewModel als StateFlow geliefert
-//  (Countdown, Phasenwechsel HANG↔REST, Satz-Hochzählen passieren dort, nicht hier).
+// hangSec/restSec/totalSets = die aktuelle Konfiguration (für die Vorbefüllung des Dialogs).
 data class HangboardTimerUiState(
     val progress: Float,     // 0..1 – Füllgrad des Rings
     val time: String,        // bereits zu mm:ss formatiert (z.B. "00:07")
@@ -43,6 +53,8 @@ data class HangboardTimerUiState(
     val phase: TimerPhase,
     val currentSet: Int,
     val totalSets: Int,
+    val hangSec: Int,
+    val restSec: Int,
     val isRunning: Boolean,
 )
 
@@ -51,8 +63,13 @@ fun HangboardTimerScreen(
     state: HangboardTimerUiState,
     onPlayPause: () -> Unit,
     onReset: () -> Unit,
-    onSettings: () -> Unit,
+    // Übernimmt eine neue Konfiguration (Sätze, Hang-Sek, Pausen-Sek).
+    onUpdateConfig: (Int, Int, Int) -> Unit,
 ) {
+    // Der Einstellungs-Dialog wird lokal auf diesem Screen gesteuert (kein Navigieren mehr
+    // in die allgemeinen App-Einstellungen).
+    var showConfigDialog by remember { mutableStateOf(false) }
+
     // Phasenabhängige Anzeige aus dem State ableiten. Die Color kommt aus dem Theme
     // und kann daher nicht im UiState liegen (das ist theme-unabhängig).
     val ringColor: Color = when (state.phase) {
@@ -76,7 +93,7 @@ fun HangboardTimerScreen(
                     IconButton(onClick = { /* TODO: Wear-OS-Verbindung/Status */ }) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Einstellungen",
+                            contentDescription = "Smartwatch",
                             tint = M3OnPrimary,
                         )
                     }
@@ -117,16 +134,103 @@ fun HangboardTimerScreen(
                     isRunning = state.isRunning,
                     onPlayPause = onPlayPause,
                     onReset = onReset,
-                    onSettings = onSettings,
+                    onSettings = { showConfigDialog = true },
                 )
             }
         }
     )
+
+    if (showConfigDialog) {
+        TimerConfigDialog(
+            initialSets = state.totalSets,
+            initialHangSec = state.hangSec,
+            initialRestSec = state.restSec,
+            onConfirm = { sets, hang, rest ->
+                onUpdateConfig(sets, hang, rest)
+                showConfigDialog = false
+            },
+            onDismiss = { showConfigDialog = false },
+        )
+    }
 }
 
-// TODO: Stateful-Wrapper HangboardTimerRoute(viewModel) ergänzen, sobald das
-//  HangboardTimerViewModel existiert: collectAsStateWithLifecycle() lesen und
-//  an HangboardTimerScreen(state, ...) durchreichen. Erst dann wird der Timer "live".
+// Einstell-Dialog für den Timer: drei Stepper (Sätze, Hang-Sekunden, Pausen-Sekunden).
+// Die Werte werden beim Bestätigen übernommen und vom ViewModel persistiert.
+@Composable
+private fun TimerConfigDialog(
+    initialSets: Int,
+    initialHangSec: Int,
+    initialRestSec: Int,
+    onConfirm: (Int, Int, Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var sets by remember { mutableIntStateOf(initialSets) }
+    var hangSec by remember { mutableIntStateOf(initialHangSec) }
+    var restSec by remember { mutableIntStateOf(initialRestSec) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Timer einstellen") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                StepperRow(
+                    label = "Sätze",
+                    value = sets,
+                    onChange = { sets = it.coerceAtLeast(1) },
+                )
+                StepperRow(
+                    label = "Hang (s)",
+                    value = hangSec,
+                    onChange = { hangSec = it.coerceAtLeast(1) },
+                )
+                StepperRow(
+                    label = "Pause (s)",
+                    value = restSec,
+                    onChange = { restSec = it.coerceAtLeast(0) },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(sets, hangSec, restSec) }) { Text("Übernehmen") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
+}
+
+// Eine Label-Zeile mit -/+ Steppern. onChange bekommt den unbeschränkten neuen Wert;
+// das Clamping (min. Grenzen) macht der Aufrufer je Feld.
+@Composable
+private fun StepperRow(
+    label: String,
+    value: Int,
+    onChange: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { onChange(value - 1) }) {
+                Icon(Icons.Filled.Remove, contentDescription = "$label verringern")
+            }
+            Text(
+                text = value.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = Dimens.paddingS),
+            )
+            IconButton(onClick = { onChange(value + 1) }) {
+                Icon(Icons.Filled.Add, contentDescription = "$label erhöhen")
+            }
+        }
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
@@ -140,11 +244,13 @@ private fun HangboardTimerScreenPreview() {
                 phase = TimerPhase.HANG,
                 currentSet = 3,
                 totalSets = 6,
+                hangSec = 7,
+                restSec = 3,
                 isRunning = true,
             ),
             onPlayPause = {},
             onReset = {},
-            onSettings = {},
+            onUpdateConfig = { _, _, _ -> },
         )
     }
 }

@@ -2,6 +2,11 @@ package com.boulderbuddy.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boulderbuddy.data.db.entity.HangboardSessionEntity
+import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.data.settings.SettingsRepository
+import com.boulderbuddy.data.settings.TimerConfig
 import com.boulderbuddy.ui.screens.HangboardTimerUiState
 import com.boulderbuddy.ui.screens.TimerPhase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -10,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -18,15 +24,21 @@ import javax.inject.Inject
  * Play/Pause/Reset. Reine Logik im ViewModel — der Screen bleibt stateless und rendert nur
  * den [HangboardTimerUiState].
  *
- * Konfiguration vorerst fest (7s Hang / 3s Rest / 6 Sätze).
- * TODO(6.9+): Templates (HangboardRepository) laden und wählbar machen.
+ * Konfiguration (Sätze/Hang/Pause) kommt aus dem [SettingsRepository] und wird über
+ * [updateConfig] persistiert (letzte Einstellung gemerkt). Ein bis zum Ende absolvierter
+ * Durchlauf wird in der aktiven Kletter-Session getrackt (siehe [recordWorkout]).
  */
 @HiltViewModel
-class HangboardTimerViewModel @Inject constructor() : ViewModel() {
+class HangboardTimerViewModel @Inject constructor(
+    private val settingsRepository: SettingsRepository,
+    private val sessionRepository: SessionRepository,
+    private val hangboardSessionRepository: HangboardSessionRepository,
+) : ViewModel() {
 
-    private val totalSets = 6
-    private val hangSec = 7
-    private val restSec = 3
+    // Konfiguration (var, da über updateConfig änderbar). Defaults bis DataStore geladen ist.
+    private var totalSets = 6
+    private var hangSec = 7
+    private var restSec = 3
 
     // Interner Lauf-Zustand (getrennt vom UI-State, damit Pause/Resume die Restsekunden behält).
     private var currentSet = 1
@@ -34,9 +46,18 @@ class HangboardTimerViewModel @Inject constructor() : ViewModel() {
     private var secondsLeft = hangSec
     private var running = false
     private var timerJob: Job? = null
+    // Verhindert doppeltes Tracken desselben abgeschlossenen Durchlaufs.
+    private var recorded = false
 
     private val _uiState = MutableStateFlow(snapshot())
     val uiState: StateFlow<HangboardTimerUiState> = _uiState.asStateFlow()
+
+    init {
+        // Zuletzt genutzte Konfiguration laden und anwenden.
+        viewModelScope.launch {
+            applyConfig(settingsRepository.timerConfig.first())
+        }
+    }
 
     fun onPlayPause() {
         if (running) pause() else start()
@@ -48,7 +69,29 @@ class HangboardTimerViewModel @Inject constructor() : ViewModel() {
         phase = TimerPhase.HANG
         secondsLeft = hangSec
         running = false
+        recorded = false
         _uiState.value = snapshot()
+    }
+
+    /**
+     * Übernimmt eine neue Timer-Konfiguration: persistiert sie (letzte Einstellung gemerkt)
+     * und setzt den Timer mit den neuen Werten zurück.
+     */
+    fun updateConfig(sets: Int, hangSec: Int, restSec: Int) {
+        val config = TimerConfig(
+            sets = sets.coerceAtLeast(1),
+            hangSec = hangSec.coerceAtLeast(1),
+            restSec = restSec.coerceAtLeast(0),
+        )
+        viewModelScope.launch { settingsRepository.setTimerConfig(config) }
+        applyConfig(config)
+    }
+
+    private fun applyConfig(config: TimerConfig) {
+        totalSets = config.sets
+        hangSec = config.hangSec
+        restSec = config.restSec
+        onReset()
     }
 
     private fun start() {
@@ -62,6 +105,10 @@ class HangboardTimerViewModel @Inject constructor() : ViewModel() {
                 delay(1000)
                 secondsLeft--
                 if (secondsLeft <= 0) advancePhase()
+                if (phase == TimerPhase.DONE && !recorded) {
+                    recorded = true
+                    recordWorkout()
+                }
                 _uiState.value = snapshot()
             }
         }
@@ -93,12 +140,32 @@ class HangboardTimerViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    /**
+     * Trackt einen abgeschlossenen Durchlauf in der aktuell aktiven Kletter-Session.
+     * Gibt es keine aktive Session, wird nichts gespeichert (kein FK-Ziel, kein Clutter).
+     */
+    private fun recordWorkout() {
+        viewModelScope.launch {
+            val sessionId = sessionRepository.observeActive().first()?.id ?: return@launch
+            hangboardSessionRepository.create(
+                HangboardSessionEntity(
+                    sessionId = sessionId,
+                    completedSets = totalSets,
+                    totalSets = totalSets,
+                    hangSec = hangSec,
+                    restSec = restSec,
+                    date = System.currentTimeMillis(),
+                )
+            )
+        }
+    }
+
     private fun snapshot(): HangboardTimerUiState {
         val duration = when (phase) {
             TimerPhase.HANG -> hangSec
             TimerPhase.REST -> restSec
             TimerPhase.DONE -> 1
-        }
+        }.coerceAtLeast(1)  // schützt vor Division durch 0 (Pause = 0 erlaubt)
         return HangboardTimerUiState(
             progress = if (phase == TimerPhase.DONE) 1f else secondsLeft.toFloat() / duration,
             time = format(secondsLeft.coerceAtLeast(0)),
@@ -106,6 +173,8 @@ class HangboardTimerViewModel @Inject constructor() : ViewModel() {
             phase = phase,
             currentSet = currentSet.coerceAtMost(totalSets),
             totalSets = totalSets,
+            hangSec = hangSec,
+            restSec = restSec,
             isRunning = running,
         )
     }
