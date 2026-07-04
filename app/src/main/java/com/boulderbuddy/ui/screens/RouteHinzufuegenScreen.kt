@@ -54,6 +54,8 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.theme.keyForRouteColor
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.theme.routeColorPalette
+import com.boulderbuddy.util.MediaType
+import com.boulderbuddy.util.mediaTypeOf
 import com.boulderbuddy.ui.viewmodel.GradeOption
 import com.boulderbuddy.ui.viewmodel.RouteFormInitial
 import com.boulderbuddy.ui.viewmodel.RouteFormInput
@@ -91,8 +93,10 @@ fun RouteHinzufuegenScreen(
     // Route-Farbe (Farb-Key), von der Schwierigkeit entkoppelt — dient nur dem Wiedererkennen.
     var colorKey by remember(initial) { mutableStateOf(initial.color) }
 
-    // Gewähltes Foto (content-URI als String); null = noch keins gewählt.
+    // Gewähltes Foto/Video (content-URI als String); null = noch keins gewählt.
     var mediaUri by remember(initial) { mutableStateOf(initial.mediaUri) }
+    // Medientyp aus der URI abgeleitet (kein DB-Feld, Phase 7.3c) — steuert die Vorschau.
+    val isVideo = remember(mediaUri) { mediaTypeOf(context, mediaUri) == MediaType.VIDEO }
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -134,10 +138,13 @@ fun RouteHinzufuegenScreen(
                 PhotoPicker(
                     onClick = {
                         photoPicker.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageAndVideo
+                            )
                         )
                     },
                     imageUri = mediaUri,
+                    isVideo = isVideo,
                 )
 
                 Row(

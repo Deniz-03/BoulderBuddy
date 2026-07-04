@@ -190,16 +190,23 @@ Reihenfolge nach Aufwand/Nutzen: **Timer-Voreinstellungen → Session-Export →
 - [x] **7.3b.3** Storage Access Framework (`ActivityResultContracts.CreateDocument("text/csv")`);
   Einstiegspunkt „Sessions exportieren (CSV)" in der App-Gruppe der Einstellungen.
 
-### 7.3c Video-Support für Routen — **zurückgestellt (2026-07-04)**
-> Entscheidung: erst nach 7.6 Tests. Zieht Media3-Dependency + echte Schema-Migration (v4→v5) nach
-> und ist im Plan als Letztes der Should-Haves eingeordnet. Offene Frage 7.3c.1 (mediaType-Feld vs.
-> MIME) bleibt bis dahin offen.
-- [ ] **7.3c.1** Schema-Frage klären: reicht `RouteEntity.mediaUri` + MIME-Erkennung (Bild vs.
-  Video), oder braucht es ein explizites `mediaType`-Feld? → **Schema-Migration v4→v5** nötig, wenn
-  ein Feld dazukommt (echte Migration, da inzwischen ggf. Bestandsdaten).
-- [ ] **7.3c.2** PhotoPicker auf `PickVisualMedia` mit Bild+Video umstellen (unterstützt schon beides).
-- [ ] **7.3c.3** Video-Wiedergabe: Media3/ExoPlayer als neue Dependency; im Boulder-Detail statt
-  `AsyncImage` einen `PlayerView`/Compose-Wrapper, wenn die URI ein Video ist.
+### 7.3c Video-Support für Routen — **umgesetzt (2026-07-04)**
+> Media3-Dependency ergänzt; **keine Schema-Migration nötig** (Entscheidung 7.3c.1 = MIME-Erkennung
+> auf bestehender `mediaUri`, kein neues Feld). DB bleibt bei v4 + `fallbackToDestructiveMigration`.
+- [x] **7.3c.1** Schema-Frage geklärt: **kein `mediaType`-Feld, keine Migration.** Der Medientyp wird
+  zur Laufzeit per `contentResolver.getType(uri)` aus der bestehenden `RouteEntity.mediaUri`
+  abgeleitet (`util/MediaType.kt`, `mediaTypeOf()`). Begründung: `mediaUri` ist bereits als
+  „Foto oder Video" deklariert; die URI bleibt Single Source of Truth (kein Drift Feld↔Datei); die
+  App nutzt weiterhin destruktive Migration (kein Bestandsnutzer) → ein Feld wäre reiner Overhead
+  ohne SQL-Filterbedarf. Fallback bei unbekanntem MIME = Bild (bestehender, sicherer Pfad).
+- [x] **7.3c.2** PhotoPicker auf `PickVisualMedia.ImageAndVideo` umgestellt; `PhotoPicker` zeigt bei
+  Video-Auswahl einen Play-Indikator statt (nicht vorhandenem) Coil-Frame (`isVideo`-Flag).
+- [x] **7.3c.3** Video-Wiedergabe: `androidx.media3:media3-exoplayer` + `media3-ui` als Dependency;
+  neuer `VideoPlayer`-Composable (View-basierte `PlayerView` via `AndroidView`, lifecycle-aware:
+  pausiert im Hintergrund, `release()` beim Dispose). `BoulderFoto` rendert bei Video den
+  `VideoPlayer`, sonst `AsyncImage`.
+- [ ] **7.3c.4** Verifizieren im Emulator (Video auswählen → Detail spielt ab; Bild-Regression). —
+  **offen (Emulator-Sichtprüfung).** `:app:assembleDebug` ist grün.
 
 ### Zu beachten
 - Video zieht die größte neue Dependency (Media3) + Migration nach → nur angehen, wenn 7.1/7.2/7.6

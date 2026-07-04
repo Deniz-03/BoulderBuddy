@@ -87,6 +87,10 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    // Media3/ExoPlayer (Phase 7.3c): Video-Wiedergabe für Routen-Medien.
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+
     // Kotlinx Serialization (type-safe navigation)
     implementation(libs.kotlinx.serialization.json)
 

@@ -29,11 +29,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.compose.AsyncImage
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
@@ -41,11 +43,14 @@ import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.StatusBadge
 import com.boulderbuddy.ui.components.TopBar
+import com.boulderbuddy.ui.components.VideoPlayer
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.BoulderDetailUiState
+import com.boulderbuddy.util.MediaType
+import com.boulderbuddy.util.mediaTypeOf
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Boulder-Detailansicht (#6 der Wireframes). Zeigt GENAU EINEN Boulder, geladen
@@ -113,9 +118,17 @@ fun BoulderDetailScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingXL),
             ) {
-                // --- Foto mit farbigem Rahmen (Routenfarbe) ---
+                // --- Foto/Video mit farbigem Rahmen (Routenfarbe) ---
                 item {
-                    BoulderFoto(fotoUri = state.fotoUri, accentColor = accentColor)
+                    val context = LocalContext.current
+                    val isVideo = remember(state.fotoUri) {
+                        mediaTypeOf(context, state.fotoUri) == MediaType.VIDEO
+                    }
+                    BoulderFoto(
+                        fotoUri = state.fotoUri,
+                        isVideo = isVideo,
+                        accentColor = accentColor,
+                    )
                 }
 
                 // --- Grade-Badge + Status ---
@@ -218,11 +231,13 @@ fun BoulderDetailScreen(
     )
 }
 
-// Foto-Bereich. Rahmen in der Routenfarbe (Wireframe: "Foto mit farbigem Rahmen").
-// Zeigt das gespeicherte Foto (Coil, Phase 6.11) oder einen Platzhalter, wenn keins da ist.
+// Foto-/Video-Bereich. Rahmen in der Routenfarbe (Wireframe: "Foto mit farbigem Rahmen").
+// Zeigt das gespeicherte Foto (Coil, Phase 6.11), das Video (Media3/ExoPlayer, Phase 7.3c)
+// oder einen Platzhalter, wenn kein Medium da ist.
 @Composable
 private fun BoulderFoto(
     fotoUri: String?,
+    isVideo: Boolean,
     accentColor: Color,
     modifier: Modifier = Modifier,
 ) {
@@ -235,15 +250,20 @@ private fun BoulderFoto(
             .border(BorderStroke(Dimens.borderAccent, accentColor), MaterialTheme.shapes.medium),
         contentAlignment = Alignment.Center,
     ) {
-        if (fotoUri == null) {
-            Icon(
+        when {
+            fotoUri == null -> Icon(
                 imageVector = Icons.Outlined.Image,
-                contentDescription = "Kein Foto vorhanden",
+                contentDescription = "Kein Medium vorhanden",
                 tint = accentColor,
                 modifier = Modifier.size(Dimens.iconL),
             )
-        } else {
-            AsyncImage(
+
+            isVideo -> VideoPlayer(
+                uri = fotoUri,
+                modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium),
+            )
+
+            else -> AsyncImage(
                 model = fotoUri,
                 contentDescription = "Boulder-Foto",
                 contentScale = ContentScale.Crop,
