@@ -14,15 +14,19 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -55,6 +59,9 @@ fun BoulderDetailScreen(
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
     onEdit: () -> Unit = {},
+    // Schnell-Versuche (nur bei aktiver Session sichtbar, siehe state.isSessionActive).
+    onIncrementAttempts: () -> Unit = {},
+    onDecrementAttempts: () -> Unit = {},
 ) {
     val accentColor = state.accentColor
     val (statusText, statusColor) = statusBadgeStyle(state.status)
@@ -75,8 +82,7 @@ fun BoulderDetailScreen(
                     }
                 },
                 actions = {
-                    // TODO: Bearbeiten-Modus mit boulderId; aktuell öffnet onEdit den
-                    //  "Boulder hinzufügen"-Screen als Platzhalter.
+                    // Öffnet das Formular im Edit-Modus (vorbefüllt, aktualisiert die Route).
                     IconButton(onClick = onEdit) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
@@ -142,6 +148,55 @@ fun BoulderDetailScreen(
                             label = "Sektor",
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
+                    }
+                }
+
+                // --- Schnell-Versuche (nur solange die Session läuft) ---
+                if (state.isSessionActive) {
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            color = BoulderBuddy.colors.surfaceCard,
+                            border = BorderStroke(Dimens.borderSubtle, BoulderBuddy.colors.borderSubtle),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = Dimens.paddingL,
+                                        vertical = Dimens.paddingS,
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    text = "Versuche anpassen",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = BoulderBuddy.colors.textSecondary,
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(onClick = onDecrementAttempts) {
+                                        Icon(
+                                            Icons.Filled.Remove,
+                                            contentDescription = "Ein Versuch weniger",
+                                        )
+                                    }
+                                    Text(
+                                        text = state.versuche.toString(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = Dimens.paddingS),
+                                    )
+                                    IconButton(onClick = onIncrementAttempts) {
+                                        Icon(
+                                            Icons.Filled.Add,
+                                            contentDescription = "Ein Versuch mehr",
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -225,6 +280,7 @@ private fun BoulderDetailScreenPreview() {
                 versuche = 4,
                 notiz = "Schlüsselstelle ist der dynamische Zug zum Henkel.",
                 fotoUri = null,
+                isSessionActive = true,
             ),
         )
     }

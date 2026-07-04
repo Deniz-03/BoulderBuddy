@@ -33,7 +33,6 @@ import com.boulderbuddy.ui.screens.SessionErstellenScreen
 import com.boulderbuddy.ui.screens.SessionRoute
 import com.boulderbuddy.ui.screens.SessionUebersichtScreen
 import com.boulderbuddy.ui.screens.StatistikScreen
-import com.boulderbuddy.ui.model.toHexRgb
 import com.boulderbuddy.ui.viewmodel.BoulderDetailViewModel
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtViewModel
 import com.boulderbuddy.ui.viewmodel.EinstellungenViewModel
@@ -141,7 +140,7 @@ fun AppNavigation() {
                     state = state,
                     onPlayPause = viewModel::onPlayPause,
                     onReset = viewModel::onReset,
-                    onSettings = { navController.navigate(Einstellungen) },
+                    onUpdateConfig = viewModel::updateConfig,
                 )
             }
 
@@ -151,22 +150,24 @@ fun AppNavigation() {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
                 EinstellungenScreen(
                     state = state,
-                    // Color → Hex passiert hier, damit das ViewModel UI-Farbtypen-frei bleibt.
-                    onCreateColorSystem = { name, colors ->
-                        viewModel.createColorSystem(name, colors.map { it.first to it.second.toHexRgb() })
-                    },
+                    // Label-basiertes Custom-Grading-System anlegen (Farbe hängt an der Route).
+                    onCreateGradeSystem = viewModel::createGradeSystem,
+                    onDeleteGradeSystem = viewModel::deleteGradeSystem,
+                    onSelectGradeSystem = viewModel::selectGradeSystem,
                     onBack = { navController.popBackStack() },
                 )
             }
             composable<SessionErstellen> {
                 val viewModel: SessionErstellenViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 SessionErstellenScreen(
+                    state = state,
                     onBack = { navController.popBackStack() },
                     // Session anlegen (Room) und danach zur neuen aktiven Session navigieren;
                     // das Erstellen-Formular wird dabei vom Back-Stack genommen, damit Back von
                     // der Session direkt nach Home führt.
-                    onCreateSession = { ort, notiz ->
-                        viewModel.createSession(ort, notiz) { newSessionId ->
+                    onCreateSession = { ort, gradeSystemId, notiz ->
+                        viewModel.createSession(ort, gradeSystemId, notiz) { newSessionId ->
                             navController.navigate(Session(newSessionId)) {
                                 popUpTo(SessionErstellen) { inclusive = true }
                             }
@@ -193,23 +194,27 @@ fun AppNavigation() {
             }
             composable<RouteHinzufuegen> {
                 val viewModel: RouteHinzufuegenViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 RouteHinzufuegenScreen(
+                    state = state,
                     onBack = { navController.popBackStack() },
-                    // sessionId liest das ViewModel selbst aus den Nav-Argumenten.
+                    // sessionId/boulderId liest das ViewModel selbst aus den Nav-Argumenten.
                     onSave = { input -> viewModel.save(input) { navController.popBackStack() } },
                 )
             }
 
             // --- Push-Ziele mit Argument (typsicher aus toRoute()) --------------
-            composable<BoulderDetail> {
+            composable<BoulderDetail> { entry ->
+                val boulderId = entry.toRoute<BoulderDetail>().boulderId
                 val viewModel: BoulderDetailViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
                 BoulderDetailScreen(
                     state = state,
                     onBack = { navController.popBackStack() },
-                    // Platzhalter: Bearbeiten öffnet vorerst "Boulder hinzufügen" (ohne Vorbefüllung),
-                    // bis der Edit-Modus mit boulderId steht (Phase 6.7-Nacharbeit).
-                    onEdit = { navController.navigate(RouteHinzufuegen()) },
+                    // Bearbeiten öffnet das Formular im Edit-Modus (vorbefüllt, aktualisiert die Route).
+                    onEdit = { navController.navigate(RouteHinzufuegen(boulderId = boulderId)) },
+                    onIncrementAttempts = viewModel::incrementAttempts,
+                    onDecrementAttempts = viewModel::decrementAttempts,
                 )
             }
             composable<Session> { entry ->

@@ -14,51 +14,92 @@ object SeedData : RoomDatabase.Callback() {
 
     override fun onCreate(db: SupportSQLiteDatabase) {
         super.onCreate(db)
+        seed(db)
+    }
 
+    /**
+     * Nach einer destruktiven Migration (Versionssprung) sind alle Tabellen neu erstellt und
+     * LEER — Room ruft dann [onDestructiveMigration] statt [onCreate]. Ohne dieses Re-Seed
+     * fehlten sonst die Standard-Gradsysteme (V-Scale/Französisch) & Beispieldaten.
+     */
+    override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
+        super.onDestructiveMigration(db)
+        seed(db)
+    }
+
+    private fun seed(db: SupportSQLiteDatabase) {
         // Gym
         db.execSQL(
             "INSERT INTO gym (id, name, location) VALUES (1, 'Boulder World München', 'München')"
         )
 
-        // Gradsystem des Gyms
+        // Gradsystem des Gyms (V-Scale als Halle-Standard; Farbe hängt an der Route, nicht am Grad)
         db.execSQL(
-            "INSERT INTO grade_system (id, gymId, name) VALUES (1, 1, 'Farbsystem Halle Nord')"
+            "INSERT INTO grade_system (id, gymId, name) VALUES (1, 1, 'Halle Nord')"
         )
 
-        // Grade des Gradsystems (label, Hex-Farbe, Sortierreihenfolge)
-        val grades = listOf(
-            Triple("Gelb", "#F4C20D", 0),
-            Triple("Grün", "#2E9E52", 1),
-            Triple("Blau", "#2F6FE0", 2),
-            Triple("Rot", "#D64541", 3),
-            Triple("Lila", "#8E44AD", 4),
-        )
-        grades.forEachIndexed { index, (label, color, order) ->
+        // Grade des Gradsystems (label, Sortierreihenfolge) — reine Schwierigkeit, keine Farbe.
+        val grades = listOf("V0", "V1", "V2", "V3", "V4")
+        grades.forEachIndexed { index, label ->
             db.execSQL(
-                "INSERT INTO grade (id, systemId, label, color, sortOrder) " +
-                    "VALUES (${index + 1}, 1, '$label', '$color', $order)"
+                "INSERT INTO grade (id, systemId, label, sortOrder) " +
+                    "VALUES (${index + 1}, 1, '$label', $index)"
             )
         }
 
-        // Eine aktive Beispiel-Session (endedAt = NULL → läuft noch)
+        // Globale Standard-Gradsysteme (gymId = NULL → hallenübergreifend wählbar).
+        db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (2, NULL, 'V-Scale')")
+        db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (3, NULL, 'Französisch')")
+
+        // Ab ID 6 weiter, da die Halle-Grade oben 1..5 belegen.
+        var nextGradeId = grades.size + 1
+        fun seedGrades(systemId: Int, labels: List<String>) {
+            labels.forEachIndexed { order, label ->
+                db.execSQL(
+                    "INSERT INTO grade (id, systemId, label, sortOrder) " +
+                        "VALUES ($nextGradeId, $systemId, '$label', $order)"
+                )
+                nextGradeId++
+            }
+        }
+        // V-Scale: V0–V15. Französisch (Fontainebleau, Bouldern): 4 bis 8c (≈ V15).
+        seedGrades(2, (0..15).map { "V$it" })
+        seedGrades(
+            3,
+            listOf(
+                "4", "5", "5+", "6a", "6a+", "6b", "6b+",
+                "6c", "6c+", "7a", "7a+", "7b", "7b+", "7c", "7c+",
+                "8a", "8a+", "8b", "8b+", "8c",
+            ),
+        )
+
+        // Eine aktive Beispiel-Session (endedAt = NULL → läuft noch), mit dem Halle-Gradsystem.
         db.execSQL(
-            "INSERT INTO session (id, gymId, date, durationMin, notes, endedAt) " +
-                "VALUES (1, 1, ${System.currentTimeMillis()}, NULL, NULL, NULL)"
+            "INSERT INTO session (id, gymId, gradeSystemId, date, durationMin, notes, endedAt) " +
+                "VALUES (1, 1, 1, ${System.currentTimeMillis()}, NULL, NULL, NULL)"
         )
 
         // Ein paar Beispiel-Boulder in der aktiven Session, damit die App nach dem ersten
         // Start nicht leer wirkt. status wird als Enum-Name gespeichert (siehe Converters).
-        // (routeId, gradeId, name, sektor, attempts, status)
-        val routes = listOf(
-            Triple("Dachrinne", "A", Triple(4, 1, "SENT")),
-            Triple("Slab Talk", "A", Triple(3, 3, "PROJECT")),
-            Triple("Warmup", "D", Triple(2, 1, "SENT")),
+        // (name, sektor, gradeId, attempts, status, colorKey)
+        data class SeedRoute(
+            val name: String,
+            val sektor: String,
+            val gradeId: Int,
+            val attempts: Int,
+            val status: String,
+            val color: String,
         )
-        routes.forEachIndexed { index, (name, sektor, meta) ->
-            val (gradeId, attempts, status) = meta
+        val routes = listOf(
+            SeedRoute("Dachrinne", "A", 4, 1, "SENT", "red"),
+            SeedRoute("Slab Talk", "A", 3, 3, "PROJECT", "blue"),
+            SeedRoute("Warmup", "D", 2, 1, "SENT", "green"),
+        )
+        routes.forEachIndexed { index, r ->
             db.execSQL(
-                "INSERT INTO route (id, sessionId, gradeId, name, sektor, attempts, status, mediaUri, notes) " +
-                    "VALUES (${index + 1}, 1, $gradeId, '$name', '$sektor', $attempts, '$status', NULL, NULL)"
+                "INSERT INTO route (id, sessionId, gradeId, name, sektor, attempts, status, color, mediaUri, notes) " +
+                    "VALUES (${index + 1}, 1, ${r.gradeId}, '${r.name}', '${r.sektor}', " +
+                    "${r.attempts}, '${r.status}', '${r.color}', NULL, NULL)"
             )
         }
     }

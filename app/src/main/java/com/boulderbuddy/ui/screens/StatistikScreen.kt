@@ -1,6 +1,7 @@
 package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
@@ -20,6 +22,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +35,7 @@ import com.boulderbuddy.ui.components.ActivityHeatmap
 import com.boulderbuddy.ui.components.BarChart
 import com.boulderbuddy.ui.components.BarChartEntry
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.FilterChip
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
@@ -37,6 +44,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
 import androidx.compose.ui.graphics.Color
+import com.boulderbuddy.ui.viewmodel.GradeSystemFilterUi
 import com.boulderbuddy.ui.viewmodel.StatistikUiState
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -70,8 +78,13 @@ fun StatistikScreen(
         QuickStat(label = "Tops gesamt", value = state.totalTops.toString()),
         QuickStat(label = "Sessions", value = state.totalSessions.toString()),
     )
-    val gradeDistribution = state.gradeDistribution
     val activity = state.activity
+
+    // Gewähltes System für die Grade-Verteilung (Default: erstes System mit Tops).
+    var selectedSystemId by remember { mutableStateOf<Int?>(null) }
+    val effectiveSystemId = selectedSystemId?.takeIf { id -> state.distributionSystems.any { it.id == id } }
+        ?: state.distributionSystems.firstOrNull()?.id
+    val gradeDistribution = effectiveSystemId?.let { state.distributionBySystem[it] }.orEmpty()
 
     BoulderBuddyScaffold(
         topBar = {
@@ -120,14 +133,66 @@ fun StatistikScreen(
                     }
                 }
 
-                // --- Grade-Verteilung ---
+                // --- Grade-Verteilung (pro System, da Grade systemübergreifend nicht vergleichbar) ---
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                         SectionHeader(text = "Grade-Verteilung")
-                        BarChart(
-                            entries = gradeDistribution,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        if (state.distributionSystems.isEmpty()) {
+                            Text(
+                                text = "Noch keine getoppten Boulder.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = BoulderBuddy.colors.textSecondary,
+                            )
+                        } else {
+                            // System-Umschalter — nur nötig, wenn in mehreren Systemen getoppt wurde.
+                            if (state.distributionSystems.size > 1) {
+                                Row(
+                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                                ) {
+                                    state.distributionSystems.forEach { system ->
+                                        FilterChip(
+                                            label = system.name,
+                                            selected = effectiveSystemId == system.id,
+                                            onClick = { selectedSystemId = system.id },
+                                        )
+                                    }
+                                }
+                            }
+                            BarChart(
+                                entries = gradeDistribution,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+
+                // --- Hangboard-Training ---
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                        SectionHeader(text = "Hangboard-Training")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(IntrinsicSize.Min),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+                        ) {
+                            StatCard(
+                                value = state.hangboardWorkouts.toString(),
+                                label = "Durchläufe",
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                            StatCard(
+                                value = state.hangboardSets.toString(),
+                                label = "Sätze",
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                            StatCard(
+                                value = state.hangboardHangTime,
+                                label = "Hängezeit",
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                        }
                     }
                 }
 
@@ -200,12 +265,26 @@ private fun StatistikScreenPreview() {
                 flashRate = "42%",
                 totalTops = 23,
                 totalSessions = 12,
-                gradeDistribution = listOf(
-                    BarChartEntry("5", 3f, Color(0xFF2E9E52)),
-                    BarChartEntry("6a", 7f, Color(0xFF2F6FE0)),
-                    BarChartEntry("6b", 5f, Color(0xFFF39C12)),
-                    BarChartEntry("6c", 4f, Color(0xFFD64541)),
-                    BarChartEntry("7a", 2f, Color(0xFF8E44AD)),
+                hangboardWorkouts = 8,
+                hangboardSets = 48,
+                hangboardHangTime = "56min",
+                distributionSystems = listOf(
+                    GradeSystemFilterUi(2, "V-Scale"),
+                    GradeSystemFilterUi(3, "Französisch"),
+                ),
+                distributionBySystem = mapOf(
+                    3 to listOf(
+                        BarChartEntry("5", 3f, Color(0xFF2E9E52)),
+                        BarChartEntry("6a", 7f, Color(0xFF2F6FE0)),
+                        BarChartEntry("6b", 5f, Color(0xFFF39C12)),
+                        BarChartEntry("6c", 4f, Color(0xFFD64541)),
+                        BarChartEntry("7a", 2f, Color(0xFF8E44AD)),
+                    ),
+                    2 to listOf(
+                        BarChartEntry("V2", 4f, Color(0xFF2E9E52)),
+                        BarChartEntry("V3", 6f, Color(0xFF2F6FE0)),
+                        BarChartEntry("V4", 3f, Color(0xFFF39C12)),
+                    ),
                 ),
                 activity = listOf(
                     0f, 0.2f, 0f, 0.6f, 1f, 0.4f, 0f,

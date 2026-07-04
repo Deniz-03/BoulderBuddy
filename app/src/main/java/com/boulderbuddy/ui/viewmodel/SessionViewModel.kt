@@ -6,17 +6,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.boulderbuddy.data.db.entity.GradeEntity
+import com.boulderbuddy.data.db.entity.HangboardSessionEntity
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
+import com.boulderbuddy.data.repository.HangboardSessionRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.model.formatDayMonth
 import com.boulderbuddy.ui.model.formatDurationShort
 import com.boulderbuddy.ui.model.istGetoppt
-import com.boulderbuddy.ui.model.parseHexColor
 import com.boulderbuddy.ui.model.toBoulderStatus
+import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.navigation.Session
 import com.boulderbuddy.ui.screens.BoulderStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,6 +39,12 @@ data class SessionBoulderUi(
     val versuche: Int,
 )
 
+/** Ein getrackter Hangboard-Durchlauf innerhalb der Session (Kurzbeschreibung). */
+data class HangboardSessionUi(
+    val id: Int,
+    val summary: String,
+)
+
 /**
  * Gemeinsamer Zustand für die beiden Session-Ansichten. [istAktiv] entscheidet,
  * ob [com.boulderbuddy.ui.screens.SessionDetailScreen] (aktiv) oder
@@ -53,6 +61,8 @@ data class SessionUiState(
     val topGrade: String = "–",
     val notes: String = "",
     val boulders: List<SessionBoulderUi> = emptyList(),
+    /** Getrackte Hangboard-Durchläufe; leer = kein "Hangboard-Training"-Block anzeigen. */
+    val hangboardSessions: List<HangboardSessionUi> = emptyList(),
 )
 
 @HiltViewModel
@@ -62,6 +72,7 @@ class SessionViewModel @Inject constructor(
     routeRepository: RouteRepository,
     gymRepository: GymRepository,
     gradeRepository: GradeRepository,
+    hangboardSessionRepository: HangboardSessionRepository,
 ) : ViewModel() {
 
     // sessionId aus den type-safe Navigations-Argumenten der Session-Route.
@@ -74,10 +85,11 @@ class SessionViewModel @Inject constructor(
         routeRepository.observeBySession(sessionId),
         gymRepository.observeAll(),
         gradeRepository.observeAllGrades(),
-    ) { sessions, routes, gyms, grades ->
+        hangboardSessionRepository.observeBySession(sessionId),
+    ) { sessions, routes, gyms, grades, hangboardSessions ->
         val session = sessions.firstOrNull { it.id == sessionId }
             ?: return@combine SessionUiState(loading = false, exists = false)
-        buildState(session, routes, grades.associateBy { it.id },
+        buildState(session, routes, grades.associateBy { it.id }, hangboardSessions,
             gymName = gyms.firstOrNull { it.id == session.gymId }?.name ?: "Unbekannte Halle")
     }.stateIn(
         scope = viewModelScope,
@@ -93,6 +105,7 @@ class SessionViewModel @Inject constructor(
         session: SessionEntity,
         routes: List<RouteEntity>,
         gradesById: Map<Int, GradeEntity>,
+        hangboardSessions: List<HangboardSessionEntity>,
         gymName: String,
     ): SessionUiState {
         val istAktiv = session.endedAt == null
@@ -102,14 +115,18 @@ class SessionViewModel @Inject constructor(
                 id = route.id,
                 grade = grade?.label ?: "—",
                 name = route.name.ifBlank { grade?.label ?: "Boulder" },
-                accentColor = grade?.color?.let(::parseHexColor) ?: Color(0xFF888888),
+                accentColor = routeColorForKey(route.color),
                 status = route.status.toBoulderStatus(route.attempts),
                 versuche = route.attempts,
             )
         }
+        // Top-Grade nur innerhalb des Gradsystems dieser Session — systemübergreifend wäre der
+        // Vergleich über `order` bedeutungslos. Ohne Session-System: alle getoppten Grade.
+        val systemId = session.gradeSystemId
         val topGrade = routes
             .filter { it.status.istGetoppt }
             .mapNotNull { it.gradeId?.let(gradesById::get) }
+            .filter { systemId == null || it.systemId == systemId }
             .maxByOrNull { it.order }
             ?.label
             ?: "–"
@@ -128,6 +145,12 @@ class SessionViewModel @Inject constructor(
             topGrade = topGrade,
             notes = session.notes.orEmpty(),
             boulders = boulders,
+            hangboardSessions = hangboardSessions.map {
+                HangboardSessionUi(
+                    id = it.id,
+                    summary = "${it.completedSets} Sätze · ${it.hangSec}s Hang / ${it.restSec}s Pause",
+                )
+            },
         )
     }
 }

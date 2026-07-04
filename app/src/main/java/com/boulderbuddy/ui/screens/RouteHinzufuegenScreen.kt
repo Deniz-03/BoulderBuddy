@@ -4,8 +4,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -16,9 +18,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.data.model.RouteStatus
@@ -39,34 +47,52 @@ import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SelectableChip
 import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.TopBar
-import com.boulderbuddy.ui.model.toHexRgb
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.theme.keyForRouteColor
+import com.boulderbuddy.ui.theme.routeColorForKey
+import com.boulderbuddy.ui.theme.routeColorPalette
+import com.boulderbuddy.ui.viewmodel.GradeOption
+import com.boulderbuddy.ui.viewmodel.RouteFormInitial
 import com.boulderbuddy.ui.viewmodel.RouteFormInput
+import com.boulderbuddy.ui.viewmodel.RouteFormUiState
 
 @Composable
 fun RouteHinzufuegenScreen(
+    // Anzeige-Zustand aus dem RouteHinzufuegenViewModel (Grade-Optionen + Startwerte + Edit-Flag).
+    state: RouteFormUiState = RouteFormUiState(ready = true),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
-    // Übergibt die Formulareingabe nach oben; Speichern + Navigation macht der NavHost
-    // via RouteHinzufuegenViewModel (Phase 6.5). Die sessionId liest das ViewModel selbst.
+    // Übergibt die Formulareingabe nach oben; Speichern + Navigation macht der NavHost.
     onSave: (RouteFormInput) -> Unit = {},
 ) {
     val context = LocalContext.current
 
-    var sektor by remember { mutableStateOf("") }
-    var grade by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
-    var notiz by remember { mutableStateOf("") }
-    var versuche by remember { mutableIntStateOf(1) }
-    // Status als 2 Zustände, die direkt aufs Datenmodell mappen: Geschafft = SENT, Projekt = PROJECT.
-    // Flash (SENT + 1 Versuch) wird beim Anzeigen abgeleitet, hier nicht separat erfasst.
-    var geschafft by remember { mutableStateOf(true) }
+    // Solange die (Edit-)Startwerte noch laden: Spinner statt Formular mit falschen Werten.
+    if (!state.ready) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    // Formularfelder aus den Startwerten initialisieren. remember(initial) neu-keyed, sobald
+    // im Edit-Fall die geladenen Werte eintreffen → Vorbefüllung greift.
+    val initial = state.initial
+    var sektor by remember(initial) { mutableStateOf(initial.sektor) }
+    var name by remember(initial) { mutableStateOf(initial.name) }
+    var notiz by remember(initial) { mutableStateOf(initial.notiz) }
+    var versuche by remember(initial) { mutableIntStateOf(initial.attempts) }
+    // Status als 2 Zustände: Geschafft = SENT, Projekt = PROJECT. Flash wird beim Anzeigen abgeleitet.
+    var geschafft by remember(initial) { mutableStateOf(initial.status == RouteStatus.SENT) }
+    var selectedGradeId by remember(initial) { mutableStateOf(initial.gradeId) }
+    // Route-Farbe (Farb-Key), von der Schwierigkeit entkoppelt — dient nur dem Wiedererkennen.
+    var colorKey by remember(initial) { mutableStateOf(initial.color) }
 
     // Gewähltes Foto (content-URI als String); null = noch keins gewählt.
-    var mediaUri by remember { mutableStateOf<String?>(null) }
+    var mediaUri by remember(initial) { mutableStateOf(initial.mediaUri) }
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -81,18 +107,10 @@ fun RouteHinzufuegenScreen(
         }
     }
 
-    // Die 7 Routenfarben in Wireframe-Reihenfolge.
-    val routes = BoulderBuddy.colors.routes
-    val palette = listOf(
-        routes.red, routes.orange, routes.yellow, routes.green,
-        routes.blue, routes.purple, routes.pink,
-    )
-    var selected by remember { mutableStateOf(routes.green) }
-
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Boulder hinzufügen",
+                title = if (state.isEditing) "Boulder bearbeiten" else "Boulder hinzufügen",
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -126,11 +144,10 @@ fun RouteHinzufuegenScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
                 ) {
-                    TextField(
-                        value = grade,
-                        placeholder = "6b",
-                        label = "Grade",
-                        onChange = { grade = it },
+                    GradeDropdown(
+                        grades = state.grades,
+                        selectedGradeId = selectedGradeId,
+                        onSelect = { selectedGradeId = it },
                         modifier = Modifier.weight(1f),
                     )
                     TextField(
@@ -142,16 +159,19 @@ fun RouteHinzufuegenScreen(
                     )
                 }
 
-                Text(
-                    text = "Farbe",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = BoulderBuddy.colors.textTertiary,
-                )
-                ColorPicker(
-                    colors = palette,
-                    selected = selected,
-                    onSelect = { selected = it },
-                )
+                // --- Farbe (immer sichtbar, von der Schwierigkeit entkoppelt) ---
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                    Text(
+                        text = "Farbe",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = BoulderBuddy.colors.textTertiary,
+                    )
+                    ColorPicker(
+                        colors = routeColorPalette.map { it.second },
+                        selected = routeColorForKey(colorKey),
+                        onSelect = { color -> keyForRouteColor(color)?.let { colorKey = it } },
+                    )
+                }
 
                 TextField(
                     value = name,
@@ -221,10 +241,10 @@ fun RouteHinzufuegenScreen(
                     onClick = {
                         onSave(
                             RouteFormInput(
-                                grade = grade,
+                                gradeId = selectedGradeId,
+                                color = colorKey,
                                 sektor = sektor,
                                 name = name,
-                                colorHex = selected.toHexRgb(),
                                 attempts = versuche,
                                 status = if (geschafft) RouteStatus.SENT else RouteStatus.PROJECT,
                                 mediaUri = mediaUri,
@@ -238,10 +258,67 @@ fun RouteHinzufuegenScreen(
     )
 }
 
+// Dropdown der erlaubten Grade des gewählten Grading-Systems. Jeder Eintrag zeigt nur das
+// Label (Grade = reine Schwierigkeit); die Auswahl liefert direkt die gradeId. Ist kein System
+// gewählt (leere Liste), bleibt das Feld leer und weist darauf hin.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GradeDropdown(
+    grades: List<GradeOption>,
+    selectedGradeId: Int?,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = grades.firstOrNull { it.id == selectedGradeId }
+    val placeholder = if (grades.isEmpty()) "Kein System" else "Wählen"
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (grades.isNotEmpty()) expanded = it },
+        modifier = modifier,
+    ) {
+        OutlinedTextField(
+            value = selected?.label ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Grade") },
+            placeholder = { Text(placeholder) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            grades.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    onClick = {
+                        onSelect(option.id)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun RouteHinzufuegenScreenPreview() {
     BoulderBuddyTheme {
-        RouteHinzufuegenScreen()
+        RouteHinzufuegenScreen(
+            state = RouteFormUiState(
+                ready = true,
+                grades = listOf(
+                    GradeOption(1, "V4"),
+                    GradeOption(2, "V5"),
+                ),
+                initial = RouteFormInitial(gradeId = 1),
+            ),
+        )
     }
 }

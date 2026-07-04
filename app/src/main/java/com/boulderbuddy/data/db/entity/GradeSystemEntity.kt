@@ -6,8 +6,11 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Gradsystem einer Halle (z.B. "Farbsystem Halle Nord"). Gym 1:N GradeSystem.
- * Löscht sich mit, wenn das zugehörige [GymEntity] entfernt wird.
+ * Gradsystem (z.B. "Farbsystem Halle Nord", "V-Scale"). Gym 1:N GradeSystem.
+ *
+ * [gymId] ist nullable: globale Standard-Systeme (V-Scale, Französisch) haben keinen
+ * Gym-Anker (`gymId == null`), hallenspezifische/Custom-Systeme schon. Beim Löschen der
+ * Halle verschwinden nur deren eigene Systeme (CASCADE); globale bleiben.
  */
 @Entity(
     tableName = "grade_system",
@@ -23,6 +26,6 @@ import androidx.room.PrimaryKey
 )
 data class GradeSystemEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val gymId: Int,
+    val gymId: Int? = null,
     val name: String,
 )

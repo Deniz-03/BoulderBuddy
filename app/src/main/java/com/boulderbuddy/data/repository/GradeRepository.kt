@@ -35,6 +35,9 @@ interface GradeRepository {
     /** Aktualisiert ein bestehendes Gradsystem. */
     suspend fun updateSystem(system: GradeSystemEntity)
 
+    /** Löscht ein Gradsystem (inkl. seiner Grade via CASCADE). */
+    suspend fun deleteSystem(systemId: Int)
+
     /** Legt einen einzelnen Grad an und gibt seine neue ID zurück. */
     suspend fun createGrade(grade: GradeEntity): Int
 
@@ -66,6 +69,8 @@ class GradeRepositoryImpl @Inject constructor(
         gradeSystemDao.insert(system).toInt()
 
     override suspend fun updateSystem(system: GradeSystemEntity) = gradeSystemDao.update(system)
+
+    override suspend fun deleteSystem(systemId: Int) = gradeSystemDao.deleteById(systemId)
 
     override suspend fun createGrade(grade: GradeEntity): Int = gradeDao.insert(grade).toInt()
 

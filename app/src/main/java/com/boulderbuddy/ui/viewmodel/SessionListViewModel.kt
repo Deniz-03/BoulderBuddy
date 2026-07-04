@@ -43,8 +43,7 @@ class SessionListViewModel @Inject constructor(
         routeRepository.observeAll(),
         gymRepository.observeAll(),
         gradeRepository.observeAllGrades(),
-    ) { sessions, routes, gyms, grades ->
-        val gradesById = grades.associateBy { it.id }
+    ) { sessions, routes, gyms, _ ->
         val gymsById = gyms.associateBy { it.id }
         val routesBySession = routes.groupBy { it.sessionId }
 
@@ -63,7 +62,7 @@ class SessionListViewModel @Inject constructor(
                 id = session.id,
                 gym = gymsById[session.gymId]?.name ?: "Unbekannte Halle",
                 date = if (isActive) "Heute · läuft gerade" else formatRelativeDay(session.date),
-                accentColor = accentColorFor(sessionRoutes, gradesById),
+                accentColor = accentColorFor(sessionRoutes),
                 badges = badges,
                 isActive = isActive,
             )

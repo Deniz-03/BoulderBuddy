@@ -17,7 +17,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -32,38 +32,16 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 import androidx.compose.ui.graphics.Color
 import com.boulderbuddy.ui.viewmodel.BoulderOverviewItemUi
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtUiState
-
-// Grade-Filter über der Liste. "Alle" ist der Default (kein Filter).
-// TODO: Bereiche/Optionen aus dem gewählten Grading-System ableiten (Room),
-//  statt sie hier fest zu verdrahten.
-private val filterOptions = listOf("Alle", "5a–6a", "6b–7a", "7b+")
-
-// Übersetzt ein französisches Grade-Label ("6b") in einen vergleichbaren Wert (Zahl*10 + a/b/c).
-// Nicht-numerische Labels (z.B. Farbnamen "Grün") liefern null → passen nur zu "Alle".
-private fun gradeValue(label: String): Int? {
-    val match = Regex("""(\d+)\s*([abcABC])?""").find(label.trim()) ?: return null
-    val number = match.groupValues[1].toIntOrNull() ?: return null
-    val letter = when (match.groupValues[2].lowercase()) {
-        "a" -> 0; "b" -> 1; "c" -> 2; else -> 0
-    }
-    return number * 10 + letter
-}
-
-// Ordnet einen Boulder dem gewählten Filter zu (Index in filterOptions).
-private fun matchesFilter(grade: String, filterIndex: Int): Boolean {
-    if (filterIndex == 0) return true
-    val value = gradeValue(grade) ?: return false
-    return when (filterIndex) {
-        1 -> value in 50..60   // 5a–6a
-        2 -> value in 61..70   // 6b–7a
-        3 -> value >= 71       // 7b+
-        else -> true
-    }
-}
+import com.boulderbuddy.ui.viewmodel.GradeFilterUi
+import com.boulderbuddy.ui.viewmodel.GradeSystemFilterUi
 
 // Teilt sich mit der Session-Übersicht den Bottom-Nav-Tab 2; der Header-Dropdown schaltet
 // zwischen beiden um. Zusätzlich über die "Alle Boulder"-Schnellaktion auf dem Home-Screen
 // erreichbar (Navigation hierher).
+//
+// Filter: zweistufig & dynamisch (Ansatz A). Erst ein Gradsystem wählen (nur Systeme, die
+// real Boulder haben), dann optional einen konkreten Grad dieses Systems. So funktioniert der
+// Filter über beliebige Systeme hinweg — inkl. Custom-/Farb-Labels — ohne feste Bereiche.
 @Composable
 fun BoulderUebersichtScreen(
     // Anzeige-Zustand aus dem BoulderUebersichtViewModel (Phase 6.6).
@@ -74,10 +52,20 @@ fun BoulderUebersichtScreen(
     onOpenSessionOverview: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
 ) {
-    // Aktiver Grade-Filter (Index in filterOptions). Start: "Alle".
-    var selectedFilter by remember { mutableIntStateOf(0) }
+    // Gewähltes System (null = "Alle Systeme") und Grad (null = "Alle Grade" des Systems).
+    var selectedSystemId by remember { mutableStateOf<Int?>(null) }
+    var selectedGradeId by remember { mutableStateOf<Int?>(null) }
 
-    val boulders = state.boulders.filter { matchesFilter(it.grade, selectedFilter) }
+    // Gegen veraltete Auswahl absichern, falls sich die Daten ändern (System/Grad verschwindet).
+    val effectiveSystemId = selectedSystemId?.takeIf { id -> state.systems.any { it.id == id } }
+    val gradeChips = effectiveSystemId?.let { state.gradesBySystem[it] }.orEmpty()
+    val effectiveGradeId = selectedGradeId?.takeIf { id -> gradeChips.any { it.id == id } }
+
+    val boulders = state.boulders.filter { boulder ->
+        val systemOk = effectiveSystemId == null || boulder.systemId == effectiveSystemId
+        val gradeOk = effectiveGradeId == null || boulder.gradeId == effectiveGradeId
+        systemOk && gradeOk
+    }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -115,18 +103,55 @@ fun BoulderUebersichtScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
             ) {
-                // --- Filter-Chips (horizontal scrollbar, falls mehr dazukommen) ---
-                item {
-                    Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-                    ) {
-                        filterOptions.forEachIndexed { index, label ->
+                // --- Filterebene 1: Gradsystem (nur Systeme mit Bouldern) ---
+                if (state.systems.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                        ) {
                             FilterChip(
-                                label = label,
-                                selected = selectedFilter == index,
-                                onClick = { selectedFilter = index },
+                                label = "Alle",
+                                selected = effectiveSystemId == null,
+                                onClick = {
+                                    selectedSystemId = null
+                                    selectedGradeId = null
+                                },
                             )
+                            state.systems.forEach { system ->
+                                FilterChip(
+                                    label = system.name,
+                                    selected = effectiveSystemId == system.id,
+                                    onClick = {
+                                        selectedSystemId = system.id
+                                        // Grad-Auswahl beim Systemwechsel zurücksetzen.
+                                        selectedGradeId = null
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // --- Filterebene 2: Grade des gewählten Systems (dynamisch) ---
+                if (gradeChips.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                        ) {
+                            FilterChip(
+                                label = "Alle",
+                                selected = effectiveGradeId == null,
+                                onClick = { selectedGradeId = null },
+                            )
+                            gradeChips.forEach { grade ->
+                                FilterChip(
+                                    label = grade.label,
+                                    selected = effectiveGradeId == grade.id,
+                                    onClick = { selectedGradeId = grade.id },
+                                )
+                            }
                         }
                     }
                 }
@@ -168,10 +193,22 @@ private fun BoulderUebersichtScreenPreview() {
         BoulderUebersichtScreen(
             state = BoulderUebersichtUiState(
                 boulders = listOf(
-                    BoulderOverviewItemUi(0, "5c", "Dachrinne", "Sektor A", Color(0xFFD64541)),
-                    BoulderOverviewItemUi(1, "6a", "Slab Talk", "Sektor A", Color(0xFF2F6FE0)),
-                    BoulderOverviewItemUi(2, "5a", "Warmup", "Sektor D", Color(0xFFF4C20D)),
-                    BoulderOverviewItemUi(3, "6b", "Überhang", "Sektor C", Color(0xFF2E9E52)),
+                    BoulderOverviewItemUi(0, "5c", "Dachrinne", "Sektor A", Color(0xFFD64541), systemId = 3, gradeId = 30),
+                    BoulderOverviewItemUi(1, "6a", "Slab Talk", "Sektor A", Color(0xFF2F6FE0), systemId = 3, gradeId = 31),
+                    BoulderOverviewItemUi(2, "V2", "Warmup", "Sektor D", Color(0xFFF4C20D), systemId = 2, gradeId = 20),
+                    BoulderOverviewItemUi(3, "6b", "Überhang", "Sektor C", Color(0xFF2E9E52), systemId = 3, gradeId = 32),
+                ),
+                systems = listOf(
+                    GradeSystemFilterUi(2, "V-Scale"),
+                    GradeSystemFilterUi(3, "Französisch"),
+                ),
+                gradesBySystem = mapOf(
+                    2 to listOf(GradeFilterUi(20, "V2")),
+                    3 to listOf(
+                        GradeFilterUi(30, "5c"),
+                        GradeFilterUi(31, "6a"),
+                        GradeFilterUi(32, "6b"),
+                    ),
                 ),
             ),
         )

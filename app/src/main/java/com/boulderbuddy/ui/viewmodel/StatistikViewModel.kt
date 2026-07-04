@@ -2,16 +2,19 @@ package com.boulderbuddy.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.model.RouteStatus
 import com.boulderbuddy.data.repository.GradeRepository
+import com.boulderbuddy.data.repository.HangboardSessionRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.components.BarChartEntry
+import com.boulderbuddy.ui.model.formatDurationShort
 import com.boulderbuddy.ui.model.istGetoppt
-import com.boulderbuddy.ui.model.parseHexColor
 import com.boulderbuddy.ui.model.toLocalDate
+import com.boulderbuddy.ui.theme.routeColorPalette
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,8 +27,18 @@ data class StatistikUiState(
     val flashRate: String = "–",
     val totalTops: Int = 0,
     val totalSessions: Int = 0,
-    val gradeDistribution: List<BarChartEntry> = emptyList(),
+    /** Systeme, in denen getoppt wurde — Umschalter über der Grade-Verteilung. */
+    val distributionSystems: List<GradeSystemFilterUi> = emptyList(),
+    /** Je System die Grade-Verteilung (ein Balken je Grad, in Grad-Reihenfolge). */
+    val distributionBySystem: Map<Int, List<BarChartEntry>> = emptyMap(),
     val activity: List<Float> = emptyList(),
+    // --- Hangboard-Training ---
+    /** Anzahl abgeschlossener Hangboard-Durchläufe (sessionübergreifend). */
+    val hangboardWorkouts: Int = 0,
+    /** Summe aller absolvierten Sätze über alle Durchläufe. */
+    val hangboardSets: Int = 0,
+    /** Gesamte Hängezeit als Kurzform (z.B. "12min", "1.5h"). */
+    val hangboardHangTime: String = "–",
 )
 
 // Anzahl der Tage in der Aktivitäts-Heatmap (4 Wochen à 7 Tage).
@@ -36,13 +49,16 @@ class StatistikViewModel @Inject constructor(
     sessionRepository: SessionRepository,
     routeRepository: RouteRepository,
     gradeRepository: GradeRepository,
+    hangboardSessionRepository: HangboardSessionRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<StatistikUiState> = combine(
         sessionRepository.observeAll(),
         routeRepository.observeAll(),
         gradeRepository.observeAllGrades(),
-    ) { sessions, routes, grades ->
+        gradeRepository.observeAllSystems(),
+        hangboardSessionRepository.observeAll(),
+    ) { sessions, routes, grades, systems, hangboardSessions ->
         val gradesById = grades.associateBy { it.id }
         val sessionsById = sessions.associateBy { it.id }
 
@@ -50,12 +66,27 @@ class StatistikViewModel @Inject constructor(
         val flashes = topped.count { it.attempts <= 1 }
         val flashRate = if (topped.isEmpty()) "–" else "${flashes * 100 / topped.size}%"
 
+        val hangboardSets = hangboardSessions.sumOf { it.completedSets }
+        val hangboardHangSeconds = hangboardSessions.sumOf { it.completedSets * it.hangSec }
+
+        // Grade-Verteilung pro System (systemübergreifende Sortierung wäre bedeutungslos, da
+        // `order` pro System zählt und Labels verschiedener Systeme nicht vergleichbar sind).
+        val distributionBySystem = distributionBySystem(topped, gradesById)
+        val distributionSystems = systems
+            .filter { it.id in distributionBySystem.keys }
+            .map { GradeSystemFilterUi(it.id, it.name) }
+
         StatistikUiState(
             flashRate = flashRate,
             totalTops = topped.size,
             totalSessions = sessions.size,
-            gradeDistribution = gradeDistribution(topped, gradesById),
+            distributionSystems = distributionSystems,
+            distributionBySystem = distributionBySystem,
             activity = activity(routes, sessionsById),
+            hangboardWorkouts = hangboardSessions.size,
+            hangboardSets = hangboardSets,
+            hangboardHangTime = if (hangboardSessions.isEmpty()) "–"
+                else formatDurationShort(hangboardHangSeconds * 1000L),
         )
     }.stateIn(
         scope = viewModelScope,
@@ -63,23 +94,29 @@ class StatistikViewModel @Inject constructor(
         initialValue = StatistikUiState(),
     )
 
-    // Getoppte Boulder nach Grad gruppiert; ein Balken je Grad, in Grad-Reihenfolge, in Grad-Farbe.
-    private fun gradeDistribution(
+    // Getoppte Boulder je System nach Grad gruppiert; ein Balken je Grad, in Grad-Reihenfolge.
+    // Die Farbe ist rein dekorativ (zyklisch aus der Route-Palette) — Grade sind bewusst nicht
+    // farbcodiert. Nur Systeme mit getoppten Bouldern erscheinen als Schlüssel.
+    private fun distributionBySystem(
         topped: List<RouteEntity>,
-        gradesById: Map<Int, com.boulderbuddy.data.db.entity.GradeEntity>,
-    ): List<BarChartEntry> =
+        gradesById: Map<Int, GradeEntity>,
+    ): Map<Int, List<BarChartEntry>> =
         topped
             .mapNotNull { it.gradeId?.let(gradesById::get) }
-            .groupingBy { it }
-            .eachCount()
-            .entries
-            .sortedBy { it.key.order }
-            .map { (grade, count) ->
-                BarChartEntry(
-                    label = grade.label,
-                    value = count.toFloat(),
-                    color = parseHexColor(grade.color),
-                )
+            .groupBy { it.systemId }
+            .mapValues { (_, systemGrades) ->
+                systemGrades
+                    .groupingBy { it }
+                    .eachCount()
+                    .entries
+                    .sortedBy { it.key.order }
+                    .mapIndexed { index, (grade, count) ->
+                        BarChartEntry(
+                            label = grade.label,
+                            value = count.toFloat(),
+                            color = routeColorPalette[index % routeColorPalette.size].second,
+                        )
+                    }
             }
 
     // Boulder pro Tag über die letzten [ACTIVITY_DAYS] Tage, auf 0f..1f normalisiert.

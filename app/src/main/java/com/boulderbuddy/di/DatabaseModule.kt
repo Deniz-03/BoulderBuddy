@@ -7,6 +7,7 @@ import com.boulderbuddy.data.db.SeedData
 import com.boulderbuddy.data.db.dao.GradeDao
 import com.boulderbuddy.data.db.dao.GradeSystemDao
 import com.boulderbuddy.data.db.dao.GymDao
+import com.boulderbuddy.data.db.dao.HangboardSessionDao
 import com.boulderbuddy.data.db.dao.HangboardTemplateDao
 import com.boulderbuddy.data.db.dao.RouteDao
 import com.boulderbuddy.data.db.dao.SessionDao
@@ -59,4 +60,8 @@ object DatabaseModule {
     @Provides
     fun provideHangboardTemplateDao(db: BoulderBuddyDatabase): HangboardTemplateDao =
         db.hangboardTemplateDao()
+
+    @Provides
+    fun provideHangboardSessionDao(db: BoulderBuddyDatabase): HangboardSessionDao =
+        db.hangboardSessionDao()
 }

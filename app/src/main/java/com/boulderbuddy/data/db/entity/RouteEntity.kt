@@ -41,6 +41,12 @@ data class RouteEntity(
     val sektor: String? = null,
     val attempts: Int = 0,
     val status: RouteStatus = RouteStatus.OPEN,
+    /**
+     * Farb-Key der Route ("red", "green", …, siehe `routeColorPalette`). Bewusst von
+     * [gradeId] entkoppelt: dient nur dem Wiedererkennen der Routenfarbe in der Halle.
+     * `null` = keine Farbe gewählt (neutraler Fallback im UI).
+     */
+    val color: String? = null,
     /** URI eines Fotos oder Videos. */
     val mediaUri: String? = null,
     val notes: String? = null,

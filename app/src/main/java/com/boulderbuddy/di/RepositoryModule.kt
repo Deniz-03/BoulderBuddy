@@ -8,8 +8,12 @@ import com.boulderbuddy.data.repository.HangboardRepository
 import com.boulderbuddy.data.repository.HangboardRepositoryImpl
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.RouteRepositoryImpl
+import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.repository.HangboardSessionRepositoryImpl
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.repository.SessionRepositoryImpl
+import com.boulderbuddy.data.settings.SettingsRepository
+import com.boulderbuddy.data.settings.SettingsRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -43,4 +47,14 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindHangboardRepository(impl: HangboardRepositoryImpl): HangboardRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHangboardSessionRepository(
+        impl: HangboardSessionRepositoryImpl,
+    ): HangboardSessionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
 }
