@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">BoulderBuddy</string>
+    <string name="widget_description">Aktive Session, Tops und Schnellstart für Timer/Session.</string>
 </resources>

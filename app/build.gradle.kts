@@ -91,6 +91,10 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
 
+    // Glance (Phase 7.4c): Homescreen-App-Widget (aktive Session / Tops / Schnellstart Timer).
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
     // Kotlinx Serialization (type-safe navigation)
     implementation(libs.kotlinx.serialization.json)
 

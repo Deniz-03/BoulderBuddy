@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.window.core.layout.WindowSizeClass
@@ -43,6 +44,7 @@ import com.boulderbuddy.ui.viewmodel.RouteHinzufuegenViewModel
 import com.boulderbuddy.ui.viewmodel.SessionErstellenViewModel
 import com.boulderbuddy.ui.viewmodel.SessionListViewModel
 import com.boulderbuddy.ui.viewmodel.StatistikViewModel
+import com.boulderbuddy.widget.WidgetIntent
 
 // =============================================================================
 // AppNavigation — der NavHost: verbindet jede Route aus Destinations.kt mit
@@ -61,8 +63,19 @@ import com.boulderbuddy.ui.viewmodel.StatistikViewModel
 fun AppNavigation(
     // Aus MainActivity (currentWindowAdaptiveInfo): steuert Compact vs. Medium/Expanded.
     windowSizeClass: WindowSizeClass,
+    // Optionales Sprungziel vom Homescreen-Widget (7.4c); null = normaler Start (Home).
+    initialNavTarget: String? = null,
 ) {
     val navController = rememberNavController()
+
+    // Einmaliger Sprung ins Widget-Ziel (7.4c). key = Zielwert → feuert nur beim Start-Intent,
+    // nicht bei jeder Recomposition.
+    LaunchedEffect(initialNavTarget) {
+        when (initialNavTarget) {
+            WidgetIntent.TARGET_TIMER -> navController.navigateToTab(BottomNavTab.Timer)
+            WidgetIntent.TARGET_NEW_SESSION -> navController.navigate(SessionErstellen)
+        }
+    }
 
     // Ab Medium-Breite (≥ 600 dp) nebeneinander-Layouts (Tablet). Darunter (Compact)
     // bleibt alles beim bestehenden Phone-Push-Verhalten.

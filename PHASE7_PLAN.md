@@ -245,9 +245,16 @@ Reihenfolge: **Dark Mode → Speech-to-Text-Notizen → Homescreen-Widget.**
   `appendSpokenNote()` hängt erkannten Text an. `ActivityNotFoundException` → Toast (Emulator ohne
   Google-Apps). `:app:assembleDebug` grün.
 
-### 7.4c Homescreen-Widget
-- [ ] **7.4c.1** Glance-Widget (z. B. „aktive Session / letzte Tops / Schnellstart Timer").
-  Eigene Glance-Dependency.
+### 7.4c Homescreen-Widget — **umgesetzt (2026-07-04)**
+- [x] **7.4c.1** Glance-App-Widget (`androidx.glance:glance-appwidget` `1.1.1`, eigene Versionslinie):
+  `BoulderWidget` (GlanceAppWidget) + `BoulderWidgetReceiver`, registriert im Manifest mit
+  `res/xml/boulder_widget_info.xml`. Zeigt **aktive Session** (Halle · Boulder · Tops) bzw.
+  **Gesamt-Tops** ohne aktive Session, plus **Schnellstart-Buttons** (Timer / Session|Öffnen) und
+  Refresh-Knopf. Daten = einmaliger Room-Snapshot via **Hilt-`@EntryPoint`** (`EntryPointAccessors`,
+  da der Receiver kein Hilt-Android-Entrypoint ist), `updatePeriodMillis` 30 min. **Widget→App-Sprung:**
+  `WidgetIntent` startet `MainActivity` mit Ziel-Extra; `AppNavigation(initialNavTarget=…)` springt
+  per `LaunchedEffect` einmalig zu Timer-Tab bzw. Session-Flow (nur Start-Intent, kein `onNewIntent`).
+  Widget-Farben bewusst fest (kein Theme-Context). `:app:assembleDebug` + `testDebugUnitTest` grün.
 
 ---
 

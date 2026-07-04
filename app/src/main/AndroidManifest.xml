@@ -24,6 +24,18 @@
             </intent-filter>
         </activity>
 
+        <!-- Homescreen-Widget (Phase 7.4c): aktive Session / Tops / Schnellstart. -->
+        <receiver
+            android:name="com.boulderbuddy.widget.BoulderWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/boulder_widget_info" />
+        </receiver>
+
         <!-- Empfängt fertige Hangboard-Durchläufe von der Wear-App (Phase 7.2, Data Layer). -->
         <service
             android:name="com.boulderbuddy.wearsync.HangboardWearListenerService"

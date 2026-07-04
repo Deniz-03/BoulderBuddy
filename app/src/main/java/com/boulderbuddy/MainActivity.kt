@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.boulderbuddy.ui.navigation.AppNavigation
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.viewmodel.ThemeViewModel
+import com.boulderbuddy.widget.WidgetIntent
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -22,6 +23,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Optionales Sprungziel aus dem Homescreen-Widget (7.4c); nur beim Start-Intent.
+        val widgetNavTarget = intent?.getStringExtra(WidgetIntent.EXTRA_NAV_TARGET)
         setContent {
             // Dark-Mode-Override aus den Einstellungen; null = dem System folgen (7.4a).
             val darkModeOverride by themeViewModel.darkModeOverride.collectAsStateWithLifecycle()
@@ -30,7 +33,10 @@ class MainActivity : ComponentActivity() {
                 // WindowSizeClass für adaptive Layouts (Phase 7.1: Tablet). Wird an die
                 // Navigation gereicht, die daraus Compact vs. Medium/Expanded ableitet.
                 val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-                AppNavigation(windowSizeClass = windowSizeClass)
+                AppNavigation(
+                    windowSizeClass = windowSizeClass,
+                    initialNavTarget = widgetNavTarget,
+                )
             }
         }
     }
