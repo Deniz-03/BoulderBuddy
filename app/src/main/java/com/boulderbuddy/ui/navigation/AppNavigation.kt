@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.window.core.layout.WindowSizeClass
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -57,8 +58,17 @@ import com.boulderbuddy.ui.viewmodel.StatistikViewModel
 // Push-Navigation (Screen-Callbacks) folgt in Phase 2.
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(
+    // Aus MainActivity (currentWindowAdaptiveInfo): steuert Compact vs. Medium/Expanded.
+    windowSizeClass: WindowSizeClass,
+) {
     val navController = rememberNavController()
+
+    // Ab Medium-Breite (≥ 600 dp) nebeneinander-Layouts (Tablet). Darunter (Compact)
+    // bleibt alles beim bestehenden Phone-Push-Verhalten.
+    val isWideLayout = windowSizeClass.isWidthAtLeastBreakpoint(
+        WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+    )
 
     // Aktuelles Ziel beobachten, um den aktiven Tab abzuleiten bzw. die BottomNav
     // nur auf den 4 Tab-Zielen einzublenden.
@@ -110,26 +120,43 @@ fun AppNavigation() {
             composable<Sessions> {
                 val viewModel: SessionListViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
-                SessionUebersichtScreen(
-                    state = state,
-                    onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
-                    onCreateSession = { navController.navigate(SessionErstellen) },
-                    // Umschalten auf die Boulder-Ansicht desselben Tabs (Variante A):
-                    // ersetzt Sessions, statt es zu stapeln → Zurück-Umschalten bleibt möglich.
-                    onOpenBoulderOverview = {
-                        navController.navigate(BoulderUebersicht) {
-                            popUpTo(Sessions) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    },
-                    onOpenSettings = { navController.navigate(Einstellungen) },
-                )
+                // Umschalten auf die Boulder-Ansicht desselben Tabs (Variante A):
+                // ersetzt Sessions, statt es zu stapeln → Zurück-Umschalten bleibt möglich.
+                val onOpenBoulderOverview = {
+                    navController.navigate(BoulderUebersicht) {
+                        popUpTo(Sessions) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+                if (isWideLayout) {
+                    // Tablet (≥ 600 dp): Liste + Detail nebeneinander. Auswahl, Detail-Navigation
+                    // und Zurück laufen über den Pane-Navigator im SessionsListDetail.
+                    SessionsListDetail(
+                        state = state,
+                        onCreateSession = { navController.navigate(SessionErstellen) },
+                        onOpenBoulderOverview = onOpenBoulderOverview,
+                        onOpenSettings = { navController.navigate(Einstellungen) },
+                        onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
+                        onAddRoute = { sessionId -> navController.navigate(RouteHinzufuegen(sessionId)) },
+                    )
+                } else {
+                    // Phone (Compact): unverändertes Push-Verhalten.
+                    SessionUebersichtScreen(
+                        state = state,
+                        onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
+                        onCreateSession = { navController.navigate(SessionErstellen) },
+                        onOpenBoulderOverview = onOpenBoulderOverview,
+                        onOpenSettings = { navController.navigate(Einstellungen) },
+                    )
+                }
             }
             composable<Stats> {
                 val viewModel: StatistikViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
                 StatistikScreen(
                     state = state,
+                    // Auf breiten Layouts (Tablet) mehrspaltiges Dashboard.
+                    wide = isWideLayout,
                     onOpenSettings = { navController.navigate(Einstellungen) },
                 )
             }
