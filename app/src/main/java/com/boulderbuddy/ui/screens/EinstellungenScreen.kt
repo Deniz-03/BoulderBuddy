@@ -8,17 +8,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.Watch
@@ -26,21 +26,17 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SelectableChip
@@ -55,31 +51,31 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.EinstellungenUiState
 import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 
-// Auswahl-Optionen fürs Standard-Grading. Identisch zu SessionErstellenScreen.
-// TODO: zentral halten (gemeinsame Quelle/DB), sobald Custom-Farbsysteme dazukommen
-//  ("Eigenes…" lädt dann die in der DB angelegten Systeme).
-private val gradingOptions = listOf("Französisch", "V-Scale", "Farbsystem", "Eigenes…")
-
 @Composable
 fun EinstellungenScreen(
-    // Farbsystem-Verwaltung aus dem EinstellungenViewModel (Phase 6.10).
+    // Grading-Verwaltung aus dem EinstellungenViewModel.
     state: EinstellungenUiState = EinstellungenUiState(),
-    onCreateColorSystem: (String, List<Pair<String, Color>>) -> Unit = { _, _ -> },
+    // Legt ein Custom-Grading-System an (Name + Grade-Labels, von leicht nach schwer).
+    onCreateGradeSystem: (String, List<String>) -> Unit = { _, _ -> },
+    // Löscht ein (löschbares) Grading-System.
+    onDeleteGradeSystem: (Int) -> Unit = {},
+    // Standard-Grading wählen (persistiert das Grade-System, das das Boulder-Dropdown speist).
+    onSelectGradeSystem: (Int) -> Unit = {},
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
-    // Lokaler UI-State. Hält die Werte vorerst nur in der Komposition.
+    // Lokaler UI-State (Geräte-/App-Toggles noch nicht persistiert).
     // TODO: aus den App-Einstellungen lesen/schreiben (DataStore via ViewModel).
-    var standardGradingIndex by remember { mutableIntStateOf(0) }
     var smartwatchVerbunden by remember { mutableStateOf(true) }
     var haptischesFeedback by remember { mutableStateOf(true) }
     var darkMode by remember { mutableStateOf(false) }
 
-    // Steuert den Standard-Grading-Auswahldialog.
+    // Steuert die Grading-Dialoge (Standard wählen / anlegen / verwalten).
     var showGradingDialog by remember { mutableStateOf(false) }
-    // Farbsystem-Verwaltung: Liste (manage) bzw. Anlege-Dialog (create).
-    var showFarbsystemDialog by remember { mutableStateOf(false) }
-    var showCreateSystemDialog by remember { mutableStateOf(false) }
+    var showCreateGradingDialog by remember { mutableStateOf(false) }
+    var showManageGradingDialog by remember { mutableStateOf(false) }
+    // Zu löschendes System (Bestätigung); null = kein Löschdialog offen.
+    var pendingDelete by remember { mutableStateOf<GradeSystemUi?>(null) }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -118,19 +114,26 @@ fun EinstellungenScreen(
                             vertical = Dimens.paddingS,
                         ),
                     )
-                    // Wert-Zeile: öffnet den Auswahldialog, zeigt aktuelle Wahl rechts.
+                    // Wert-Zeile: öffnet den Auswahldialog, zeigt das gewählte System rechts.
+                    val selectedSystemName = state.systems
+                        .firstOrNull { it.id == state.selectedGradeSystemId }?.name ?: "—"
                     SettingsRow(
                         icon = Icons.Outlined.Tune,
                         label = "Standard-Grading",
-                        value = gradingOptions[standardGradingIndex],
+                        value = selectedSystemName,
                         onClick = { showGradingDialog = true },
                     )
-                    // Öffnet die Farbsystem-Verwaltung (Liste + Anlegen). Zeigt die Anzahl
-                    // vorhandener Systeme als Wert.
+                    // Öffnet den Anlege-Dialog fürs Custom-Grading-System.
                     SettingsRow(
-                        icon = Icons.Outlined.Palette,
-                        label = "Farbsystem verwalten",
-                        onClick = { showFarbsystemDialog = true },
+                        icon = Icons.Outlined.Add,
+                        label = "Grading-System erstellen",
+                        onClick = { showCreateGradingDialog = true },
+                    )
+                    // Öffnet die Verwaltung (Systeme ansehen/löschen). Zeigt die Anzahl als Kontext.
+                    SettingsRow(
+                        icon = Icons.Outlined.Edit,
+                        label = "Grading-Systeme verwalten",
+                        onClick = { showManageGradingDialog = true },
                         trailing = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
@@ -209,176 +212,191 @@ fun EinstellungenScreen(
         }
     )
 
-    // Auswahldialog fürs Standard-Grading. Tippen auf einen Chip wählt aus und schließt.
+    // Auswahldialog fürs Standard-Grading. Tippen auf ein System wählt aus und schließt.
     if (showGradingDialog) {
         GradingAuswahlDialog(
-            options = gradingOptions,
-            selectedIndex = standardGradingIndex,
-            onSelect = { standardGradingIndex = it },
+            systems = state.systems,
+            selectedId = state.selectedGradeSystemId,
+            onSelect = { onSelectGradeSystem(it) },
             onDismiss = { showGradingDialog = false },
         )
     }
 
-    // Farbsystem-Verwaltung: Liste der Systeme + Einstieg zum Anlegen.
-    if (showFarbsystemDialog) {
-        FarbsystemVerwaltenDialog(
-            systems = state.systems,
-            onCreateNew = {
-                showFarbsystemDialog = false
-                showCreateSystemDialog = true
+    // Anlege-Dialog fürs Custom-Grading-System (Name + Grade-Labels).
+    if (showCreateGradingDialog) {
+        GradingSystemAnlegenDialog(
+            onCreate = { name, labels ->
+                onCreateGradeSystem(name, labels)
+                showCreateGradingDialog = false
             },
-            onDismiss = { showFarbsystemDialog = false },
+            onDismiss = { showCreateGradingDialog = false },
         )
     }
 
-    // Anlege-Dialog fürs Custom-Farbsystem (MVP-Must-Have).
-    if (showCreateSystemDialog) {
-        FarbsystemAnlegenDialog(
-            onCreate = { name, colors ->
-                onCreateColorSystem(name, colors)
-                showCreateSystemDialog = false
+    // Verwaltungs-Dialog: Systeme ansehen, löschbare (Custom) mit Papierkorb.
+    if (showManageGradingDialog) {
+        GradingSystemeVerwaltenDialog(
+            systems = state.systems,
+            onDeleteRequest = { pendingDelete = it },
+            onDismiss = { showManageGradingDialog = false },
+        )
+    }
+
+    // Lösch-Bestätigung für das gewählte System.
+    pendingDelete?.let { system ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("System löschen?") },
+            text = {
+                Text(
+                    "„${system.name}\" wird gelöscht. Boulder dieses Systems behalten ihre Farbe, " +
+                        "verlieren aber ihre Grad-Zuordnung."
+                )
             },
-            onDismiss = { showCreateSystemDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteGradeSystem(system.id)
+                        pendingDelete = null
+                    },
+                ) { Text("Löschen") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("Abbrechen") }
+            },
         )
     }
 }
 
-// Listet die vorhandenen Farbsysteme und bietet den Einstieg zum Anlegen eines neuen.
+// Listet alle Gradsysteme. Löschbare (Custom, `deletable`) bekommen einen Papierkorb; die
+// geschützten Standards (V-Scale/Französisch) zeigen einen dezenten "Standard"-Hinweis.
 @Composable
-private fun FarbsystemVerwaltenDialog(
+private fun GradingSystemeVerwaltenDialog(
     systems: List<GradeSystemUi>,
-    onCreateNew: () -> Unit,
+    onDeleteRequest: (GradeSystemUi) -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Farbsysteme") },
+        title = { Text("Grading-Systeme") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
-                if (systems.isEmpty()) {
-                    Text(
-                        text = "Noch keine Farbsysteme angelegt.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = BoulderBuddy.colors.textSecondary,
-                    )
-                } else {
+            if (systems.isEmpty()) {
+                Text(
+                    text = "Noch keine Grading-Systeme vorhanden.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = BoulderBuddy.colors.textSecondary,
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     systems.forEach { system ->
-                        Text(
-                            text = "${system.name} · ${system.gradeCount} Grade",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = system.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = "${system.gradeCount} Grade",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = BoulderBuddy.colors.textTertiary,
+                                )
+                            }
+                            if (system.deletable) {
+                                IconButton(onClick = { onDeleteRequest(system) }) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Delete,
+                                        contentDescription = "System löschen",
+                                        tint = BoulderBuddy.colors.textSecondary,
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Standard",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = BoulderBuddy.colors.textTertiary,
+                                )
+                            }
+                        }
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onCreateNew) { Text("Neues System") } },
+        confirmButton = {},
         dismissButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
     )
 }
 
-// Legt ein Custom-Farbsystem an: Name + Auswahl der Routenfarben (je Farbe ein Grad).
+// Legt ein Custom-Grading-System an: Name + dynamische Liste von Grade-Labels (von leicht
+// nach schwer). Grade sind reine Schwierigkeit — keine Farbe (die hängt an der Route).
 @Composable
-private fun FarbsystemAnlegenDialog(
-    onCreate: (String, List<Pair<String, Color>>) -> Unit,
+private fun GradingSystemAnlegenDialog(
+    onCreate: (String, List<String>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val routes = BoulderBuddy.colors.routes
-    val palette = listOf(
-        "Rot" to routes.red,
-        "Orange" to routes.orange,
-        "Gelb" to routes.yellow,
-        "Grün" to routes.green,
-        "Blau" to routes.blue,
-        "Lila" to routes.purple,
-        "Pink" to routes.pink,
-    )
     var name by remember { mutableStateOf("") }
-    // Auswahl per Farbname (stabiler Schlüssel).
-    val selected = remember { mutableStateListOf<String>() }
+    // Start mit zwei leeren Zeilen; weitere per "Grad hinzufügen".
+    val labels = remember { mutableStateListOf("", "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Neues Farbsystem") },
+        title = { Text("Neues Grading-System") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+            ) {
                 TextField(
                     value = name,
                     onChange = { name = it },
                     label = "NAME",
-                    placeholder = "z.B. Halle Süd",
+                    placeholder = "z.B. Meine Skala",
                 )
                 Text(
-                    text = "Farben",
+                    text = "Grade (von leicht nach schwer)",
                     style = MaterialTheme.typography.labelSmall,
                     color = BoulderBuddy.colors.textTertiary,
                 )
-                palette.chunked(4).forEach { rowColors ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
-                        rowColors.forEach { (label, _) ->
-                            SelectableChip(
-                                label = label,
-                                selected = label in selected,
-                                onClick = {
-                                    if (label in selected) selected.remove(label) else selected.add(label)
-                                },
-                                modifier = Modifier.weight(1f),
-                            )
+                labels.forEachIndexed { index, label ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                    ) {
+                        TextField(
+                            value = label,
+                            onChange = { labels[index] = it },
+                            placeholder = "z.B. V$index",
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(
+                            onClick = { if (labels.size > 1) labels.removeAt(index) },
+                        ) {
+                            Icon(Icons.Filled.Remove, contentDescription = "Grad entfernen")
                         }
-                        repeat(4 - rowColors.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
+                TextButton(onClick = { labels.add("") }) { Text("+ Grad hinzufügen") }
             }
         },
         confirmButton = {
             TextButton(
-                enabled = name.isNotBlank() && selected.isNotEmpty(),
-                onClick = { onCreate(name, palette.filter { it.first in selected }) },
+                enabled = name.isNotBlank() && labels.any { it.isNotBlank() },
+                onClick = { onCreate(name, labels.toList()) },
             ) { Text("Anlegen") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )
 }
 
-// Das 2×2-Chip-Raster der Grading-Auswahl. Verwendet dieselben SelectableChip wie
-// SessionErstellenScreen — eine visuelle Sprache fürs Grading-System. Ausgelagert,
-// damit es sowohl der Dialog als auch die statische Preview nutzen kann.
-@Composable
-private fun GradingChipGrid(
-    options: List<String>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-    ) {
-        // chunked(2) teilt die Optionen in 2er-Reihen → 2×2-Raster.
-        options.chunked(2).forEachIndexed { rowIndex, rowOptions ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-            ) {
-                rowOptions.forEachIndexed { colIndex, label ->
-                    val index = rowIndex * 2 + colIndex
-                    SelectableChip(
-                        label = label,
-                        selected = selectedIndex == index,
-                        onClick = { onSelect(index) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-    }
-}
-
-// Einfach-Auswahl des Standard-Gradings. Tippen auf einen Chip wählt aus und schließt.
+// Einfach-Auswahl des Standard-Gradings aus den real vorhandenen Grade-Systemen
+// (Standards wie V-Scale/Französisch + Custom-Systeme). Tippen wählt aus und schließt.
 @Composable
 private fun GradingAuswahlDialog(
-    options: List<String>,
-    selectedIndex: Int,
+    systems: List<GradeSystemUi>,
+    selectedId: Int?,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -386,14 +404,27 @@ private fun GradingAuswahlDialog(
         onDismissRequest = onDismiss,
         title = { Text("Standard-Grading") },
         text = {
-            GradingChipGrid(
-                options = options,
-                selectedIndex = selectedIndex,
-                onSelect = {
-                    onSelect(it)
-                    onDismiss()
-                },
-            )
+            if (systems.isEmpty()) {
+                Text(
+                    text = "Noch keine Grade-Systeme vorhanden.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = BoulderBuddy.colors.textSecondary,
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                    systems.forEach { system ->
+                        SelectableChip(
+                            label = "${system.name} · ${system.gradeCount} Grade",
+                            selected = system.id == selectedId,
+                            onClick = {
+                                onSelect(system.id)
+                                onDismiss()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
         },
         // Auswahl erfolgt per Chip-Tap, daher kein Bestätigen-Button nötig.
         confirmButton = {},
@@ -407,39 +438,14 @@ private fun GradingAuswahlDialog(
 @Composable
 private fun EinstellungenScreenPreview() {
     BoulderBuddyTheme {
-        EinstellungenScreen()
-    }
-}
-
-
-// Statische Vorschau: baut die Dialog-Surface nach (Titel + Chip-Raster), damit
-// Aussehen und Abstände OHNE Interactive Mode sichtbar sind. Schwarzer Hintergrund
-// deutet den Scrim an. Nicht die echte AlertDialog-Chrome, aber inhaltlich identisch.
-@Preview(name = "Grading-Auswahl (statisch)", showBackground = true, backgroundColor = 0xFF000000)
-@Composable
-private fun GradingAuswahlContentPreview() {
-    BoulderBuddyTheme {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier
-                .width(320.dp)
-                .padding(24.dp),
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
-            ) {
-                Text(
-                    text = "Standard-Grading",
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-                GradingChipGrid(
-                    options = gradingOptions,
-                    selectedIndex = 0,
-                    onSelect = {},
-                )
-            }
-        }
+        EinstellungenScreen(
+            state = EinstellungenUiState(
+                systems = listOf(
+                    GradeSystemUi(id = 2, name = "V-Scale", gradeCount = 11),
+                    GradeSystemUi(id = 3, name = "Französisch", gradeCount = 14),
+                ),
+                selectedGradeSystemId = 2,
+            ),
+        )
     }
 }
