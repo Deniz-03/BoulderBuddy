@@ -20,6 +20,9 @@ coil = "3.3.0"
 media3 = "1.5.1"
 # Glance (Phase 7.4c): Homescreen-App-Widget. Eigene Versionslinie, nicht vom Compose-BOM.
 glance = "1.1.1"
+# ML Kit Pose Detection (Phase 7.5 Ghost Climber): On-Device-Skelett-Erkennung (native Google-Lib
+# statt MediaPipe). Homographie/DTW werden selbst in Kotlin implementiert (kein OpenCV).
+mlkitPoseDetection = "18.0.0-beta5"
 lifecycleViewmodelCompose = "2.10.0"
 kotlinxSerializationJson = "1.9.0"
 material3Adaptive = "1.1.0"
@@ -72,6 +75,11 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # Glance App-Widget (Phase 7.4c): Compose-artiges Homescreen-Widget + M3-Tokens.
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
+
+# ML Kit Pose Detection (Phase 7.5 Ghost Climber). "accurate"-Modell = genauer, für Offline-Analyse
+# (Latenz unkritisch); "pose-detection" (base) wäre die schlankere Alternative.
+mlkit-pose-detection-accurate = { group = "com.google.mlkit", name = "pose-detection-accurate", version.ref = "mlkitPoseDetection" }
+mlkit-pose-detection = { group = "com.google.mlkit", name = "pose-detection", version.ref = "mlkitPoseDetection" }
 
 # Material3 Adaptive (Tablet-Layouts: ListDetailPaneScaffold, WindowSizeClass) — Phase 7.1.
 # Eigene Versionslinie, NICHT vom Compose-BOM verwaltet.

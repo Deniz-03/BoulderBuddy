@@ -347,6 +347,13 @@ Alignment.md`.
 
 # Anhang A — Fable-5-Auftrag: Ghost Climber (Vollausbau)
 
+> ⚠️ **ZUERST LESEN: [`FABLE_GHOSTCLIMBER_START.md`](FABLE_GHOSTCLIMBER_START.md)** (Repo-Root).
+> Dort stehen die **finalen Entscheidungen (2026-07-04)** + aktuelle Repo-Fakten, die diesen Anhang
+> in Teilen **überschreiben**: Tech-Stack = **ML Kit Pose (statt MediaPipe) + eigene Kotlin-
+> Homographie (statt OpenCV)**; Anker = **Auto-Detektion + manuelle Korrektur**; DB ist **v4 mit
+> destruktiver Migration** (⇒ **keine** handgeschriebene Migration für `GhostAnalysisEntity`, nur
+> `version` erhöhen). Die ML-Kit-Dependency ist bereits eingebunden & grün.
+>
 > **An Fable 5:** Dies ist dein vollständiger Arbeitsauftrag für das Ghost-Climber-Feature. Lies
 > vorher die zwei Konzept-Notizen im Obsidian-Vault: `01 – Planung & Konzept/Feature –
 > Ghostclimber.md` (Vision) und `03 – Architektur & Tech/Ghostclimber – Synchronisation &
