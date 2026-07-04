@@ -121,23 +121,30 @@ Expanded).
   `HangboardTimerViewModel` (schreibt eine `HangboardSessionEntity` in die aktive Session).
 
 ### Konkrete Schritte (Minimal-Scope, Timer-first)
-- [ ] **7.2.1** Neues Modul `:wear` anlegen (`settings.gradle.kts` `include(":wear")`, eigenes
-  `wear/build.gradle.kts`, eigenes `AndroidManifest.xml` mit `<uses-feature android:name="android.hardware.type.watch">`).
-  minSdk beachten (Wear OS 3+ → typ. 30). **AGP-9-Falle:** Built-in-Kotlin, Hilt (falls genutzt)
-  ≥ 2.60, `disallowKotlinSourceSets=false` gilt projektweit — greift auch hier.
-- [ ] **7.2.2** Wear-Dependencies: `androidx.wear.compose:compose-material`,
-  `compose-foundation`, `compose-navigation`, `androidx.wear:wear`, `play-services-wearable`
-  (Data Layer). Neue Katalog-Einträge.
-- [ ] **7.2.3** Wear-`MainActivity` + minimaler Timer-Screen (Compose for Wear OS): Play/Pause/Reset,
-  Rest-/Hang-Anzeige, **Vibrations-Feedback** bei Phasenwechsel/Ende (`Vibrator`/`VibratorManager`).
-  Timer-Logik aus `HangboardTimerViewModel` als Vorlage — *nicht* 1:1 teilen (getrennte Module),
-  aber gleiche Zustandsmaschine (HANG→REST→DONE).
-- [ ] **7.2.4** (Wenn Companion) Data-Layer-Anbindung: `DataClient`/`MessageClient` beidseitig;
-  auf dem Phone einen `WearableListenerService`, der einen fertigen Uhr-Durchlauf in die aktive
-  Session schreibt (analog `recordWorkout()` im `HangboardTimerViewModel`).
-- [ ] **7.2.5** „Session starten / aktive Route als geschafft markieren" auf der Uhr — **nur wenn
-  Zeit bleibt**, sonst dokumentiert als Ausblick.
-- [ ] **7.2.6** Verifizieren im Wear-OS-Emulator (+ ggf. gepaartem Phone-Emulator für Data Layer).
+- [x] **7.2.1** Neues Modul `:wear` angelegt (`settings.gradle.kts` `include(":wear")`, eigenes
+  `wear/build.gradle.kts`, eigenes `AndroidManifest.xml` mit `<uses-feature android:name="android.hardware.type.watch">`,
+  `standalone=false` = Companion). minSdk 30 (Wear OS 3+). **`applicationId = "com.boulderbuddy"`
+  gleich wie `:app`** (Data-Layer-Kopplung). Kein Hilt auf der Uhr (bewusst, kleines Modul).
+  AGP-9-Fallen (Built-in-Kotlin, `disallowKotlinSourceSets=false`) gelten projektweit — bauen grün.
+- [x] **7.2.2** Wear-Dependencies im Katalog + `wear/build.gradle.kts`: `androidx.wear.compose:compose-material`
+  (`1.4.1`), `compose-foundation`, `compose-navigation`, `androidx.wear:wear` (`1.3.0`),
+  `play-services-wearable` (`19.0.0`, Data Layer). Compose-BOM geteilt mit `:app`.
+- [x] **7.2.3** Wear-`MainActivity` (`presentation/`) + Timer-Screen (Compose for Wear OS,
+  `ScalingLazyColumn` + `CircularProgressIndicator`): Start/Pause/Reset, HÄNGEN/PAUSE-Anzeige,
+  Satz-Zähler, im Ausgangszustand Stepper für Sätze/Hang/Pause. **Vibrations-Feedback** bei
+  Phasenwechsel (150 ms) und Ende (500 ms) via `VibratorManager`/`Vibrator`. Eigenes
+  `TimerViewModel` (`AndroidViewModel`) — **gleiche Zustandsmaschine** wie das Phone-VM
+  (HANG→REST→DONE), aber eigenständig (getrennte Module).
+- [x] **7.2.4** Data-Layer-Anbindung: Uhr sendet bei DONE via `MessageClient` an alle verbundenen
+  Nodes (`PhoneConnector` + `WearSyncContract`, Pfad `/boulderbuddy/hangboard_completed`,
+  Text-Payload). Auf dem Phone `HangboardWearListenerService` (`@AndroidEntryPoint`,
+  im Manifest registriert) → schreibt den Durchlauf **nur bei aktiver Session** in genau diese
+  (analog `recordWorkout()`). ⚠️ Hilt-`ServiceComponent` zog `error_prone_annotations` als neue
+  `:app`-Dependency nach sich.
+- [ ] **7.2.5** „Session starten / aktive Route als geschafft markieren" auf der Uhr — **Ausblick**
+  (Minimal-Scope: bewusst weggelassen, Data-Layer-Gerüst steht als Basis dafür bereit).
+- [ ] **7.2.6** Verifizieren im Wear-OS-Emulator (+ gepaartem Phone-Emulator für Data Layer) —
+  **offen (Emulator-Sichtprüfung).** `:wear:assembleDebug` + `:app:assembleDebug` sind grün.
 
 > **Advanced-Ausbau (Fable 5): automatische Hangboard-Erkennung.** Aufbauend auf dem hier
 > gebauten Companion-Timer erkennt die Uhr per Sensorik selbst, wann gehängt wird, misst Satz-

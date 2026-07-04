@@ -1,0 +1,49 @@
+package com.boulderbuddy.wear.data
+
+import android.content.Context
+import android.util.Log
+import com.google.android.gms.wearable.Wearable
+
+/**
+ * Sendet Ereignisse der Uhr an das gekoppelte Phone über den Wear Data Layer (MessageClient).
+ *
+ * Companion-Prinzip: Die Uhr funktioniert auch ohne Phone (reiner Timer). Ist kein Node
+ * verbunden oder kein Phone gekoppelt, verpufft der Sende-Versuch geräuschlos — das Tracking
+ * in die aktive Phone-Session ist rein additiv.
+ */
+object PhoneConnector {
+    private const val TAG = "PhoneConnector"
+
+    /**
+     * Meldet einen bis zum Ende absolvierten Hangboard-Durchlauf an alle verbundenen Nodes.
+     * Das Phone entscheidet selbst, ob es eine aktive Session hat, in die es den Durchlauf trägt.
+     */
+    fun sendHangboardCompleted(
+        context: Context,
+        completedSets: Int,
+        totalSets: Int,
+        hangSec: Int,
+        restSec: Int,
+        date: Long = System.currentTimeMillis(),
+    ) {
+        val payload = WearSyncContract.encode(completedSets, totalSets, hangSec, restSec, date)
+        val messageClient = Wearable.getMessageClient(context)
+        Wearable.getNodeClient(context).connectedNodes
+            .addOnSuccessListener { nodes ->
+                if (nodes.isEmpty()) {
+                    Log.d(TAG, "Kein verbundener Node — Durchlauf bleibt lokal auf der Uhr.")
+                    return@addOnSuccessListener
+                }
+                nodes.forEach { node ->
+                    messageClient.sendMessage(
+                        node.id,
+                        WearSyncContract.PATH_HANGBOARD_COMPLETED,
+                        payload,
+                    ).addOnFailureListener { e ->
+                        Log.w(TAG, "Senden an ${node.displayName} fehlgeschlagen", e)
+                    }
+                }
+            }
+            .addOnFailureListener { e -> Log.w(TAG, "Node-Abfrage fehlgeschlagen", e) }
+    }
+}

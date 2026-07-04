@@ -19,6 +19,11 @@ coil = "3.3.0"
 lifecycleViewmodelCompose = "2.10.0"
 kotlinxSerializationJson = "1.9.0"
 material3Adaptive = "1.1.0"
+# Wear OS (Phase 7.2) — eigene Versionslinien, NICHT vom Compose-BOM verwaltet.
+wear = "1.3.0"
+wearCompose = "1.4.1"
+playServicesWearable = "19.0.0"
+errorProneAnnotations = "2.36.0"
 
 [libraries]
 androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
@@ -59,6 +64,16 @@ androidx-compose-material3-adaptive-layout = { group = "androidx.compose.materia
 androidx-compose-material3-adaptive-navigation = { group = "androidx.compose.material3.adaptive", name = "adaptive-navigation", version.ref = "material3Adaptive" }
 # WindowSizeClass kommt aus material3 (eigener Artefakt, vom Compose-BOM versioniert).
 androidx-compose-material3-windowsizeclass = { group = "androidx.compose.material3", name = "material3-window-size-class" }
+
+# Wear OS (Phase 7.2): Compose for Wear OS + Data Layer API (play-services-wearable).
+androidx-wear = { group = "androidx.wear", name = "wear", version.ref = "wear" }
+androidx-wear-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "wearCompose" }
+androidx-wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }
+androidx-wear-compose-navigation = { group = "androidx.wear.compose", name = "compose-navigation", version.ref = "wearCompose" }
+play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+# Von Hilt/Dagger generiertem Code referenziert (@CanIgnoreReturnValue im ServiceComponent),
+# aber nur transitiv compileOnly → für javac der generierten Sources explizit nötig (Phase 7.2).
+error-prone-annotations = { group = "com.google.errorprone", name = "error_prone_annotations", version.ref = "errorProneAnnotations" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -90,6 +90,11 @@ dependencies {
     // Kotlinx Serialization (type-safe navigation)
     implementation(libs.kotlinx.serialization.json)
 
+    // Wear Data Layer (Phase 7.2): empfängt fertige Hangboard-Durchläufe von der Uhr.
+    implementation(libs.play.services.wearable)
+    // Für den von Hilt generierten ServiceComponent-Code (@CanIgnoreReturnValue) — Phase 7.2.
+    implementation(libs.error.prone.annotations)
+
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
