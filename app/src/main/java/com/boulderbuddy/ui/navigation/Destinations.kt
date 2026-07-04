@@ -53,8 +53,13 @@ data class Session(val sessionId: Int)         // -> SessionRoute (aktiv/beendet
 
 // sessionId nullable: Annahme laut Plan ist "mit sessionId", aber die offene Frage
 // (Boulder ohne aktive Session anlegen?) bleibt bewusst offen -> default null.
+// boulderId gesetzt = Bearbeiten-Modus (Formular vorbefüllen + bestehende Route aktualisieren),
+// null = neuen Boulder anlegen.
 @Serializable
-data class RouteHinzufuegen(val sessionId: Int? = null) // -> RouteHinzufuegenScreen
+data class RouteHinzufuegen(
+    val sessionId: Int? = null,
+    val boulderId: Int? = null,
+) // -> RouteHinzufuegenScreen
 
 // -----------------------------------------------------------------------------
 // Tab-Liste für die BottomNav (Route + zugehöriger BottomNavTab mit Icon/Label).

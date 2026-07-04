@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
+import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
@@ -11,9 +12,10 @@ import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.ui.model.formatRelativeDay
 import com.boulderbuddy.ui.model.istGetoppt
-import com.boulderbuddy.ui.model.parseHexColor
+import com.boulderbuddy.ui.theme.routeColorForKey
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -37,7 +39,10 @@ data class HomeUiState(
     val userName: String = "Deniz",
     val sessionsPerWeek: Int = 0,
     val totalTops: Int = 0,
+    /** Höchster getoppter Grad im meistgenutzten System (systemintern verglichen). */
     val topGrade: String = "–",
+    /** Name des Systems, aus dem [topGrade] stammt (für das Karten-Label); leer = keins. */
+    val topGradeSystemName: String = "",
     val hasActiveSession: Boolean = false,
     val activeSessionId: Int? = null,
     val lastSession: LastSessionUi? = null,
@@ -49,16 +54,36 @@ class HomeViewModel @Inject constructor(
     routeRepository: RouteRepository,
     gymRepository: GymRepository,
     gradeRepository: GradeRepository,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
+    // Innerer Kern-Zustand (5 Flows), damit die Systeme als 6. Flow außen kombiniert werden
+    // können (combine unterstützt typsicher max. 5 Flows).
+    private data class HomeCore(
+        val sessions: List<SessionEntity>,
+        val active: SessionEntity?,
+        val routes: List<RouteEntity>,
+        val gyms: List<GymEntity>,
+        val grades: List<GradeEntity>,
+    )
+
     val uiState: StateFlow<HomeUiState> = combine(
-        sessionRepository.observeAll(),
-        sessionRepository.observeActive(),
-        routeRepository.observeAll(),
-        gymRepository.observeAll(),
-        gradeRepository.observeAllGrades(),
-    ) { sessions, active, routes, gyms, grades ->
-        buildState(sessions, active, routes, gyms, grades)
+        combine(
+            sessionRepository.observeAll(),
+            sessionRepository.observeActive(),
+            routeRepository.observeAll(),
+            gymRepository.observeAll(),
+            gradeRepository.observeAllGrades(),
+        ) { sessions, active, routes, gyms, grades ->
+            HomeCore(sessions, active, routes, gyms, grades)
+        },
+        gradeRepository.observeAllSystems(),
+        settingsRepository.selectedGradeSystemId,
+    ) { core, systems, selectedSystemId ->
+        buildState(
+            core.sessions, core.active, core.routes, core.gyms, core.grades,
+            systems, selectedSystemId,
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -71,6 +96,8 @@ class HomeViewModel @Inject constructor(
         routes: List<RouteEntity>,
         gyms: List<GymEntity>,
         grades: List<GradeEntity>,
+        systems: List<GradeSystemEntity>,
+        selectedSystemId: Int?,
     ): HomeUiState {
         val gradesById = grades.associateBy { it.id }
         val gymsById = gyms.associateBy { it.id }
@@ -86,12 +113,20 @@ class HomeViewModel @Inject constructor(
         val toppedRoutes = routes.filter { it.status.istGetoppt }
         val totalTops = toppedRoutes.size
 
-        // Höchster getoppter Grad = größte sortOrder (grobe, systemübergreifende Näherung).
-        val topGrade = toppedRoutes
-            .mapNotNull { it.gradeId?.let(gradesById::get) }
+        // Top-Grade im Standard-Grading-System (aus den Einstellungen). Ist keins gewählt, greift
+        // als Fallback das meistgenutzte System. Systemübergreifendes maxBy(order) wäre
+        // bedeutungslos (order zählt pro System), daher immer innerhalb genau eines Systems.
+        val toppedGrades = toppedRoutes.mapNotNull { it.gradeId?.let(gradesById::get) }
+        val targetSystemId = selectedSystemId?.takeIf { id -> systems.any { it.id == id } }
+            ?: toppedGrades.groupBy { it.systemId }.maxByOrNull { it.value.size }?.key
+        val topGrade = toppedGrades
+            .filter { it.systemId == targetSystemId }
             .maxByOrNull { it.order }
             ?.label
             ?: "–"
+        val topGradeSystemName = targetSystemId
+            ?.let { sid -> systems.firstOrNull { it.id == sid }?.name }
+            .orEmpty()
 
         // Letzte Session = neueste nach Datum (observeAll ist DESC → erste).
         val lastSession = sessions.firstOrNull()?.let { session ->
@@ -100,7 +135,7 @@ class HomeViewModel @Inject constructor(
                 sessionId = session.id,
                 gym = gymsById[session.gymId]?.name ?: "Unbekannte Halle",
                 subtitle = buildSubtitle(session, sessionRoutes.size),
-                accentColor = accentColorFor(sessionRoutes, gradesById),
+                accentColor = accentColorFor(sessionRoutes),
                 isActive = session.endedAt == null,
             )
         }
@@ -109,6 +144,7 @@ class HomeViewModel @Inject constructor(
             sessionsPerWeek = sessionsPerWeek,
             totalTops = totalTops,
             topGrade = topGrade,
+            topGradeSystemName = topGradeSystemName,
             hasActiveSession = active != null,
             activeSessionId = active?.id,
             lastSession = lastSession,
@@ -122,18 +158,15 @@ class HomeViewModel @Inject constructor(
 }
 
 /**
- * Akzentfarbe einer Session = häufigste Grade-Farbe ihrer Routen.
- * Fällt auf ein neutrales Grau zurück, wenn keine Route einen Grad hat.
+ * Akzentfarbe einer Session = häufigste Routenfarbe ihrer Boulder.
+ * Fällt auf ein neutrales Grau zurück, wenn keine Route eine Farbe hat.
  */
-internal fun accentColorFor(
-    routes: List<RouteEntity>,
-    gradesById: Map<Int, GradeEntity>,
-): Color {
-    val hex = routes
-        .mapNotNull { it.gradeId?.let(gradesById::get)?.color }
+internal fun accentColorFor(routes: List<RouteEntity>): Color {
+    val key = routes
+        .mapNotNull { it.color }
         .groupingBy { it }
         .eachCount()
         .maxByOrNull { it.value }
         ?.key
-    return hex?.let(::parseHexColor) ?: Color(0xFF888888)
+    return routeColorForKey(key)
 }

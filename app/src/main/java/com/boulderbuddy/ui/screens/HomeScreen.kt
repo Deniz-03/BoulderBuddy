@@ -121,7 +121,11 @@ fun HomeScreen(
                         )
                         StatCard(
                             value = state.topGrade,
-                            label = "Top Grade",
+                            // Label zeigt das System, aus dem der Top-Grade stammt (pro System).
+                            label = state.topGradeSystemName
+                                .takeIf { it.isNotBlank() }
+                                ?.let { "Top · $it" }
+                                ?: "Top Grade",
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
@@ -207,6 +211,7 @@ private fun HomeScreenPreview() {
                 sessionsPerWeek = 4,
                 totalTops = 23,
                 topGrade = "6c",
+                topGradeSystemName = "Französisch",
                 hasActiveSession = true,
                 activeSessionId = 1,
                 lastSession = LastSessionUi(

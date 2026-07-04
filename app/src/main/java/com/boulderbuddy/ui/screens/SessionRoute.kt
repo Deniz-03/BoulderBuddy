@@ -36,6 +36,7 @@ fun SessionRoute(
             startMillis = state.startMillis,
             topGrade = state.topGrade,
             boulders = state.boulders,
+            hangboardSessions = state.hangboardSessions,
             onBack = onBack,
             onOpenBoulder = onOpenBoulder,
             onAddRoute = { onAddRoute(sessionId) },
