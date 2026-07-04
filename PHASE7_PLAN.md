@@ -245,20 +245,31 @@ Alignment.md`.
 ## 7.6 — Tests
 
 **Ziel:** Prozessdoku-tauglicher Test-Nachweis, kein Vollabdeckungs-Anspruch.
-- [ ] **7.6.1** Test-Dependencies ergänzen: `androidx.room:room-testing`,
-  `kotlinx-coroutines-test`, `androidx.arch.core:core-testing`, `turbine` (Flow-Tests), evtl.
-  `google.truth`. Neue Katalog-Einträge.
-- [ ] **7.6.2** DAO-Tests mit Room **in-memory** (`Room.inMemoryDatabaseBuilder`): je 1–2 Tests für
-  `SessionDao` (aktiv = `endedAt IS NULL`), `RouteDao` (`observeBySession`), `GradeDao`.
-- [ ] **7.6.3** Repository-Tests für die Kernlogik (aktive Session anlegen/beenden, `create` gibt
-  Row-ID zurück).
-- [ ] **7.6.4** 1–2 ViewModel-Tests (z. B. `HangboardTimerViewModel`-Zustandsmaschine mit
-  virtueller Zeit / `StatistikViewModel`-Aggregation) — hoher Doku-Wert, deterministisch.
-- [ ] **7.6.5** 1–2 Compose-UI-Tests für die Doku (Navigation-Smoke-Test, ein Formular).
+- [x] **7.6.1** Test-Dependencies ergänzt (Katalog + `app/build.gradle.kts`): `androidx.room:room-testing`,
+  `kotlinx-coroutines-test` (1.10.2), `androidx.arch.core:core-testing`, `turbine` (1.2.0, Flow-Tests),
+  `google.truth` (1.4.4). Aufgeteilt: JVM-Tests (`testImplementation`: coroutines-test/turbine/truth/
+  arch-core) vs. instrumentiert (`androidTestImplementation`: room-testing/coroutines-test/truth).
+- [x] **7.6.2** DAO-Tests mit Room **in-memory** (`androidTest`, `createInMemoryDatabase()`-Helper):
+  `SessionDaoTest` (Aktiv-Marker `endedAt IS NULL`, Row-ID, `endSession`, neueste aktive),
+  `RouteDaoTest` (`observeBySession` filtert + Reihenfolge), `GradeDaoTest` (`observeBySystem`
+  nach `sortOrder`, Filter). **Auf Emulator ausgeführt: grün.**
+- [x] **7.6.3** Repository-Test `SessionRepositoryTest` (echte In-Memory-Room): `create` gibt ID
+  zurück + Session wird aktiv, `endSession` setzt `endedAt` → keine aktive Session mehr.
+  **Auf Emulator ausgeführt: grün.**
+- [x] **7.6.4** ViewModel-Tests (JVM, `MainDispatcherRule` + `runTest`): `HangboardTimerViewModelTest`
+  (Zustandsmaschine HANG→REST→DONE mit virtueller Zeit, Tracking in aktive Session, Reset, Preset)
+  + `StatistikViewModelTest` (Flash-Rate/Tops/Hangboard-Summen/Grade-Verteilung, Turbine). Fakes in
+  `test/.../fake/`. **`testDebugUnitTest` grün.**
+- [x] **7.6.5** Compose-UI-Test `HangboardTimerScreenTest` (`androidTest`): rendert UI-State,
+  Start-Tap löst `onPlayPause` aus. **Auf Emulator ausgeführt: grün.**
 
 ### Zu beachten
 - ViewModel-/Flow-Tests brauchen `TestDispatcher`; der Timer nutzt `delay` → `runTest` +
-  `advanceTimeBy` verwenden.
+  `advanceTimeBy` verwenden. **Umgesetzt:** `MainDispatcherRule` (ersetzt `Dispatchers.Main` durch
+  `StandardTestDispatcher`); `advanceTimeBy(n)` + `runCurrent()`, da ein bei genau `n` fälliger
+  `delay` sonst nicht ausgeführt wird.
+- **Instrumentierte Tests (7.6.2/3/5)** via `:app:connectedDebugAndroidTest` — bei mehreren AVDs das
+  Ziel per `ANDROID_SERIAL` selektieren. **Auf `Pixel_6a(AVD)` ausgeführt: 12/12 grün.**
 
 ---
 

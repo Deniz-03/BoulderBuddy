@@ -95,11 +95,21 @@ dependencies {
     // Für den von Hilt generierten ServiceComponent-Code (@CanIgnoreReturnValue) — Phase 7.2.
     implementation(libs.error.prone.annotations)
 
+    // Unit-Tests (JVM) — Phase 7.6: ViewModel-/Flow-Tests mit virtueller Zeit.
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.truth)
+    testImplementation(libs.androidx.arch.core.testing)
+
+    // Instrumented Tests (Emulator/Gerät) — Phase 7.6: DAO/Repository (Room in-memory) + Compose.
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.truth)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
