@@ -34,6 +34,8 @@ data class EinstellungenUiState(
     val systems: List<GradeSystemUi> = emptyList(),
     /** ID des als "Standard-Grading" gewählten Systems; steuert das Grade-Dropdown. */
     val selectedGradeSystemId: Int? = null,
+    /** Expliziter Dark-Mode-Override; `null` = dem System folgen (7.4a). */
+    val darkModeOverride: Boolean? = null,
 )
 
 @HiltViewModel
@@ -53,7 +55,8 @@ class EinstellungenViewModel @Inject constructor(
         gradeRepository.observeAllSystems(),
         gradeRepository.observeAllGrades(),
         settingsRepository.selectedGradeSystemId,
-    ) { systems, grades, selectedId ->
+        settingsRepository.darkMode,
+    ) { systems, grades, selectedId, darkMode ->
         val countBySystem = grades.groupingBy { it.systemId }.eachCount()
         EinstellungenUiState(
             systems = systems.map {
@@ -66,6 +69,7 @@ class EinstellungenViewModel @Inject constructor(
                 )
             },
             selectedGradeSystemId = selectedId,
+            darkModeOverride = darkMode,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -76,6 +80,11 @@ class EinstellungenViewModel @Inject constructor(
     /** Merkt das gewählte Standard-Grading-System (persistent via DataStore). */
     fun selectGradeSystem(systemId: Int) {
         viewModelScope.launch { settingsRepository.setSelectedGradeSystem(systemId) }
+    }
+
+    /** Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a). */
+    fun setDarkMode(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setDarkMode(enabled) }
     }
 
     /**

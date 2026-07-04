@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -70,6 +71,8 @@ fun EinstellungenScreen(
     onSelectGradeSystem: (Int) -> Unit = {},
     // Exportiert alle Sessions als CSV in das gewählte SAF-Dokument (7.3b).
     onExportSessions: (Uri) -> Unit = {},
+    // Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a).
+    onSetDarkMode: (Boolean) -> Unit = {},
     // Einmalige Export-Rückmeldung (Toast); null = keine offene Meldung.
     exportMessage: String? = null,
     // Meldet dem ViewModel, dass die Export-Rückmeldung angezeigt wurde.
@@ -77,11 +80,13 @@ fun EinstellungenScreen(
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
-    // Lokaler UI-State (Geräte-/App-Toggles noch nicht persistiert).
+    // Lokaler UI-State (Geräte-Toggles noch nicht persistiert).
     // TODO: aus den App-Einstellungen lesen/schreiben (DataStore via ViewModel).
     var smartwatchVerbunden by remember { mutableStateOf(true) }
     var haptischesFeedback by remember { mutableStateOf(true) }
-    var darkMode by remember { mutableStateOf(false) }
+    // Effektiver Dark-Mode-Zustand: expliziter Override, sonst dem System folgen. Der Switch
+    // zeigt den aktuell wirksamen Zustand; ein Tap persistiert ihn als expliziten Override (7.4a).
+    val darkMode = state.darkModeOverride ?: isSystemInDarkTheme()
 
     // SAF-Launcher: legt ein neues CSV-Dokument an; die gewählte URI geht an den Export.
     val context = LocalContext.current
@@ -225,7 +230,7 @@ fun EinstellungenScreen(
                         trailing = {
                             ToggleSwitch(
                                 checked = darkMode,
-                                onCheckedChange = { darkMode = it },
+                                onCheckedChange = onSetDarkMode,
                             )
                         },
                     )

@@ -2,6 +2,7 @@ package com.boulderbuddy.data.settings
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import kotlinx.coroutines.flow.Flow
@@ -28,9 +29,17 @@ interface SettingsRepository {
     /** Zuletzt genutzte Timer-Konfiguration (mit Defaults, falls nie gesetzt). */
     val timerConfig: Flow<TimerConfig>
 
+    /**
+     * Expliziter Dark-Mode-Override; `null` = noch nie gesetzt → dem System folgen
+     * (`isSystemInDarkTheme()`). `true`/`false` überstimmt das System dauerhaft.
+     */
+    val darkMode: Flow<Boolean?>
+
     suspend fun setSelectedGradeSystem(systemId: Int)
 
     suspend fun setTimerConfig(config: TimerConfig)
+
+    suspend fun setDarkMode(enabled: Boolean)
 }
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -48,6 +57,9 @@ class SettingsRepositoryImpl @Inject constructor(
         )
     }
 
+    override val darkMode: Flow<Boolean?> =
+        dataStore.data.map { it[KEY_DARK_MODE] }
+
     override suspend fun setSelectedGradeSystem(systemId: Int) {
         dataStore.edit { it[KEY_GRADE_SYSTEM_ID] = systemId }
     }
@@ -60,10 +72,15 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun setDarkMode(enabled: Boolean) {
+        dataStore.edit { it[KEY_DARK_MODE] = enabled }
+    }
+
     private companion object {
         val KEY_GRADE_SYSTEM_ID = intPreferencesKey("selected_grade_system_id")
         val KEY_TIMER_SETS = intPreferencesKey("timer_sets")
         val KEY_TIMER_HANG_SEC = intPreferencesKey("timer_hang_sec")
         val KEY_TIMER_REST_SEC = intPreferencesKey("timer_rest_sec")
+        val KEY_DARK_MODE = booleanPreferencesKey("dark_mode")
     }
 }

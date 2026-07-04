@@ -27,9 +27,11 @@ class FakeSettingsRepository(
 ) : SettingsRepository {
     private val _selectedGradeSystemId = MutableStateFlow<Int?>(null)
     val timerConfigState = MutableStateFlow(initialTimerConfig)
+    val darkModeState = MutableStateFlow<Boolean?>(null)
 
     override val selectedGradeSystemId: Flow<Int?> = _selectedGradeSystemId
     override val timerConfig: Flow<TimerConfig> = timerConfigState
+    override val darkMode: Flow<Boolean?> = darkModeState
 
     override suspend fun setSelectedGradeSystem(systemId: Int) {
         _selectedGradeSystemId.value = systemId
@@ -37,6 +39,10 @@ class FakeSettingsRepository(
 
     override suspend fun setTimerConfig(config: TimerConfig) {
         timerConfigState.value = config
+    }
+
+    override suspend fun setDarkMode(enabled: Boolean) {
+        darkModeState.value = enabled
     }
 }
 

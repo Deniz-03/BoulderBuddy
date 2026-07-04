@@ -218,12 +218,24 @@ Reihenfolge nach Aufwand/Nutzen: **Timer-Voreinstellungen → Session-Export →
 
 Reihenfolge: **Dark Mode → Speech-to-Text-Notizen → Homescreen-Widget.**
 
-### 7.4a Dark Mode
-- [ ] **7.4a.1** `darkColorScheme` in `Theme.kt` + **dunkle Varianten der `BoulderBuddyColors`**
-  (die Custom-Farben sind aktuell fest hell → zweiter Farbsatz nötig).
-- [ ] **7.4a.2** `BoulderBuddyTheme` um `isSystemInDarkTheme()` (und optional expliziten Toggle in
-  Einstellungen via DataStore) erweitern; passenden Farbsatz per `CompositionLocalProvider` liefern.
-- [ ] **7.4a.3** Alle Screens im Dark Mode durchsehen (Kontraste, Route-Farben, Charts).
+### 7.4a Dark Mode — **umgesetzt (2026-07-04)**
+- [x] **7.4a.1** `darkColorScheme` (`DarkColorScheme`) + dunkler `BoulderBuddyColors`-Satz in
+  `Theme.kt`; dunkle Tokens in `Color.kt` (`BoulderBuddyDark*`). **Design-Entscheidung:**
+  `surfaceInverse` + Route-Akzente **bleiben in beiden Themes** (dunkle Marken-Füllfläche mit
+  cremefarbenem Inhalt — TopBar/Buttons/Chips/BottomNav pairen sie fest mit Creme, würden bei
+  Invertierung brechen). Nur Hintergrund/Card/Text/Border flippen. `onSurface` im Dark-Schema ist
+  **nicht** `surfaceInverse` (sonst Polaritäts-Kollision mit der dunklen TopBar), sondern ein eigenes
+  warmes Off-White (`BoulderBuddyDarkOnSurface`).
+- [x] **7.4a.2** `BoulderBuddyTheme(darkTheme = isSystemInDarkTheme())`; **expliziter Toggle**:
+  `SettingsRepository.darkMode: Flow<Boolean?>` (null = System folgen) via DataStore, `ThemeViewModel`
+  löst ihn in `MainActivity` auf, `EinstellungenScreen`-Switch persistiert den Override. Der Switch
+  zeigt den effektiven Zustand (`override ?: isSystemInDarkTheme()`).
+- [x] **7.4a.3** Code-Audit statt reiner Sichtprüfung: alle Screens/Komponenten nutzen semantische
+  Tokens (`MaterialTheme.colorScheme` + `BoulderBuddy.colors`) → flippen automatisch; **keine
+  hartkodierten Weiß/Schwarz-Flächen** im Laufzeit-Code (nur in `@Preview`-`backgroundColor`).
+  Chart-/Route-Farben sind vivide Akzente, auf beiden Untergründen tragfähig. Live-Emulator-Sicht
+  bleibt als optionale Endkontrolle offen (wie 7.1.5/7.2.6). `:app:assembleDebug` + `testDebugUnitTest`
+  grün.
 
 ### 7.4b Speech-to-Text-Notizen
 - [ ] **7.4b.1** `RecognizerIntent`/`SpeechRecognizer` an den Notiz-Feldern (Route + Session);

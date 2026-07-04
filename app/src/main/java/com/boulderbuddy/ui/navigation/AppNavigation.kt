@@ -185,6 +185,7 @@ fun AppNavigation(
                     onDeleteGradeSystem = viewModel::deleteGradeSystem,
                     onSelectGradeSystem = viewModel::selectGradeSystem,
                     onExportSessions = viewModel::exportSessions,
+                    onSetDarkMode = viewModel::setDarkMode,
                     exportMessage = exportMessage,
                     onExportMessageShown = viewModel::consumeExportMessage,
                     onBack = { navController.popBackStack() },
