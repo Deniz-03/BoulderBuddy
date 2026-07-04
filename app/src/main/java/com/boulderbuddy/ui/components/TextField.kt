@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
@@ -16,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
@@ -41,6 +43,8 @@ fun TextField(
     singleLine: Boolean = true,
     minLines: Int = 1,
     readOnly: Boolean = false,
+    // Optionales Element rechts im Feld (z.B. Mikrofon für Spracheingabe, 7.4b).
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = modifier,
@@ -68,7 +72,7 @@ fun TextField(
             // decorationBox umrahmt das eigentliche Eingabefeld (innerTextField) mit
             // unserem Card-Look und blendet den Placeholder ein, solange value leer ist.
             decorationBox = { innerTextField ->
-                Box(
+                Row(
                     modifier = Modifier
                         .clip(MaterialTheme.shapes.medium)
                         .background(BoulderBuddy.colors.surfaceCard)
@@ -77,15 +81,23 @@ fun TextField(
                             MaterialTheme.shapes.medium,
                         )
                         .padding(horizontal = Dimens.paddingL, vertical = Dimens.paddingM),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = placeholder,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = BoulderBuddy.colors.textTertiary,
-                        )
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = BoulderBuddy.colors.textTertiary,
+                            )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
+                    // Trailing-Element (z.B. Mikrofon) rechts, oben ausgerichtet — passt für
+                    // ein- wie mehrzeilige Notizfelder.
+                    if (trailing != null) {
+                        trailing()
+                    }
                 }
             },
         )

@@ -237,9 +237,13 @@ Reihenfolge: **Dark Mode → Speech-to-Text-Notizen → Homescreen-Widget.**
   bleibt als optionale Endkontrolle offen (wie 7.1.5/7.2.6). `:app:assembleDebug` + `testDebugUnitTest`
   grün.
 
-### 7.4b Speech-to-Text-Notizen
-- [ ] **7.4b.1** `RecognizerIntent`/`SpeechRecognizer` an den Notiz-Feldern (Route + Session);
-  Mikrofon-Permission.
+### 7.4b Speech-to-Text-Notizen — **umgesetzt (2026-07-04)**
+- [x] **7.4b.1** `SpeechToTextButton` (Mikrofon) über System-`RecognizerIntent` (Google-Sprachdialog)
+  statt direkter `SpeechRecognizer`-API → **keine `RECORD_AUDIO`-Permission im Manifest nötig**
+  (die Erkenner-App handhabt sie). `TextField` um optionalen `trailing`-Slot erweitert (Row-Layout);
+  Mikrofon an beiden editierbaren Notizfeldern (`RouteHinzufuegenScreen` + `SessionErstellenScreen`),
+  `appendSpokenNote()` hängt erkannten Text an. `ActivityNotFoundException` → Toast (Emulator ohne
+  Google-Apps). `:app:assembleDebug` grün.
 
 ### 7.4c Homescreen-Widget
 - [ ] **7.4c.1** Glance-Widget (z. B. „aktive Session / letzte Tops / Schnellstart Timer").

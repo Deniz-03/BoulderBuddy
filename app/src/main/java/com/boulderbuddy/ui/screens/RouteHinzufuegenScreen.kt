@@ -45,7 +45,9 @@ import com.boulderbuddy.ui.components.ColorPicker
 import com.boulderbuddy.ui.components.PhotoPicker
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SelectableChip
+import com.boulderbuddy.ui.components.SpeechToTextButton
 import com.boulderbuddy.ui.components.TextField
+import com.boulderbuddy.ui.components.appendSpokenNote
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
@@ -240,6 +242,12 @@ fun RouteHinzufuegenScreen(
                     onChange = { notiz = it },
                     singleLine = false,
                     minLines = 2,
+                    // Spracheingabe: erkannten Text an die Notiz anhängen (7.4b).
+                    trailing = {
+                        SpeechToTextButton(
+                            onResult = { spoken -> notiz = appendSpokenNote(notiz, spoken) },
+                        )
+                    },
                 )
 
                 PrimaryButton(
