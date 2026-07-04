@@ -102,5 +102,25 @@ object SeedData : RoomDatabase.Callback() {
                     "${r.attempts}, '${r.status}', '${r.color}', NULL, NULL)"
             )
         }
+
+        // Standard-Hangboard-Presets (7.3a). repRestSec wird vom Timer aktuell nicht genutzt = restSec.
+        // (name, sets, hangSec, restSec, repRestSec)
+        data class SeedPreset(
+            val name: String,
+            val sets: Int,
+            val hangSec: Int,
+            val restSec: Int,
+        )
+        val presets = listOf(
+            SeedPreset("Repeater 7/3", 6, 7, 3),
+            SeedPreset("Max Hangs 10/60", 5, 10, 60),
+            SeedPreset("Warmup 5/10", 4, 5, 10),
+        )
+        presets.forEachIndexed { index, p ->
+            db.execSQL(
+                "INSERT INTO hangboard_template (id, name, sets, hangSec, restSec, repRestSec) " +
+                    "VALUES (${index + 1}, '${p.name}', ${p.sets}, ${p.hangSec}, ${p.restSec}, ${p.restSec})"
+            )
+        }
     }
 }

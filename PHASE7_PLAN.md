@@ -168,23 +168,34 @@ Reihenfolge nach Aufwand/Nutzen: **Timer-Voreinstellungen → Session-Export →
 ### 7.3a Hangboard-Timer-Voreinstellungen
 > Infrastruktur (`HangboardTemplateEntity`/`-Dao`/`HangboardRepository`) existiert, ist aber
 > ungenutzt. Aufgabe = anbinden, nicht neu bauen.
-- [ ] **7.3a.1** `HangboardRepository` um `observeAll`/`create`/`delete` für Templates ergänzen
-  (falls nicht vorhanden) und in `HangboardTimerViewModel` injizieren.
-- [ ] **7.3a.2** UI im `HangboardTimerScreen`: Preset-Auswahl (Chips/Liste) → lädt Template in die
-  aktuelle Config; „aktuelle Config als Preset speichern"; Presets löschen.
-- [ ] **7.3a.3** SeedData um 2–3 Standard-Presets erweitern (z. B. „Repeater 7/3", „Max Hangs 10/60").
-- [ ] **7.3a.4** Klären: ersetzt das `SettingsRepository`/`TimerConfig` (DataStore) oder ergänzt es?
-  (Vorschlag: Templates = benannte Presets, DataStore bleibt für „zuletzt genutzt".)
+- [x] **7.3a.1** `HangboardRepository` um `delete` ergänzt (`observeAll`/`create`/`update` waren da),
+  `HangboardTemplateDao.delete` (`@Delete`) hinzugefügt und Repository in `HangboardTimerViewModel`
+  injiziert (Presets als beobachteter Room-Flow im UI-State).
+- [x] **7.3a.2** UI im `HangboardTimerScreen`: Preset-Chips im Einstell-Dialog (`InputChip` +
+  `FlowRow`) → Tap lädt Werte in die Stepper; „Als Preset speichern" (Name-Dialog); „Presets
+  bearbeiten"-Modus zum Löschen (Chip zeigt X).
+- [x] **7.3a.3** SeedData um 3 Standard-Presets erweitert („Repeater 7/3", „Max Hangs 10/60",
+  „Warmup 5/10").
+- [x] **7.3a.4** Entschieden: **Templates = benannte Presets** (Room), **DataStore bleibt für
+  „zuletzt genutzt"**. Ein Preset-Tap befüllt nur die Stepper; „Übernehmen" persistiert die Config
+  wie bisher via DataStore. `repRestSec` wird vom Timer noch nicht genutzt → = `restSec`.
 
 ### 7.3b Session-Export
-- [ ] **7.3b.1** Export-Format wählen (Vorschlag: CSV je Session + optional JSON-Gesamt-Export).
-- [ ] **7.3b.2** Export-Funktion im Repository/ViewModel (Sessions + Routen + Grades serialisieren).
-- [ ] **7.3b.3** Storage Access Framework (`ACTION_CREATE_DOCUMENT`) zum Speichern; Einstiegspunkt
-  im Einstellungen- oder Session-Screen.
+- [x] **7.3b.1** Format entschieden (2026-07-04): **CSV-Gesamtexport** aller Sessions (eine Zeile je
+  Route, Sessions ohne Routen behalten eine Zeile). IDs gegen Namen aufgelöst (Halle, Gradsystem,
+  Grad-Label) → CSV ohne DB lesbar. UTF-8 mit BOM (Excel-Umlaute), RFC-4180-Escaping.
+- [x] **7.3b.2** `SessionExporter` (`data/export/`, `@Inject`, DAOs + `@ApplicationContext`) baut das
+  CSV und schreibt in die Ziel-URI; `EinstellungenViewModel.exportSessions(uri)` ruft ihn auf und
+  liefert eine Toast-Rückmeldung (`exportMessage`).
+- [x] **7.3b.3** Storage Access Framework (`ActivityResultContracts.CreateDocument("text/csv")`);
+  Einstiegspunkt „Sessions exportieren (CSV)" in der App-Gruppe der Einstellungen.
 
-### 7.3c Video-Support für Routen
+### 7.3c Video-Support für Routen — **zurückgestellt (2026-07-04)**
+> Entscheidung: erst nach 7.6 Tests. Zieht Media3-Dependency + echte Schema-Migration (v4→v5) nach
+> und ist im Plan als Letztes der Should-Haves eingeordnet. Offene Frage 7.3c.1 (mediaType-Feld vs.
+> MIME) bleibt bis dahin offen.
 - [ ] **7.3c.1** Schema-Frage klären: reicht `RouteEntity.mediaUri` + MIME-Erkennung (Bild vs.
-  Video), oder braucht es ein explizites `mediaType`-Feld? → **Schema-Migration v2→v3** nötig, wenn
+  Video), oder braucht es ein explizites `mediaType`-Feld? → **Schema-Migration v4→v5** nötig, wenn
   ein Feld dazukommt (echte Migration, da inzwischen ggf. Bestandsdaten).
 - [ ] **7.3c.2** PhotoPicker auf `PickVisualMedia` mit Bild+Video umstellen (unterstützt schon beides).
 - [ ] **7.3c.3** Video-Wiedergabe: Media3/ExoPlayer als neue Dependency; im Boulder-Detail statt

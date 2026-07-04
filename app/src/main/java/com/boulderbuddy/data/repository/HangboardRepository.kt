@@ -20,6 +20,9 @@ interface HangboardRepository {
 
     /** Aktualisiert ein bestehendes Template. */
     suspend fun update(template: HangboardTemplateEntity)
+
+    /** Löscht ein Template. */
+    suspend fun delete(template: HangboardTemplateEntity)
 }
 
 class HangboardRepositoryImpl @Inject constructor(
@@ -34,4 +37,7 @@ class HangboardRepositoryImpl @Inject constructor(
 
     override suspend fun update(template: HangboardTemplateEntity) =
         hangboardTemplateDao.update(template)
+
+    override suspend fun delete(template: HangboardTemplateEntity) =
+        hangboardTemplateDao.delete(template)
 }

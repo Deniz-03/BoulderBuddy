@@ -2,6 +2,8 @@ package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,14 +11,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,6 +50,16 @@ import com.boulderbuddy.ui.theme.M3OnPrimary
 // Zustandsautomat: Timer kann sich lediglich in einer der drei phasen befinden.
 enum class TimerPhase { HANG, REST, DONE }
 
+// Eine benannte Timer-Voreinstellung (Preset) für die Auswahl im Einstell-Dialog.
+// UI-Modell — entkoppelt vom HangboardTemplateEntity der Datenschicht.
+data class TimerPreset(
+    val id: Int,
+    val name: String,
+    val sets: Int,
+    val hangSec: Int,
+    val restSec: Int,
+)
+
 // Reiner UI-Zustand des Timer-Screens. Bewusst ohne Logik und ohne Theme-Farben:
 // Der Screen ist stateless und rendert nur, was hier drinsteht.
 // hangSec/restSec/totalSets = die aktuelle Konfiguration (für die Vorbefüllung des Dialogs).
@@ -56,6 +73,7 @@ data class HangboardTimerUiState(
     val hangSec: Int,
     val restSec: Int,
     val isRunning: Boolean,
+    val presets: List<TimerPreset> = emptyList(),
 )
 
 @Composable
@@ -65,6 +83,10 @@ fun HangboardTimerScreen(
     onReset: () -> Unit,
     // Übernimmt eine neue Konfiguration (Sätze, Hang-Sek, Pausen-Sek).
     onUpdateConfig: (Int, Int, Int) -> Unit,
+    // Speichert die übergebene Konfiguration als benanntes Preset.
+    onSavePreset: (String, Int, Int, Int) -> Unit = { _, _, _, _ -> },
+    // Löscht ein Preset anhand seiner ID.
+    onDeletePreset: (Int) -> Unit = {},
 ) {
     // Der Einstellungs-Dialog wird lokal auf diesem Screen gesteuert (kein Navigieren mehr
     // in die allgemeinen App-Einstellungen).
@@ -145,34 +167,84 @@ fun HangboardTimerScreen(
             initialSets = state.totalSets,
             initialHangSec = state.hangSec,
             initialRestSec = state.restSec,
+            presets = state.presets,
             onConfirm = { sets, hang, rest ->
                 onUpdateConfig(sets, hang, rest)
                 showConfigDialog = false
             },
+            onSavePreset = onSavePreset,
+            onDeletePreset = onDeletePreset,
             onDismiss = { showConfigDialog = false },
         )
     }
 }
 
-// Einstell-Dialog für den Timer: drei Stepper (Sätze, Hang-Sekunden, Pausen-Sekunden).
-// Die Werte werden beim Bestätigen übernommen und vom ViewModel persistiert.
+// Einstell-Dialog für den Timer: benannte Presets (Chips) zum Laden/Löschen sowie drei
+// Stepper (Sätze, Hang-Sekunden, Pausen-Sekunden). Ein Preset-Tap befüllt die Stepper;
+// beim Bestätigen wird die Konfiguration übernommen und vom ViewModel persistiert.
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TimerConfigDialog(
     initialSets: Int,
     initialHangSec: Int,
     initialRestSec: Int,
+    presets: List<TimerPreset>,
     onConfirm: (Int, Int, Int) -> Unit,
+    onSavePreset: (String, Int, Int, Int) -> Unit,
+    onDeletePreset: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var sets by remember { mutableIntStateOf(initialSets) }
     var hangSec by remember { mutableIntStateOf(initialHangSec) }
     var restSec by remember { mutableIntStateOf(initialRestSec) }
+    // Schaltet die Preset-Chips in einen Lösch-Modus (Chip zeigt dann ein X).
+    var deleteMode by remember { mutableStateOf(false) }
+    // Zeigt den Name-Eingabe-Dialog zum Speichern des aktuellen Presets.
+    var showSaveDialog by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Timer einstellen") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                if (presets.isNotEmpty()) {
+                    Text(
+                        text = "Voreinstellungen",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = BoulderBuddy.colors.textTertiary,
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                        presets.forEach { preset ->
+                            InputChip(
+                                selected = false,
+                                onClick = {
+                                    if (deleteMode) {
+                                        onDeletePreset(preset.id)
+                                    } else {
+                                        // Preset in die Stepper laden (noch nicht übernehmen).
+                                        sets = preset.sets
+                                        hangSec = preset.hangSec
+                                        restSec = preset.restSec
+                                    }
+                                },
+                                label = { Text(preset.name) },
+                                trailingIcon = if (deleteMode) {
+                                    {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = "${preset.name} löschen",
+                                            modifier = Modifier.size(Dimens.iconS),
+                                        )
+                                    }
+                                } else null,
+                            )
+                        }
+                    }
+                    TextButton(onClick = { deleteMode = !deleteMode }) {
+                        Text(if (deleteMode) "Fertig" else "Presets bearbeiten")
+                    }
+                }
+
                 StepperRow(
                     label = "Sätze",
                     value = sets,
@@ -188,10 +260,58 @@ private fun TimerConfigDialog(
                     value = restSec,
                     onChange = { restSec = it.coerceAtLeast(0) },
                 )
+
+                TextButton(onClick = { showSaveDialog = true }) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(Dimens.iconS),
+                    )
+                    Spacer(Modifier.width(Dimens.paddingS))
+                    Text("Als Preset speichern")
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(sets, hangSec, restSec) }) { Text("Übernehmen") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
+
+    if (showSaveDialog) {
+        SavePresetDialog(
+            onConfirm = { name ->
+                onSavePreset(name, sets, hangSec, restSec)
+                showSaveDialog = false
+            },
+            onDismiss = { showSaveDialog = false },
+        )
+    }
+}
+
+// Kleiner Eingabe-Dialog für den Namen eines neuen Presets. Leerer Name bleibt gesperrt.
+@Composable
+private fun SavePresetDialog(
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Preset speichern") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name") },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name) },
+                enabled = name.isNotBlank(),
+            ) { Text("Speichern") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )

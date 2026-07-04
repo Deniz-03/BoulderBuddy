@@ -168,6 +168,8 @@ fun AppNavigation(
                     onPlayPause = viewModel::onPlayPause,
                     onReset = viewModel::onReset,
                     onUpdateConfig = viewModel::updateConfig,
+                    onSavePreset = viewModel::savePreset,
+                    onDeletePreset = viewModel::deletePreset,
                 )
             }
 
@@ -175,12 +177,16 @@ fun AppNavigation(
             composable<Einstellungen> {
                 val viewModel: EinstellungenViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
+                val exportMessage by viewModel.exportMessage.collectAsStateWithLifecycle()
                 EinstellungenScreen(
                     state = state,
                     // Label-basiertes Custom-Grading-System anlegen (Farbe hängt an der Route).
                     onCreateGradeSystem = viewModel::createGradeSystem,
                     onDeleteGradeSystem = viewModel::deleteGradeSystem,
                     onSelectGradeSystem = viewModel::selectGradeSystem,
+                    onExportSessions = viewModel::exportSessions,
+                    exportMessage = exportMessage,
+                    onExportMessageShown = viewModel::consumeExportMessage,
                     onBack = { navController.popBackStack() },
                 )
             }

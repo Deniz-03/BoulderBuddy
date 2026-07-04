@@ -3,12 +3,15 @@ package com.boulderbuddy.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.HangboardSessionEntity
+import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
+import com.boulderbuddy.data.repository.HangboardRepository
 import com.boulderbuddy.data.repository.HangboardSessionRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.data.settings.TimerConfig
 import com.boulderbuddy.ui.screens.HangboardTimerUiState
 import com.boulderbuddy.ui.screens.TimerPhase
+import com.boulderbuddy.ui.screens.TimerPreset
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -25,20 +28,26 @@ import javax.inject.Inject
  * den [HangboardTimerUiState].
  *
  * Konfiguration (Sätze/Hang/Pause) kommt aus dem [SettingsRepository] und wird über
- * [updateConfig] persistiert (letzte Einstellung gemerkt). Ein bis zum Ende absolvierter
- * Durchlauf wird in der aktiven Kletter-Session getrackt (siehe [recordWorkout]).
+ * [updateConfig] persistiert (letzte Einstellung gemerkt). Benannte Voreinstellungen
+ * (Presets) liegen dagegen im [HangboardRepository] und werden hier eingebunden
+ * ([savePreset]/[deletePreset]/[applyPreset]). Ein bis zum Ende absolvierter Durchlauf
+ * wird in der aktiven Kletter-Session getrackt (siehe [recordWorkout]).
  */
 @HiltViewModel
 class HangboardTimerViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val sessionRepository: SessionRepository,
     private val hangboardSessionRepository: HangboardSessionRepository,
+    private val hangboardRepository: HangboardRepository,
 ) : ViewModel() {
 
     // Konfiguration (var, da über updateConfig änderbar). Defaults bis DataStore geladen ist.
     private var totalSets = 6
     private var hangSec = 7
     private var restSec = 3
+
+    // Benannte Voreinstellungen aus der DB (Room-Flow), für die Preset-Auswahl im UI.
+    private var presets: List<HangboardTemplateEntity> = emptyList()
 
     // Interner Lauf-Zustand (getrennt vom UI-State, damit Pause/Resume die Restsekunden behält).
     private var currentSet = 1
@@ -56,6 +65,13 @@ class HangboardTimerViewModel @Inject constructor(
         // Zuletzt genutzte Konfiguration laden und anwenden.
         viewModelScope.launch {
             applyConfig(settingsRepository.timerConfig.first())
+        }
+        // Presets beobachten und in den UI-State spiegeln (ändern nicht den Lauf-Zustand).
+        viewModelScope.launch {
+            hangboardRepository.observeAll().collect {
+                presets = it
+                _uiState.value = snapshot()
+            }
         }
     }
 
@@ -92,6 +108,42 @@ class HangboardTimerViewModel @Inject constructor(
         hangSec = config.hangSec
         restSec = config.restSec
         onReset()
+    }
+
+    /**
+     * Übernimmt eine Voreinstellung (Preset) als aktuelle Config: wie [updateConfig], nur mit
+     * den Werten des gewählten Templates. Persistiert die Config als „zuletzt genutzt".
+     */
+    fun applyPreset(presetId: Int) {
+        val preset = presets.find { it.id == presetId } ?: return
+        updateConfig(preset.sets, preset.hangSec, preset.restSec)
+    }
+
+    /**
+     * Speichert die übergebene Konfiguration als benanntes Preset. Leerer Name wird ignoriert.
+     * (Die Preset-Liste aktualisiert sich über den beobachteten Room-Flow von selbst.)
+     */
+    fun savePreset(name: String, sets: Int, hangSec: Int, restSec: Int) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            hangboardRepository.create(
+                HangboardTemplateEntity(
+                    name = trimmed,
+                    sets = sets.coerceAtLeast(1),
+                    hangSec = hangSec.coerceAtLeast(1),
+                    restSec = restSec.coerceAtLeast(0),
+                    // repRestSec (Rep-Pause) wird vom Timer aktuell nicht genutzt → = Pause.
+                    repRestSec = restSec.coerceAtLeast(0),
+                )
+            )
+        }
+    }
+
+    /** Löscht ein Preset anhand seiner ID. */
+    fun deletePreset(presetId: Int) {
+        val preset = presets.find { it.id == presetId } ?: return
+        viewModelScope.launch { hangboardRepository.delete(preset) }
     }
 
     private fun start() {
@@ -176,6 +228,15 @@ class HangboardTimerViewModel @Inject constructor(
             hangSec = hangSec,
             restSec = restSec,
             isRunning = running,
+            presets = presets.map {
+                TimerPreset(
+                    id = it.id,
+                    name = it.name,
+                    sets = it.sets,
+                    hangSec = it.hangSec,
+                    restSec = it.restSec,
+                )
+            },
         )
     }
 

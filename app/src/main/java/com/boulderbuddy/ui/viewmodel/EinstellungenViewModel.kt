@@ -1,16 +1,20 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.export.SessionExporter
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -37,7 +41,13 @@ class EinstellungenViewModel @Inject constructor(
     private val gymRepository: GymRepository,
     private val gradeRepository: GradeRepository,
     private val settingsRepository: SettingsRepository,
+    private val sessionExporter: SessionExporter,
 ) : ViewModel() {
+
+    // Einmalige Rückmeldung zum Export (Erfolg/Fehler); vom UI als Toast angezeigt und danach
+    // via [consumeExportMessage] geleert. `null` = keine offene Meldung.
+    private val _exportMessage = MutableStateFlow<String?>(null)
+    val exportMessage: StateFlow<String?> = _exportMessage.asStateFlow()
 
     val uiState: StateFlow<EinstellungenUiState> = combine(
         gradeRepository.observeAllSystems(),
@@ -66,6 +76,26 @@ class EinstellungenViewModel @Inject constructor(
     /** Merkt das gewählte Standard-Grading-System (persistent via DataStore). */
     fun selectGradeSystem(systemId: Int) {
         viewModelScope.launch { settingsRepository.setSelectedGradeSystem(systemId) }
+    }
+
+    /**
+     * Exportiert alle Sessions als CSV in das per SAF gewählte Dokument [uri]. Setzt eine
+     * Ergebnis-Meldung ([exportMessage]) für das UI.
+     */
+    fun exportSessions(uri: Uri) {
+        viewModelScope.launch {
+            _exportMessage.value = try {
+                val count = sessionExporter.exportCsv(uri)
+                "$count Sessions als CSV exportiert"
+            } catch (e: Exception) {
+                "Export fehlgeschlagen: ${e.message}"
+            }
+        }
+    }
+
+    /** Bestätigt, dass die Export-Meldung angezeigt wurde (leert sie). */
+    fun consumeExportMessage() {
+        _exportMessage.value = null
     }
 
     /**
