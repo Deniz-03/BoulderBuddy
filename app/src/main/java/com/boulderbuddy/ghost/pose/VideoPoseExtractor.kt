@@ -120,9 +120,12 @@ class VideoPoseExtractor @Inject constructor(
                 frameHeight = frameHeight,
                 durationMs = durationMs,
                 sampleFps = GhostTuning.POSE_SAMPLE_FPS,
-                // Stufe 1: One-Euro-Glättung + Sichtbarkeits-Hysterese bilden die
-                // Arbeits-Spur; die Roh-Spur bleibt fürs Debug-Overlay erhalten.
-                frames = applyVisibilityHysteresis(smoothPoseFrames(frames)),
+                // Stufe 2+1: L/R-Konsistenz + Plausibilität (auf roh), dann One-Euro-
+                // Glättung + Sichtbarkeits-Hysterese bilden die Arbeits-Spur;
+                // die Roh-Spur bleibt fürs Debug-Overlay erhalten.
+                frames = applyVisibilityHysteresis(
+                    smoothPoseFrames(cleanPoseFrames(frames, frameHeight)),
+                ),
                 rawFrames = frames,
             )
         } finally {

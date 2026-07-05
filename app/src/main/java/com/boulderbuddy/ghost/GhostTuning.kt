@@ -59,6 +59,34 @@ object GhostTuning {
      *  das Ein-/Ausflackern am Schwellwert (Root Cause B). */
     const val VISIBILITY_HIDE_FRAMES: Int = 3
 
+    // --- Detektionsqualität (Stufe 2, 7.5b) ------------------------------------
+
+    /** Toleranzfaktor der Knochenlängen-Konstanz: weicht eine Knochenlänge um mehr
+     *  als [1/f, f] vom Track-Median ab, wird das distale Gelenk verworfen
+     *  (halluzinierte Position, Root Cause C/D). */
+    const val BONE_LENGTH_TOLERANCE_FACTOR: Float = 1.5f
+
+    /** Geschwindigkeitslimit pro Gelenk in Frame-Höhen pro Sekunde — schnellere
+     *  "Sprünge" sind physisch unmöglich (Wandausschnitt ≈ 3–4 m) und werden
+     *  verworfen. Empirisch zu kalibrieren. */
+    const val MAX_LANDMARK_SPEED_FRAME_HEIGHTS_PER_S: Float = 2.5f
+
+    /** L/R-Konsistenz: getauscht wird nur, wenn die überkreuzte Zuordnung klar
+     *  besser ist (crossed < margin · straight) — verhindert Daueroszillation
+     *  bei nahezu symmetrischen Posen. */
+    const val LR_SWAP_MARGIN: Float = 0.8f
+
+    /** ROI-Crop: Erweiterung der letzten Personen-Bounding-Box je Seite. */
+    const val ROI_EXPAND_FRACTION: Float = 0.2f
+
+    /** ROI-Crop: so viele sichere Landmarks braucht die Box, sonst nächster Frame
+     *  wieder als Vollbild (Person verloren → neu suchen). */
+    const val ROI_MIN_CONFIDENT_LANDMARKS: Int = 6
+
+    /** ROI-Crop: Glättung der Box über die Zeit (0 = einfrieren, 1 = sofort springen) —
+     *  ruhige Box hilft dem internen MediaPipe-Tracking auf dem Crop-Strom. */
+    const val ROI_BOX_SMOOTHING: Float = 0.5f
+
     /** Mindestanzahl abgetasteter Frames — kürzere Videos sind nicht analysierbar (P8). */
     const val MIN_POSE_FRAMES: Int = 10
 
