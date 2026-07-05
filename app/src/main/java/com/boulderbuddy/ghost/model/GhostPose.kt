@@ -60,11 +60,13 @@ data class GhostPoseTrack(
 
 /**
  * Landmarks zur Wiedergabezeit [timeMs], linear zwischen den beiden umliegenden
- * Sample-Frames interpoliert (die Extraktion tastet nur mit ~6 fps ab, das Video
+ * Sample-Frames interpoliert (die Extraktion tastet mit ~12 fps ab, das Video
  * läuft mit 30+ — ohne Interpolation springt das Skelett sichtbar).
  *
- * Fehlt ein Landmark in einem der beiden Nachbar-Frames (Pose verloren), fällt es
- * weg statt zu raten — das Overlay blendet es dann aus.
+ * Blink-Fix (Stufe 1, Root Cause B): fehlt ein Landmark in genau EINEM der beiden
+ * Nachbar-Frames (einzelner Aussetzer), wird es aus dem anderen gehalten statt für
+ * das ganze Sample-Intervall zu verschwinden. Erst wenn es in beiden Nachbarn fehlt
+ * (echte Lücke), blendet das Overlay es aus.
  */
 fun GhostPoseTrack.landmarksAt(timeMs: Long): List<GhostLandmark> {
     if (frames.isEmpty()) return emptyList()
@@ -76,15 +78,22 @@ fun GhostPoseTrack.landmarksAt(timeMs: Long): List<GhostLandmark> {
     val a = frames[after - 1]
     val b = frames[after]
     val t = (timeMs - a.timeMs).toFloat() / (b.timeMs - a.timeMs).toFloat()
-    val byType = b.landmarks.associateBy { it.type }
-    return a.landmarks.mapNotNull { la ->
-        val lb = byType[la.type] ?: return@mapNotNull null
-        GhostLandmark(
-            type = la.type,
-            x = la.x + (lb.x - la.x) * t,
-            y = la.y + (lb.y - la.y) * t,
-            confidence = minOf(la.confidence, lb.confidence),
-            presence = minOf(la.presence, lb.presence),
-        )
+    val byTypeA = a.landmarks.associateBy { it.type }
+    val byTypeB = b.landmarks.associateBy { it.type }
+    return (byTypeA.keys + byTypeB.keys).mapNotNull { type ->
+        val la = byTypeA[type]
+        val lb = byTypeB[type]
+        when {
+            la != null && lb != null -> GhostLandmark(
+                type = type,
+                x = la.x + (lb.x - la.x) * t,
+                y = la.y + (lb.y - la.y) * t,
+                confidence = minOf(la.confidence, lb.confidence),
+                presence = minOf(la.presence, lb.presence),
+            )
+            // Einseitiger Aussetzer: kurz halten (max. ein Sample-Intervall).
+            la != null -> la
+            else -> lb
+        }
     }
 }
