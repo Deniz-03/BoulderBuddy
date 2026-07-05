@@ -12,6 +12,13 @@ import kotlinx.serialization.Serializable
 // .POSE_INPUT_LONG_SIDE_PX), nicht im Original-Video: entscheidend ist nur, dass
 // Posen UND Homographie-Anker eines Videos denselben Raum teilen.
 
+/** Einfacher 2D-Punkt im Analyse-Frame-Raum — für Anker (M2) und Routenpfad (M3). */
+@Serializable
+data class GhostPoint(
+    val x: Float,
+    val y: Float,
+)
+
 /** Ein ML-Kit-Landmark: `type` = PoseLandmark-Konstante (0–32), `confidence` = InFrameLikelihood. */
 @Serializable
 data class GhostLandmark(

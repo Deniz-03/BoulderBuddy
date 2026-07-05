@@ -1,14 +1,13 @@
 package com.boulderbuddy.ghost.pose
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
-import android.os.Build
 import androidx.core.net.toUri
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.GhostPoseTrack
+import com.boulderbuddy.ghost.video.scaledFrameAt
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.pose.PoseDetection
@@ -22,7 +21,6 @@ import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.math.roundToInt
 
 /**
  * Offline-Pose-Extraktion für Ghost Climber (M1, Pipeline-Schritt P0-Vorstufe):
@@ -68,7 +66,7 @@ class VideoPoseExtractor @Inject constructor(
             val frames = ArrayList<GhostPoseFrame>(sampleTimes.size)
             sampleTimes.forEachIndexed { index, timeMs ->
                 coroutineContext.ensureActive()
-                val bitmap = decodeScaledFrame(retriever, timeMs)
+                val bitmap = retriever.scaledFrameAt(timeMs, GhostTuning.POSE_INPUT_LONG_SIDE_PX)
                 if (bitmap != null) {
                     // Alle Frames eines Videos haben dieselben (skalierten) Maße —
                     // sie definieren den Koordinatenraum der Keypoints.
@@ -111,35 +109,6 @@ class VideoPoseExtractor @Inject constructor(
         }
     }
 
-    /**
-     * Dekodiert den Frame nahe [timeMs], korrekt rotiert und auf die Analyse-Größe
-     * skaliert. OPTION_CLOSEST (statt CLOSEST_SYNC) ist pro Frame teurer, liefert aber
-     * den tatsächlich zeitnächsten Frame — bei nur wenigen Keyframes pro GOP wären
-     * die Sync-Frames viel zu grob für ein 6-fps-Raster.
-     */
-    private fun decodeScaledFrame(retriever: MediaMetadataRetriever, timeMs: Long): Bitmap? {
-        val timeUs = timeMs * 1000
-        val longSide = GhostTuning.POSE_INPUT_LONG_SIDE_PX
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            // Skaliert passend in die Ziel-Box unter Erhalt des Seitenverhältnisses.
-            return retriever.getScaledFrameAtTime(
-                timeUs, MediaMetadataRetriever.OPTION_CLOSEST, longSide, longSide,
-            )
-        }
-        // API 26: voll dekodieren und selbst herunterskalieren.
-        val full = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST)
-            ?: return null
-        val scale = longSide.toFloat() / maxOf(full.width, full.height)
-        if (scale >= 1f) return full
-        val scaled = Bitmap.createScaledBitmap(
-            full,
-            (full.width * scale).roundToInt(),
-            (full.height * scale).roundToInt(),
-            true,
-        )
-        if (scaled !== full) full.recycle()
-        return scaled
-    }
 }
 
 /**

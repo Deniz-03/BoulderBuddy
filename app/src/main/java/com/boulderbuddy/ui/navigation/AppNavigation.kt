@@ -214,6 +214,12 @@ fun AppNavigation(
                     state = state,
                     onSelectVideo = viewModel::onVideoSelected,
                     onAnalyze = viewModel::analyze,
+                    onSelectAnchorFrame = viewModel::loadAnchorFrame,
+                    onAddAnchor = viewModel::addAnchor,
+                    onRemoveLastAnchor = viewModel::removeLastAnchor,
+                    onComputeAlignment = viewModel::computeAlignment,
+                    onBackToSelection = viewModel::backToSelection,
+                    onBackToAnchors = viewModel::backToAnchors,
                     onBack = { navController.popBackStack() },
                 )
             }

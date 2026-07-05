@@ -32,4 +32,15 @@ object GhostTuning {
 
     /** Mindestanzahl abgetasteter Frames — kürzere Videos sind nicht analysierbar (P8). */
     const val MIN_POSE_FRAMES: Int = 10
+
+    // --- Homographie / Anker (M2) --------------------------------------------
+
+    /** Mindestanzahl korrespondierender Wandpunkte pro Video (A.3.2). */
+    const val MIN_ANCHORS: Int = 4
+
+    /** RANSAC-Iterationen bei >4 Ankern (Schutz gegen einzelne Fehl-Taps). */
+    const val RANSAC_ITERATIONS: Int = 200
+
+    /** Reprojektionsfehler in px (Analyse-Frame-Raum), bis zu dem ein Anker als Inlier gilt. */
+    const val RANSAC_INLIER_THRESHOLD_PX: Double = 4.0
 }

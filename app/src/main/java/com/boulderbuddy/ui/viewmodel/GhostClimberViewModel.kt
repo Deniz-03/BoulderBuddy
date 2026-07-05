@@ -1,69 +1,187 @@
 package com.boulderbuddy.ui.viewmodel
 
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.ghost.GhostArtifactStore
+import com.boulderbuddy.ghost.GhostTuning
+import com.boulderbuddy.ghost.geometry.Homography
+import com.boulderbuddy.ghost.geometry.toVec2
+import com.boulderbuddy.ghost.geometry.transformedBy
+import com.boulderbuddy.ghost.model.GhostPoint
 import com.boulderbuddy.ghost.model.GhostPoseTrack
 import com.boulderbuddy.ghost.pose.VideoPoseExtractor
+import com.boulderbuddy.ghost.video.GhostFrameDecoder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-data class GhostClimberUiState(
-    /** Gewähltes Referenz-Video (M1: erst mal nur eins; M2+ kommt das Vergleichs-Video dazu). */
-    val videoUri: String? = null,
-    val analyzing: Boolean = false,
-    /** Fortschritt der Pose-Extraktion in Frames (done/total); 0/0 = noch nicht gestartet. */
+/** Die beiden Versuche eines Vergleichs. Referenz definiert den Wand-Referenzraum (P0). */
+enum class GhostRole { REFERENCE, COMPARISON }
+
+/** Schritte des geführten Flows (A.4): jeder Schritt eine eigene Ansicht. */
+enum class GhostStep { SELECTION, ANCHORS, PREVIEW }
+
+/** Zustand eines Video-Slots (Referenz bzw. Vergleich) durch alle Pipeline-Schritte. */
+data class GhostVideoSlot(
+    val uri: String? = null,
+    /** Fortschritt der Pose-Extraktion in Frames (done/total); 0/0 = nicht gestartet. */
     val progressDone: Int = 0,
     val progressTotal: Int = 0,
-    /** Fertige Pose-Spur — schaltet den Skelett-Player frei. */
-    val poseTrack: GhostPoseTrack? = null,
-    val error: String? = null,
+    val track: GhostPoseTrack? = null,
+    // --- Anker-Erfassung (M2) ---
+    val anchorFrameTimeMs: Long = 0L,
+    val anchorFrame: ImageBitmap? = null,
+    val anchors: List<GhostPoint> = emptyList(),
 )
 
+data class GhostClimberUiState(
+    val step: GhostStep = GhostStep.SELECTION,
+    val reference: GhostVideoSlot = GhostVideoSlot(),
+    val comparison: GhostVideoSlot = GhostVideoSlot(),
+    val analyzing: Boolean = false,
+    val error: String? = null,
+    /** Vergleichs-Spur, per Homographie in den Referenzraum transformiert (M2-Ergebnis). */
+    val ghostTrack: GhostPoseTrack? = null,
+) {
+    fun slot(role: GhostRole): GhostVideoSlot =
+        if (role == GhostRole.REFERENCE) reference else comparison
+
+    val canAnalyze: Boolean
+        get() = reference.uri != null && comparison.uri != null && !analyzing
+
+    /** ≥4 Anker pro Video und gleiche Anzahl (Korrespondenzen sind Index-gepaart). */
+    val anchorsComplete: Boolean
+        get() = reference.anchors.size >= GhostTuning.MIN_ANCHORS &&
+            reference.anchors.size == comparison.anchors.size
+}
+
 /**
- * Ghost Climber (Phase 7.5, M1): Video wählen → Pose-Spur extrahieren (ML Kit, offline)
- * → Skelett-Overlay über der Wiedergabe. Die schwere Arbeit läuft im Extractor auf
- * Dispatchers.Default; Ergebnisse werden über den GhostArtifactStore als JSON gecacht.
+ * Ghost Climber (Phase 7.5): geführter Flow über die Pipeline-Schritte.
+ * M1: Videos wählen + Posen extrahieren (ML Kit, offline, gecacht).
+ * M2: Anker antippen → eigene Kotlin-Homographie → Vergleichs-Posen im Referenzraum.
+ * Schwere Arbeit läuft auf Dispatchers.Default/IO, nie im UI-Thread.
  */
 @HiltViewModel
 class GhostClimberViewModel @Inject constructor(
     private val poseExtractor: VideoPoseExtractor,
     private val artifactStore: GhostArtifactStore,
+    private val frameDecoder: GhostFrameDecoder,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GhostClimberUiState())
     val uiState: StateFlow<GhostClimberUiState> = _uiState.asStateFlow()
 
-    /** Neues Video gewählt: alte Analyse verwerfen (die Spur gehört zur alten URI). */
-    fun onVideoSelected(uri: String) {
-        _uiState.update {
-            it.copy(videoUri = uri, poseTrack = null, error = null, progressDone = 0, progressTotal = 0)
-        }
+    /** Neues Video gewählt: Slot zurücksetzen — Spur/Anker gehören zur alten URI. */
+    fun onVideoSelected(role: GhostRole, uri: String) {
+        updateSlot(role) { GhostVideoSlot(uri = uri) }
+        _uiState.update { it.copy(ghostTrack = null, error = null) }
     }
 
+    /** Posen beider Videos extrahieren (sequenziell — EIN ML-Kit-Detector), dann zu den Ankern. */
     fun analyze() {
-        val uri = _uiState.value.videoUri ?: return
-        if (_uiState.value.analyzing) return
+        val state = _uiState.value
+        if (!state.canAnalyze) return
         viewModelScope.launch {
-            _uiState.update { it.copy(analyzing = true, error = null, poseTrack = null) }
+            _uiState.update { it.copy(analyzing = true, error = null) }
             try {
-                val track = artifactStore.loadPoseTrack(uri)
-                    ?: poseExtractor.extract(uri) { done, total ->
-                        _uiState.update { it.copy(progressDone = done, progressTotal = total) }
-                    }.also { artifactStore.savePoseTrack(it) }
-                _uiState.update { it.copy(analyzing = false, poseTrack = track) }
+                for (role in GhostRole.entries) {
+                    val uri = _uiState.value.slot(role).uri ?: continue
+                    if (_uiState.value.slot(role).track != null) continue
+                    val track = artifactStore.loadPoseTrack(uri)
+                        ?: poseExtractor.extract(uri) { done, total ->
+                            updateSlot(role) { it.copy(progressDone = done, progressTotal = total) }
+                        }.also { artifactStore.savePoseTrack(it) }
+                    updateSlot(role) { it.copy(track = track) }
+                }
+                _uiState.update { it.copy(analyzing = false, step = GhostStep.ANCHORS) }
+                // Standbilder für die Anker-Erfassung vorladen.
+                GhostRole.entries.forEach { loadAnchorFrame(it, 0L) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(analyzing = false, error = e.message ?: "Analyse fehlgeschlagen")
                 }
+            }
+        }
+    }
+
+    /** Standbild-Zeitpunkt fürs Anker-Tippen gewählt (Slider losgelassen). */
+    fun loadAnchorFrame(role: GhostRole, timeMs: Long) {
+        val uri = _uiState.value.slot(role).uri ?: return
+        updateSlot(role) { it.copy(anchorFrameTimeMs = timeMs) }
+        viewModelScope.launch {
+            val bitmap = frameDecoder.frameAt(uri, timeMs)
+            // Nur übernehmen, wenn der Zeitpunkt noch aktuell ist (Slider schneller als Decode).
+            if (_uiState.value.slot(role).anchorFrameTimeMs == timeMs) {
+                updateSlot(role) { it.copy(anchorFrame = bitmap?.asImageBitmap()) }
+            }
+        }
+    }
+
+    fun addAnchor(role: GhostRole, point: GhostPoint) {
+        updateSlot(role) { it.copy(anchors = it.anchors + point) }
+    }
+
+    fun removeLastAnchor(role: GhostRole) {
+        updateSlot(role) { it.copy(anchors = it.anchors.dropLast(1)) }
+    }
+
+    /**
+     * M2-Kern: Homographie Vergleich→Referenz aus den Index-gepaarten Ankern schätzen
+     * (normalisierte DLT + RANSAC) und die Vergleichs-Posen in den Referenzraum
+     * transformieren (P0). Die Referenz selbst bleibt unverändert (Identität).
+     */
+    fun computeAlignment() {
+        val state = _uiState.value
+        if (!state.anchorsComplete) return
+        val refTrack = state.reference.track ?: return
+        val cmpTrack = state.comparison.track ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(error = null) }
+            try {
+                val ghost = withContext(Dispatchers.Default) {
+                    val homography = Homography.estimate(
+                        src = state.comparison.anchors.map { it.toVec2() },
+                        dst = state.reference.anchors.map { it.toVec2() },
+                        ransacIterations = GhostTuning.RANSAC_ITERATIONS,
+                        inlierThresholdPx = GhostTuning.RANSAC_INLIER_THRESHOLD_PX,
+                    )
+                    cmpTrack.transformedBy(homography, refTrack)
+                }
+                _uiState.update { it.copy(ghostTrack = ghost, step = GhostStep.PREVIEW) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Homographie fehlgeschlagen — Anker prüfen")
+                }
+            }
+        }
+    }
+
+    fun backToSelection() {
+        _uiState.update { it.copy(step = GhostStep.SELECTION, error = null) }
+    }
+
+    fun backToAnchors() {
+        _uiState.update { it.copy(step = GhostStep.ANCHORS, error = null) }
+    }
+
+    private fun updateSlot(role: GhostRole, transform: (GhostVideoSlot) -> GhostVideoSlot) {
+        _uiState.update { state ->
+            when (role) {
+                GhostRole.REFERENCE -> state.copy(reference = transform(state.reference))
+                GhostRole.COMPARISON -> state.copy(comparison = transform(state.comparison))
             }
         }
     }
