@@ -6,6 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.ghost.GhostArtifactStore
 import com.boulderbuddy.ghost.GhostTuning
+import com.boulderbuddy.ghost.analysis.GhostTimeMapping
+import com.boulderbuddy.ghost.analysis.RoutePolyline
+import com.boulderbuddy.ghost.analysis.buildTimeMapping
+import com.boulderbuddy.ghost.analysis.dtw
+import com.boulderbuddy.ghost.analysis.progressSignal
+import com.boulderbuddy.ghost.analysis.smoothedHipTrajectory
+import com.boulderbuddy.ghost.analysis.suggestRoutePath
 import com.boulderbuddy.ghost.geometry.Homography
 import com.boulderbuddy.ghost.geometry.toVec2
 import com.boulderbuddy.ghost.geometry.transformedBy
@@ -28,7 +35,7 @@ import javax.inject.Inject
 enum class GhostRole { REFERENCE, COMPARISON }
 
 /** Schritte des geführten Flows (A.4): jeder Schritt eine eigene Ansicht. */
-enum class GhostStep { SELECTION, ANCHORS, PREVIEW }
+enum class GhostStep { SELECTION, ANCHORS, PATH, PREVIEW }
 
 /** Zustand eines Video-Slots (Referenz bzw. Vergleich) durch alle Pipeline-Schritte. */
 data class GhostVideoSlot(
@@ -51,6 +58,15 @@ data class GhostClimberUiState(
     val error: String? = null,
     /** Vergleichs-Spur, per Homographie in den Referenzraum transformiert (M2-Ergebnis). */
     val ghostTrack: GhostPoseTrack? = null,
+    // --- Routenpfad + Alignment (M3) ---
+    /** Geglättete Hüfttrajektorie der Referenz (Kontext-Anzeige im Pfad-Editor). */
+    val hipTrajectory: List<GhostPoint> = emptyList(),
+    /** Pfad-Vorschlag (P3) — Basis für "Vorschlag wiederherstellen". */
+    val suggestedPath: List<GhostPoint> = emptyList(),
+    /** Der aktuell editierte Routenpfad (Polylinie im Referenzraum). */
+    val routePath: List<GhostPoint> = emptyList(),
+    /** DTW-Zeitmapping Referenz→Vergleich (M3-Ergebnis); steuert den Geist im Player. */
+    val timeMapping: GhostTimeMapping? = null,
 ) {
     fun slot(role: GhostRole): GhostVideoSlot =
         if (role == GhostRole.REFERENCE) reference else comparison
@@ -140,6 +156,7 @@ class GhostClimberViewModel @Inject constructor(
      * M2-Kern: Homographie Vergleich→Referenz aus den Index-gepaarten Ankern schätzen
      * (normalisierte DLT + RANSAC) und die Vergleichs-Posen in den Referenzraum
      * transformieren (P0). Die Referenz selbst bleibt unverändert (Identität).
+     * Danach weiter zum Pfad-Schritt mit der Referenz-Trajektorie als Vorschlag (P3).
      */
     fun computeAlignment() {
         val state = _uiState.value
@@ -149,21 +166,81 @@ class GhostClimberViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(error = null) }
             try {
-                val ghost = withContext(Dispatchers.Default) {
+                val (ghost, trajectory, suggestion) = withContext(Dispatchers.Default) {
                     val homography = Homography.estimate(
                         src = state.comparison.anchors.map { it.toVec2() },
                         dst = state.reference.anchors.map { it.toVec2() },
                         ransacIterations = GhostTuning.RANSAC_ITERATIONS,
                         inlierThresholdPx = GhostTuning.RANSAC_INLIER_THRESHOLD_PX,
                     )
-                    cmpTrack.transformedBy(homography, refTrack)
+                    val ghost = cmpTrack.transformedBy(homography, refTrack)
+                    val trajectory = refTrack.smoothedHipTrajectory()
+                        ?: throw IllegalStateException(
+                            "Im Referenz-Video wurde keine Person sicher erkannt",
+                        )
+                    Triple(ghost, trajectory, suggestRoutePath(refTrack).orEmpty())
                 }
-                _uiState.update { it.copy(ghostTrack = ghost, step = GhostStep.PREVIEW) }
+                _uiState.update {
+                    it.copy(
+                        ghostTrack = ghost,
+                        hipTrajectory = trajectory,
+                        suggestedPath = suggestion,
+                        routePath = suggestion,
+                        step = GhostStep.PATH,
+                    )
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Homographie fehlgeschlagen — Anker prüfen")
+                }
+            }
+        }
+    }
+
+    // --- Routenpfad-Korrektur (M3, P3) ---
+
+    fun addPathPoint(point: GhostPoint) {
+        _uiState.update { it.copy(routePath = it.routePath + point) }
+    }
+
+    fun removeLastPathPoint() {
+        _uiState.update { it.copy(routePath = it.routePath.dropLast(1)) }
+    }
+
+    fun resetPathToSuggestion() {
+        _uiState.update { it.copy(routePath = it.suggestedPath) }
+    }
+
+    /**
+     * M3-Kern: Fortschrittssignale beider Versuche (Bogenlänge der Pfad-Projektion, P2)
+     * berechnen und per DTW alignieren (P1) → Zeitmapping für den Geist im Player.
+     * Beide Spuren liegen bereits im Referenzraum und teilen die Abtastrate (P8).
+     */
+    fun confirmPath() {
+        val state = _uiState.value
+        if (state.routePath.size < 2) return
+        val refTrack = state.reference.track ?: return
+        val ghostTrack = state.ghostTrack ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(error = null) }
+            try {
+                val mapping = withContext(Dispatchers.Default) {
+                    val path = RoutePolyline(state.routePath)
+                    val refSignal = progressSignal(refTrack, path)
+                        ?: throw IllegalStateException("Referenz: keine verwertbare Pose-Spur")
+                    val cmpSignal = progressSignal(ghostTrack, path)
+                        ?: throw IllegalStateException("Vergleich: keine verwertbare Pose-Spur")
+                    val alignment = dtw(refSignal, cmpSignal, GhostTuning.DTW_BAND_FRACTION)
+                    buildTimeMapping(alignment.path, refTrack.frames, ghostTrack.frames)
+                }
+                _uiState.update { it.copy(timeMapping = mapping, step = GhostStep.PREVIEW) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Synchronisation fehlgeschlagen")
                 }
             }
         }
@@ -175,6 +252,10 @@ class GhostClimberViewModel @Inject constructor(
 
     fun backToAnchors() {
         _uiState.update { it.copy(step = GhostStep.ANCHORS, error = null) }
+    }
+
+    fun backToPath() {
+        _uiState.update { it.copy(step = GhostStep.PATH, error = null) }
     }
 
     private fun updateSlot(role: GhostRole, transform: (GhostVideoSlot) -> GhostVideoSlot) {

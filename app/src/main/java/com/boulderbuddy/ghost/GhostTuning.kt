@@ -43,4 +43,20 @@ object GhostTuning {
 
     /** Reprojektionsfehler in px (Analyse-Frame-Raum), bis zu dem ein Anker als Inlier gilt. */
     const val RANSAC_INLIER_THRESHOLD_PX: Double = 4.0
+
+    // --- Fortschrittssignal / Routenpfad (M3) ---------------------------------
+
+    /** Gauss-Sigma (in Sample-Frames) für die Glättung von Trajektorie und Signal (P8). */
+    const val SMOOTHING_SIGMA_FRAMES: Double = 2.0
+
+    /** Stützpunkte, auf die der Pfad-Vorschlag (geglättete Hüfttrajektorie) reduziert wird. */
+    const val PATH_SUGGESTION_POINTS: Int = 12
+
+    // --- DTW (M3) --------------------------------------------------------------
+
+    /**
+     * Sakoe-Chiba-Band als Anteil der Signallänge: wie weit das Alignment von der
+     * Diagonalen abweichen darf. Begrenzt Laufzeit UND verhindert absurde Warps.
+     */
+    const val DTW_BAND_FRACTION: Double = 0.25
 }

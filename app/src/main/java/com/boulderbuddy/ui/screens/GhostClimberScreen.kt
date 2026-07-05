@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.GhostAnchorEditor
+import com.boulderbuddy.ui.components.GhostPathEditor
 import com.boulderbuddy.ui.components.GhostSkeletonPlayer
 import com.boulderbuddy.ui.components.PhotoPicker
 import com.boulderbuddy.ui.components.PrimaryButton
@@ -48,8 +49,8 @@ import com.boulderbuddy.ui.viewmodel.GhostVideoSlot
  * außerhalb des MVP-Kernflusses (Plan A.4). Geführter Flow über die Pipeline:
  * 1. Auswahl: Referenz- + Vergleichs-Video wählen, Posen extrahieren (M1).
  * 2. Anker: ≥4 korrespondierende Wandpunkte in beiden Videos antippen (M2).
- * 3. Vorschau: beide Skelette im Wand-Referenzraum über dem Referenz-Video (M2;
- *    Zeit-Synchronisation per DTW folgt in M3).
+ * 3. Pfad: vorgeschlagenen Routenpfad prüfen/korrigieren (M3, P3).
+ * 4. Vorschau: beide Skelette im Wand-Referenzraum, per DTW zeitsynchronisiert (M3).
  */
 @Composable
 fun GhostClimberScreen(
@@ -60,8 +61,13 @@ fun GhostClimberScreen(
     onAddAnchor: (GhostRole, GhostPoint) -> Unit = { _, _ -> },
     onRemoveLastAnchor: (GhostRole) -> Unit = {},
     onComputeAlignment: () -> Unit = {},
+    onAddPathPoint: (GhostPoint) -> Unit = {},
+    onRemoveLastPathPoint: () -> Unit = {},
+    onResetPath: () -> Unit = {},
+    onConfirmPath: () -> Unit = {},
     onBackToSelection: () -> Unit = {},
     onBackToAnchors: () -> Unit = {},
+    onBackToPath: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     BoulderBuddyScaffold(
@@ -99,7 +105,15 @@ fun GhostClimberScreen(
                         onComputeAlignment = onComputeAlignment,
                         onBackToSelection = onBackToSelection,
                     )
-                    GhostStep.PREVIEW -> PreviewStep(state, onBackToAnchors)
+                    GhostStep.PATH -> PathStep(
+                        state = state,
+                        onAddPathPoint = onAddPathPoint,
+                        onRemoveLastPathPoint = onRemoveLastPathPoint,
+                        onResetPath = onResetPath,
+                        onConfirmPath = onConfirmPath,
+                        onBackToAnchors = onBackToAnchors,
+                    )
+                    GhostStep.PREVIEW -> PreviewStep(state, onBackToPath)
                 }
 
                 state.error?.let { error ->
@@ -266,23 +280,68 @@ private fun AnchorsStep(
     TextButton(onClick = onBackToSelection) { Text("Zurück zur Video-Auswahl") }
 }
 
-// --- Schritt 3: Vorschau im Referenzraum --------------------------------------
+// --- Schritt 3: Routenpfad prüfen/korrigieren (M3) ----------------------------
+
+@Composable
+private fun PathStep(
+    state: GhostClimberUiState,
+    onAddPathPoint: (GhostPoint) -> Unit,
+    onRemoveLastPathPoint: () -> Unit,
+    onResetPath: () -> Unit,
+    onConfirmPath: () -> Unit,
+    onBackToAnchors: () -> Unit,
+) {
+    Text(
+        text = "Der Routenpfad (grün) bestimmt, wie der Fortschritt gemessen wird. " +
+            "Vorschlag = deine Hüft-Linie aus dem Referenz-Video (gestrichelt). " +
+            "Tippen verlängert den Pfad — z.B. bis zum Top, falls der Versuch " +
+            "vorher abbrach.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = BoulderBuddy.colors.textSecondary,
+    )
+    GhostPathEditor(
+        frame = state.reference.anchorFrame,
+        trajectory = state.hipTrajectory,
+        path = state.routePath,
+        onAddPoint = onAddPathPoint,
+        onRemoveLastPoint = onRemoveLastPathPoint,
+        onResetToSuggestion = onResetPath,
+    )
+    if (state.routePath.size >= 2) {
+        PrimaryButton(
+            text = "Synchronisieren",
+            icon = Icons.Filled.Layers,
+            onClick = onConfirmPath,
+        )
+    } else {
+        Text(
+            text = "Der Pfad braucht mindestens 2 Stützpunkte.",
+            style = MaterialTheme.typography.labelMedium,
+            color = BoulderBuddy.colors.textTertiary,
+        )
+    }
+    TextButton(onClick = onBackToAnchors) { Text("Anker anpassen") }
+}
+
+// --- Schritt 4: Synchronisierte Vorschau im Referenzraum ----------------------
 
 @Composable
 private fun PreviewStep(
     state: GhostClimberUiState,
-    onBackToAnchors: () -> Unit,
+    onBackToPath: () -> Unit,
 ) {
     val refUri = state.reference.uri
     val refTrack = state.reference.track
     val ghostTrack = state.ghostTrack
+    val mapping = state.timeMapping
     if (refUri == null || refTrack == null || ghostTrack == null) return
 
-    SectionHeader(text = "Überlagerung (Referenzraum)")
+    SectionHeader(text = "Synchronisierte Überlagerung")
     GhostSkeletonPlayer(
         uri = refUri,
         poseTrack = refTrack,
         ghostTrack = ghostTrack,
+        ghostTimeForPosition = { pos -> mapping?.mapToComparison(pos) ?: pos },
         modifier = Modifier
             .fillMaxWidth()
             // Player im Seitenverhältnis des Videos, damit Letterbox-Ränder
@@ -290,13 +349,14 @@ private fun PreviewStep(
             .aspectRatio(refTrack.frameWidth.toFloat() / refTrack.frameHeight),
     )
     Text(
-        text = "Orange = Referenz, Blau = Geist (Vergleichs-Versuch, per Homographie " +
-            "in den Referenzraum gelegt). Beide laufen noch auf der Roh-Zeitachse — " +
-            "die Tempo-Synchronisation (DTW) folgt als nächster Schritt.",
+        text = "Orange = Referenz, Blau = Geist (Vergleichs-Versuch). Der Geist ist " +
+            "per DTW auf den Routen-Fortschritt der Referenz synchronisiert: an jeder " +
+            "Stelle der Route siehst du beide Körperpositionen im Vergleich — " +
+            "unabhängig vom Tempo.",
         style = MaterialTheme.typography.labelMedium,
         color = BoulderBuddy.colors.textTertiary,
     )
-    TextButton(onClick = onBackToAnchors) { Text("Anker anpassen") }
+    TextButton(onClick = onBackToPath) { Text("Pfad anpassen") }
 }
 
 @Preview(showBackground = true)

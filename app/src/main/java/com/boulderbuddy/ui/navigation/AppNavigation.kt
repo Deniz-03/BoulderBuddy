@@ -218,8 +218,13 @@ fun AppNavigation(
                     onAddAnchor = viewModel::addAnchor,
                     onRemoveLastAnchor = viewModel::removeLastAnchor,
                     onComputeAlignment = viewModel::computeAlignment,
+                    onAddPathPoint = viewModel::addPathPoint,
+                    onRemoveLastPathPoint = viewModel::removeLastPathPoint,
+                    onResetPath = viewModel::resetPathToSuggestion,
+                    onConfirmPath = viewModel::confirmPath,
                     onBackToSelection = viewModel::backToSelection,
                     onBackToAnchors = viewModel::backToAnchors,
+                    onBackToPath = viewModel::backToPath,
                     onBack = { navController.popBackStack() },
                 )
             }
