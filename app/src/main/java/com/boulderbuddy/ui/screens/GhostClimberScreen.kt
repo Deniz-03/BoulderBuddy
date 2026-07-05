@@ -17,13 +17,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
@@ -47,6 +51,7 @@ import com.boulderbuddy.ui.viewmodel.GhostClimberUiState
 import com.boulderbuddy.ui.viewmodel.GhostRole
 import com.boulderbuddy.ui.viewmodel.GhostStep
 import com.boulderbuddy.ui.viewmodel.GhostVideoSlot
+import com.boulderbuddy.ui.viewmodel.SavedAnalysisUi
 
 /**
  * Ghost Climber (Phase 7.5) — bewusst als "Experimental" gekennzeichneter Einstieg
@@ -70,6 +75,9 @@ fun GhostClimberScreen(
     onResetPath: () -> Unit = {},
     onConfirmPath: () -> Unit = {},
     onSetViewMode: (GhostViewMode) -> Unit = {},
+    onSaveAnalysis: () -> Unit = {},
+    onRestoreAnalysis: (Int) -> Unit = {},
+    onDeleteAnalysis: (Int) -> Unit = {},
     onBackToSelection: () -> Unit = {},
     onBackToAnchors: () -> Unit = {},
     onBackToPath: () -> Unit = {},
@@ -101,7 +109,13 @@ fun GhostClimberScreen(
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
             ) {
                 when (state.step) {
-                    GhostStep.SELECTION -> SelectionStep(state, onSelectVideo, onAnalyze)
+                    GhostStep.SELECTION -> SelectionStep(
+                        state = state,
+                        onSelectVideo = onSelectVideo,
+                        onAnalyze = onAnalyze,
+                        onRestoreAnalysis = onRestoreAnalysis,
+                        onDeleteAnalysis = onDeleteAnalysis,
+                    )
                     GhostStep.ANCHORS -> AnchorsStep(
                         state = state,
                         onSelectAnchorFrame = onSelectAnchorFrame,
@@ -118,7 +132,12 @@ fun GhostClimberScreen(
                         onConfirmPath = onConfirmPath,
                         onBackToAnchors = onBackToAnchors,
                     )
-                    GhostStep.PREVIEW -> PreviewStep(state, onSetViewMode, onBackToPath)
+                    GhostStep.PREVIEW -> PreviewStep(
+                        state = state,
+                        onSetViewMode = onSetViewMode,
+                        onSaveAnalysis = onSaveAnalysis,
+                        onBackToPath = onBackToPath,
+                    )
                 }
 
                 state.error?.let { error ->
@@ -140,6 +159,8 @@ private fun SelectionStep(
     state: GhostClimberUiState,
     onSelectVideo: (GhostRole, String) -> Unit,
     onAnalyze: () -> Unit,
+    onRestoreAnalysis: (Int) -> Unit,
+    onDeleteAnalysis: (Int) -> Unit,
 ) {
     Text(
         text = "Vergleiche zwei Versuche derselben Route (feste Kamera). " +
@@ -168,6 +189,58 @@ private fun SelectionStep(
             icon = Icons.AutoMirrored.Filled.DirectionsRun,
             onClick = onAnalyze,
         )
+    }
+
+    // Gespeicherte Analysen (M5): antippen lädt direkt die Vergleichsansicht.
+    if (state.savedAnalyses.isNotEmpty() && !state.analyzing) {
+        SectionHeader(text = "Gespeicherte Analysen")
+        state.savedAnalyses.forEach { analysis ->
+            SavedAnalysisRow(
+                analysis = analysis,
+                onOpen = { onRestoreAnalysis(analysis.id) },
+                onDelete = { onDeleteAnalysis(analysis.id) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SavedAnalysisRow(
+    analysis: SavedAnalysisUi,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpen),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.History,
+            contentDescription = null,
+            tint = BoulderBuddy.colors.textSecondary,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = analysis.createdAtText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = "Vorschlag: ${analysis.modeLabel}",
+                style = MaterialTheme.typography.labelSmall,
+                color = BoulderBuddy.colors.textTertiary,
+            )
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = "Analyse löschen",
+                tint = BoulderBuddy.colors.textSecondary,
+            )
+        }
     }
 }
 
@@ -334,6 +407,7 @@ private fun PathStep(
 private fun PreviewStep(
     state: GhostClimberUiState,
     onSetViewMode: (GhostViewMode) -> Unit,
+    onSaveAnalysis: () -> Unit,
     onBackToPath: () -> Unit,
 ) {
     val refUri = state.reference.uri
@@ -380,6 +454,8 @@ private fun PreviewStep(
                 poseTrack = refTrack,
                 ghostTrack = ghostTrack,
                 ghostTimeForPosition = cmpTimeForPosition,
+                abortTimeMs = state.refAbortTimeMs,
+                ghostAbortTimeMs = state.cmpAbortTimeMs,
                 modifier = Modifier
                     .fillMaxWidth()
                     // Player im Seitenverhältnis des Videos, damit Letterbox-Ränder
@@ -402,6 +478,8 @@ private fun PreviewStep(
                 cmpUri = cmpUri,
                 cmpTrack = cmpTrack,
                 cmpTimeForPosition = cmpTimeForPosition,
+                refAbortTimeMs = state.refAbortTimeMs,
+                cmpAbortTimeMs = state.cmpAbortTimeMs,
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
@@ -412,6 +490,26 @@ private fun PreviewStep(
                 color = BoulderBuddy.colors.textTertiary,
             )
         }
+    }
+    if (state.refAbortTimeMs != null || state.cmpAbortTimeMs != null) {
+        Text(
+            text = "Sturz/Abbruch erkannt: das betroffene Skelett blendet am " +
+                "Abbruchpunkt aus, der andere Versuch klettert weiter.",
+            style = MaterialTheme.typography.labelMedium,
+            color = BoulderBuddy.colors.textTertiary,
+        )
+    }
+    if (state.analysisSaved) {
+        Text(
+            text = "Analyse gespeichert ✓",
+            style = MaterialTheme.typography.labelMedium,
+            color = BoulderBuddy.colors.textSecondary,
+        )
+    } else {
+        PrimaryButton(
+            text = "Analyse speichern",
+            onClick = onSaveAnalysis,
+        )
     }
     TextButton(onClick = onBackToPath) { Text("Pfad anpassen") }
 }

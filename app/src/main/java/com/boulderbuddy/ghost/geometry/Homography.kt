@@ -37,6 +37,9 @@ class Homography(private val h: DoubleArray) {
 
     fun map(x: Float, y: Float): Vec2 = map(Vec2(x.toDouble(), y.toDouble()))
 
+    /** Die 9 Matrixwerte (zeilenweise) — für die Persistenz als JSON (M5). */
+    fun values(): DoubleArray = h.clone()
+
     companion object {
 
         val IDENTITY = Homography(doubleArrayOf(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))

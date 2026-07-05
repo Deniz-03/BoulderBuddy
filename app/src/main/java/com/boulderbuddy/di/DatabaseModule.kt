@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.boulderbuddy.data.db.BoulderBuddyDatabase
 import com.boulderbuddy.data.db.SeedData
+import com.boulderbuddy.data.db.dao.GhostAnalysisDao
 import com.boulderbuddy.data.db.dao.GradeDao
 import com.boulderbuddy.data.db.dao.GradeSystemDao
 import com.boulderbuddy.data.db.dao.GymDao
@@ -64,4 +65,8 @@ object DatabaseModule {
     @Provides
     fun provideHangboardSessionDao(db: BoulderBuddyDatabase): HangboardSessionDao =
         db.hangboardSessionDao()
+
+    @Provides
+    fun provideGhostAnalysisDao(db: BoulderBuddyDatabase): GhostAnalysisDao =
+        db.ghostAnalysisDao()
 }

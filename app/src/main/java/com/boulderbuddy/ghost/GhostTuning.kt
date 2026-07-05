@@ -70,4 +70,21 @@ object GhostTuning {
 
     /** Max. Winkel zwischen den PCA-Hauptrichtungen beider Trajektorien für Overlay. */
     const val MODE_MAIN_DIRECTION_MAX_DEG: Double = 25.0
+
+    // --- Sturz-/Abbrucherkennung (M5, P5) --------------------------------------
+
+    /** Geschwindigkeits-Spike-Schwelle: Median + n·σ_robust (1,4826·MAD) der Hüftgeschwindigkeit.
+     *  Median/MAD statt Mittelwert/σ, damit der Sturz selbst die Baseline nicht verfälscht. */
+    const val FALL_SPEED_SIGMA_FACTOR: Double = 3.0
+
+    /** Untergrenze der Spike-Schwelle als Vielfaches des Medians — fängt den entarteten
+     *  Fall MAD ≈ 0 (sehr gleichförmige Bewegung) ab. */
+    const val FALL_SPEED_MIN_MEDIAN_FACTOR: Double = 2.0
+
+    /** So viele Sample-Frames muss die Abwärtsbewegung anhalten (~0,7 s bei 6 fps) —
+     *  entprellt Ausschütteln und dynamische Züge (P5-Grenzfälle). */
+    const val FALL_MIN_DOWNWARD_FRAMES: Int = 4
+
+    /** Fade-out-Dauer des Skeletts am Abbruchpunkt (P4c: Abbruch als Feature). */
+    const val ABORT_FADE_MS: Long = 800L
 }

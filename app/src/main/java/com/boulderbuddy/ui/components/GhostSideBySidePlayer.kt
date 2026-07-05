@@ -52,6 +52,9 @@ fun GhostSideBySidePlayer(
     modifier: Modifier = Modifier,
     refColor: Color = RouteOrange,
     cmpColor: Color = RouteBlue,
+    /** Abbruchzeitpunkte (P4c), jeweils auf der eigenen Video-Zeitachse. */
+    refAbortTimeMs: Long? = null,
+    cmpAbortTimeMs: Long? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -124,7 +127,12 @@ fun GhostSideBySidePlayer(
                 },
             )
             Canvas(modifier = Modifier.matchParentSize()) {
-                drawSkeletonOverlay(track = refTrack, timeMs = refPositionMs, color = refColor)
+                drawSkeletonOverlay(
+                    track = refTrack,
+                    timeMs = refPositionMs,
+                    color = refColor,
+                    abortTimeMs = refAbortTimeMs,
+                )
             }
         }
         Box(
@@ -142,7 +150,12 @@ fun GhostSideBySidePlayer(
                 },
             )
             Canvas(modifier = Modifier.matchParentSize()) {
-                drawSkeletonOverlay(track = cmpTrack, timeMs = cmpPositionMs, color = cmpColor)
+                drawSkeletonOverlay(
+                    track = cmpTrack,
+                    timeMs = cmpPositionMs,
+                    color = cmpColor,
+                    abortTimeMs = cmpAbortTimeMs,
+                )
             }
         }
     }

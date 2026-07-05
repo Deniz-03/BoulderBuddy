@@ -49,6 +49,10 @@ fun GhostSkeletonPlayer(
     ghostTrack: GhostPoseTrack? = null,
     ghostColor: Color = RouteBlue,
     ghostTimeForPosition: (Long) -> Long = { it },
+    /** Abbruchzeitpunkte (P4c): das jeweilige Skelett faded dort aus. Referenz auf
+     *  der Video-Zeitachse, Geist auf der Zeitachse des Vergleichs-Videos. */
+    abortTimeMs: Long? = null,
+    ghostAbortTimeMs: Long? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -101,12 +105,14 @@ fun GhostSkeletonPlayer(
                     track = ghostTrack,
                     timeMs = ghostTimeForPosition(positionMs),
                     color = ghostColor.copy(alpha = 0.75f),
+                    abortTimeMs = ghostAbortTimeMs,
                 )
             }
             drawSkeletonOverlay(
                 track = poseTrack,
                 timeMs = positionMs,
                 color = skeletonColor,
+                abortTimeMs = abortTimeMs,
             )
         }
     }

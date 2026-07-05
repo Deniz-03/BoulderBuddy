@@ -20,7 +20,14 @@ internal fun DrawScope.drawSkeletonOverlay(
     track: GhostPoseTrack,
     timeMs: Long,
     color: Color,
+    /** Zeitpunkt eines erkannten Abbruchs (P4c): danach faded das Skelett aus. */
+    abortTimeMs: Long? = null,
 ) {
+    val fade = abortFadeAlpha(timeMs, abortTimeMs)
+    if (fade <= 0f) return
+    @Suppress("NAME_SHADOWING")
+    val color = color.copy(alpha = color.alpha * fade)
+
     val landmarks = track.landmarksAt(timeMs)
         .filter { it.confidence >= GhostTuning.MIN_LANDMARK_CONFIDENCE }
     if (landmarks.isEmpty()) return
@@ -51,4 +58,15 @@ internal fun DrawScope.drawSkeletonOverlay(
             )
         }
     }
+}
+
+/**
+ * Abbruch als Feature (P4c): volle Deckkraft bis zum Abbruchpunkt, danach linearer
+ * Fade auf 0 über [GhostTuning.ABORT_FADE_MS] — der gestürzte Versuch verschwindet,
+ * der andere klettert weiter.
+ */
+private fun abortFadeAlpha(timeMs: Long, abortTimeMs: Long?): Float {
+    if (abortTimeMs == null || timeMs <= abortTimeMs) return 1f
+    return (1f - (timeMs - abortTimeMs).toFloat() / GhostTuning.ABORT_FADE_MS)
+        .coerceIn(0f, 1f)
 }

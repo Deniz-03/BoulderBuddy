@@ -31,12 +31,21 @@ class GhostArtifactStore @Inject constructor(
     }
 
     /** Gecachte Pose-Spur oder null (nicht vorhanden/nicht mehr lesbar). */
-    suspend fun loadPoseTrack(videoUri: String): GhostPoseTrack? = withContext(Dispatchers.IO) {
-        val file = poseTrackFile(videoUri)
-        if (!file.exists()) return@withContext null
-        // Defektes/verändertes Schema → wie "kein Cache" behandeln, neu analysieren.
-        runCatching { json.decodeFromString<GhostPoseTrack>(file.readText()) }.getOrNull()
-    }
+    suspend fun loadPoseTrack(videoUri: String): GhostPoseTrack? =
+        loadPoseTrackFromPath(poseTrackFile(videoUri).absolutePath)
+
+    /** Pose-Spur direkt über ihren Dateipfad — für gespeicherte Analysen (M5),
+     *  deren Pfade in der DB stehen und auch nach Tuning-Änderungen gültig bleiben. */
+    suspend fun loadPoseTrackFromPath(path: String): GhostPoseTrack? =
+        withContext(Dispatchers.IO) {
+            val file = File(path)
+            if (!file.exists()) return@withContext null
+            // Defektes/verändertes Schema → wie "kein Cache" behandeln, neu analysieren.
+            runCatching { json.decodeFromString<GhostPoseTrack>(file.readText()) }.getOrNull()
+        }
+
+    /** Dateipfad der (gecachten) Pose-Spur eines Videos — wird in der DB referenziert (M5). */
+    fun poseTrackPath(videoUri: String): String = poseTrackFile(videoUri).absolutePath
 
     // Die Abtastrate steckt mit im Cache-Schlüssel: ändert sich GhostTuning.POSE_SAMPLE_FPS,
     // veralten alte Spuren automatisch statt mit falschem Raster weiterzuleben.

@@ -4,9 +4,12 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
+import com.boulderbuddy.data.repository.GhostAnalysisRepository
 import com.boulderbuddy.ghost.GhostArtifactStore
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.analysis.GhostTimeMapping
+import com.boulderbuddy.ghost.analysis.detectAbortFrame
 import com.boulderbuddy.ghost.analysis.RoutePolyline
 import com.boulderbuddy.ghost.analysis.buildTimeMapping
 import com.boulderbuddy.ghost.analysis.dtw
@@ -31,6 +34,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 /** Die beiden Versuche eines Vergleichs. Referenz definiert den Wand-Referenzraum (P0). */
@@ -76,6 +83,17 @@ data class GhostClimberUiState(
     val suggestionReason: String = "",
     /** Aktiver Modus — vorbelegt mit [suggestedMode], vom Nutzer überstimmbar. */
     val viewMode: GhostViewMode = GhostViewMode.OVERLAY,
+    // --- Abbruch/Sturz + Persistenz (M5) ---
+    /** Homographie Vergleich→Referenz (für die Persistenz aufbewahrt). */
+    val homographyCmp: Homography? = null,
+    /** Erkannter Abbruch-/Sturzzeitpunkt (P5) je Versuch auf der eigenen Zeitachse;
+     *  null = keiner erkannt. Steuert das Fade-out (P4c). */
+    val refAbortTimeMs: Long? = null,
+    val cmpAbortTimeMs: Long? = null,
+    /** Gespeicherte Analysen (DB), neueste zuerst. */
+    val savedAnalyses: List<SavedAnalysisUi> = emptyList(),
+    /** true, nachdem die aktuelle Analyse gespeichert wurde (deaktiviert den Button). */
+    val analysisSaved: Boolean = false,
 ) {
     fun slot(role: GhostRole): GhostVideoSlot =
         if (role == GhostRole.REFERENCE) reference else comparison
@@ -89,6 +107,13 @@ data class GhostClimberUiState(
             reference.anchors.size == comparison.anchors.size
 }
 
+/** Listeneintrag einer gespeicherten Analyse (Screens bleiben Entity-frei). */
+data class SavedAnalysisUi(
+    val id: Int,
+    val createdAtText: String,
+    val modeLabel: String,
+)
+
 /**
  * Ghost Climber (Phase 7.5): geführter Flow über die Pipeline-Schritte.
  * M1: Videos wählen + Posen extrahieren (ML Kit, offline, gecacht).
@@ -100,10 +125,37 @@ class GhostClimberViewModel @Inject constructor(
     private val poseExtractor: VideoPoseExtractor,
     private val artifactStore: GhostArtifactStore,
     private val frameDecoder: GhostFrameDecoder,
+    private val analysisRepository: GhostAnalysisRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GhostClimberUiState())
     val uiState: StateFlow<GhostClimberUiState> = _uiState.asStateFlow()
+
+    private val json = Json { ignoreUnknownKeys = true }
+    private val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMANY)
+
+    init {
+        // Gespeicherte Analysen live in den State spiegeln (Liste im Auswahl-Schritt).
+        viewModelScope.launch {
+            analysisRepository.observeAll().collect { analyses ->
+                _uiState.update { state ->
+                    state.copy(
+                        savedAnalyses = analyses.map {
+                            SavedAnalysisUi(
+                                id = it.id,
+                                createdAtText = dateFormat.format(Date(it.createdAt)),
+                                modeLabel = if (it.suggestedMode == GhostViewMode.SIDE_BY_SIDE.name) {
+                                    "Side-by-Side"
+                                } else {
+                                    "Overlay"
+                                },
+                            )
+                        },
+                    )
+                }
+            }
+        }
+    }
 
     /** Neues Video gewählt: Slot zurücksetzen — Spur/Anker gehören zur alten URI. */
     fun onVideoSelected(role: GhostRole, uri: String) {
@@ -175,26 +227,38 @@ class GhostClimberViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(error = null) }
             try {
-                val (ghost, trajectory, suggestion) = withContext(Dispatchers.Default) {
+                data class AlignmentResult(
+                    val homography: Homography,
+                    val ghost: GhostPoseTrack,
+                    val trajectory: List<GhostPoint>,
+                    val suggestion: List<GhostPoint>,
+                )
+
+                val result = withContext(Dispatchers.Default) {
                     val homography = Homography.estimate(
                         src = state.comparison.anchors.map { it.toVec2() },
                         dst = state.reference.anchors.map { it.toVec2() },
                         ransacIterations = GhostTuning.RANSAC_ITERATIONS,
                         inlierThresholdPx = GhostTuning.RANSAC_INLIER_THRESHOLD_PX,
                     )
-                    val ghost = cmpTrack.transformedBy(homography, refTrack)
                     val trajectory = refTrack.smoothedHipTrajectory()
                         ?: throw IllegalStateException(
                             "Im Referenz-Video wurde keine Person sicher erkannt",
                         )
-                    Triple(ghost, trajectory, suggestRoutePath(refTrack).orEmpty())
+                    AlignmentResult(
+                        homography = homography,
+                        ghost = cmpTrack.transformedBy(homography, refTrack),
+                        trajectory = trajectory,
+                        suggestion = suggestRoutePath(refTrack).orEmpty(),
+                    )
                 }
                 _uiState.update {
                     it.copy(
-                        ghostTrack = ghost,
-                        hipTrajectory = trajectory,
-                        suggestedPath = suggestion,
-                        routePath = suggestion,
+                        homographyCmp = result.homography,
+                        ghostTrack = result.ghost,
+                        hipTrajectory = result.trajectory,
+                        suggestedPath = result.suggestion,
+                        routePath = result.suggestion,
                         step = GhostStep.PATH,
                     )
                 }
@@ -235,38 +299,162 @@ class GhostClimberViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(error = null) }
             try {
-                val (mapping, suggestion) = withContext(Dispatchers.Default) {
-                    val path = RoutePolyline(state.routePath)
-                    val refSignal = progressSignal(refTrack, path)
-                        ?: throw IllegalStateException("Referenz: keine verwertbare Pose-Spur")
-                    val cmpSignal = progressSignal(ghostTrack, path)
-                        ?: throw IllegalStateException("Vergleich: keine verwertbare Pose-Spur")
-                    val alignment = dtw(refSignal, cmpSignal, GhostTuning.DTW_BAND_FRACTION)
-                    val mapping =
-                        buildTimeMapping(alignment.path, refTrack.frames, ghostTrack.frames)
-                    // P7: Ähnlichkeit der Trajektorien → Modus-Vorschlag (Nutzer überstimmt).
-                    val suggestion = suggestViewMode(
-                        refTrajectory = refTrack.smoothedHipTrajectory().orEmpty(),
-                        cmpTrajectory = ghostTrack.smoothedHipTrajectory().orEmpty(),
-                        path = path,
-                        dtwNormalizedDistance = alignment.normalizedDistance,
-                    )
-                    mapping to suggestion
+                val sync = withContext(Dispatchers.Default) {
+                    computeSync(refTrack, ghostTrack, state.routePath)
                 }
-                _uiState.update {
-                    it.copy(
-                        timeMapping = mapping,
-                        suggestedMode = suggestion.mode,
-                        suggestionReason = suggestion.reason,
-                        viewMode = suggestion.mode,
-                        step = GhostStep.PREVIEW,
-                    )
-                }
+                _uiState.update { it.applySync(sync) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Synchronisation fehlgeschlagen")
+                }
+            }
+        }
+    }
+
+    /** Ergebnis der Synchronisation (M3–M5): Zeitmapping, Modus-Vorschlag, Abbrüche. */
+    private data class SyncResult(
+        val mapping: GhostTimeMapping,
+        val suggestedMode: GhostViewMode,
+        val suggestionReason: String,
+        val refAbortTimeMs: Long?,
+        val cmpAbortTimeMs: Long?,
+    )
+
+    private fun GhostClimberUiState.applySync(sync: SyncResult): GhostClimberUiState = copy(
+        timeMapping = sync.mapping,
+        suggestedMode = sync.suggestedMode,
+        suggestionReason = sync.suggestionReason,
+        viewMode = sync.suggestedMode,
+        refAbortTimeMs = sync.refAbortTimeMs,
+        cmpAbortTimeMs = sync.cmpAbortTimeMs,
+        analysisSaved = false,
+        step = GhostStep.PREVIEW,
+    )
+
+    /**
+     * Kern der Analyse (auf Dispatchers.Default aufrufen): Fortschrittssignale (P2) →
+     * DTW (P1) → Zeitmapping; Modus-Vorschlag (P7); Sturz-/Abbrucherkennung (P5) auf
+     * beiden Trajektorien — die Zeitachse des Geists ist die des Vergleichs-Videos.
+     */
+    private fun computeSync(
+        refTrack: GhostPoseTrack,
+        ghostTrack: GhostPoseTrack,
+        routePath: List<GhostPoint>,
+    ): SyncResult {
+        val path = RoutePolyline(routePath)
+        val refSignal = progressSignal(refTrack, path)
+            ?: throw IllegalStateException("Referenz: keine verwertbare Pose-Spur")
+        val cmpSignal = progressSignal(ghostTrack, path)
+            ?: throw IllegalStateException("Vergleich: keine verwertbare Pose-Spur")
+        val alignment = dtw(refSignal, cmpSignal, GhostTuning.DTW_BAND_FRACTION)
+        val refTrajectory = refTrack.smoothedHipTrajectory().orEmpty()
+        val cmpTrajectory = ghostTrack.smoothedHipTrajectory().orEmpty()
+        val suggestion = suggestViewMode(
+            refTrajectory = refTrajectory,
+            cmpTrajectory = cmpTrajectory,
+            path = path,
+            dtwNormalizedDistance = alignment.normalizedDistance,
+        )
+        return SyncResult(
+            mapping = buildTimeMapping(alignment.path, refTrack.frames, ghostTrack.frames),
+            suggestedMode = suggestion.mode,
+            suggestionReason = suggestion.reason,
+            refAbortTimeMs = detectAbortFrame(refTrajectory)
+                ?.let { refTrack.frames[it].timeMs },
+            cmpAbortTimeMs = detectAbortFrame(cmpTrajectory)
+                ?.let { ghostTrack.frames[it].timeMs },
+        )
+    }
+
+    // --- Persistenz gespeicherter Analysen (M5, A.2) ---
+
+    /** Speichert die aktuelle Analyse: Artefakt-Pfade + kompakte JSON-Ergebnisse in der DB. */
+    fun saveAnalysis() {
+        val state = _uiState.value
+        val refUri = state.reference.uri ?: return
+        val cmpUri = state.comparison.uri ?: return
+        val homography = state.homographyCmp ?: return
+        if (state.analysisSaved || state.routePath.size < 2) return
+        viewModelScope.launch {
+            try {
+                analysisRepository.create(
+                    GhostAnalysisEntity(
+                        refMediaUri = refUri,
+                        cmpMediaUri = cmpUri,
+                        refKeypointsPath = artifactStore.poseTrackPath(refUri),
+                        cmpKeypointsPath = artifactStore.poseTrackPath(cmpUri),
+                        homographyCmpJson = json.encodeToString(homography.values()),
+                        routePathJson = json.encodeToString(state.routePath),
+                        suggestedMode = state.suggestedMode.name,
+                        createdAt = System.currentTimeMillis(),
+                    ),
+                )
+                _uiState.update { it.copy(analysisSaved = true) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: "Speichern fehlgeschlagen") }
+            }
+        }
+    }
+
+    fun deleteAnalysis(id: Int) {
+        viewModelScope.launch { analysisRepository.delete(id) }
+    }
+
+    /**
+     * Stellt eine gespeicherte Analyse wieder her: Pose-Spuren aus den Artefakt-Dateien,
+     * Homographie + Routenpfad aus der DB; Synchronisation wird neu gerechnet (schnell —
+     * die teure Pose-Extraktion entfällt) und direkt die Vorschau geöffnet.
+     */
+    fun restoreAnalysis(id: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(error = null) }
+            try {
+                val entity = analysisRepository.getById(id)
+                    ?: throw IllegalStateException("Analyse nicht gefunden")
+                val refTrack = artifactStore.loadPoseTrackFromPath(entity.refKeypointsPath)
+                    ?: throw IllegalStateException("Analyse-Daten wurden gelöscht — bitte neu analysieren")
+                val cmpTrack = artifactStore.loadPoseTrackFromPath(entity.cmpKeypointsPath)
+                    ?: throw IllegalStateException("Analyse-Daten wurden gelöscht — bitte neu analysieren")
+                val homography = Homography(json.decodeFromString<DoubleArray>(entity.homographyCmpJson))
+                val routePath = json.decodeFromString<List<GhostPoint>>(entity.routePathJson)
+
+                data class Restored(
+                    val ghost: GhostPoseTrack,
+                    val trajectory: List<GhostPoint>,
+                    val sync: SyncResult,
+                )
+
+                val restored = withContext(Dispatchers.Default) {
+                    val ghost = cmpTrack.transformedBy(homography, refTrack)
+                    Restored(
+                        ghost = ghost,
+                        trajectory = refTrack.smoothedHipTrajectory().orEmpty(),
+                        sync = computeSync(refTrack, ghost, routePath),
+                    )
+                }
+                _uiState.update {
+                    it.copy(
+                        reference = GhostVideoSlot(uri = entity.refMediaUri, track = refTrack),
+                        comparison = GhostVideoSlot(uri = entity.cmpMediaUri, track = cmpTrack),
+                        homographyCmp = homography,
+                        ghostTrack = restored.ghost,
+                        hipTrajectory = restored.trajectory,
+                        suggestedPath = routePath,
+                        routePath = routePath,
+                        error = null,
+                    ).applySync(restored.sync)
+                        // Wiederhergestellt = bereits gespeichert.
+                        .copy(analysisSaved = true)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = e.message ?: "Analyse konnte nicht geladen werden")
                 }
             }
         }
