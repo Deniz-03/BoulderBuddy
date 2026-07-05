@@ -2,13 +2,14 @@ package com.boulderbuddy.ghost.pose
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.RectF
 import android.media.MediaMetadataRetriever
 import androidx.core.net.toUri
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.GhostPoseTrack
-import com.boulderbuddy.ghost.video.scaledFrameAt
+import com.boulderbuddy.ghost.video.fullFrameAt
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
@@ -19,17 +20,26 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.coroutines.coroutineContext
+import kotlin.math.roundToInt
 
 /**
  * Offline-Pose-Extraktion für Ghost Climber (Pipeline-Schritt P0-Vorstufe):
- * tastet ein Video mit [GhostTuning.POSE_SAMPLE_FPS] ab, dekodiert jeden Sample-Frame
- * (herunterskaliert auf [GhostTuning.POSE_INPUT_LONG_SIDE_PX]) und lässt den MediaPipe
- * Pose Landmarker die 33 Landmarks bestimmen.
+ * tastet ein Video mit [GhostTuning.POSE_SAMPLE_FPS] ab und lässt den MediaPipe
+ * Pose Landmarker (RunningMode.VIDEO, internes Tracking, echtes visibility/presence)
+ * die 33 Landmarks bestimmen. Alle Koordinaten leben im **Analyse-Frame-Raum**
+ * (Vollbild, lange Kante = [GhostTuning.POSE_INPUT_LONG_SIDE_PX]) — derselbe Raum
+ * wie Anker (M2) und Overlay.
  *
- * Seit Stufe 3 (FABLE_GHOSTCLIMBER_STABILISIERUNG.md) MediaPipe statt ML Kit:
- * **RunningMode.VIDEO** trackt intern über die Frames (zeitliche Konsistenz statt
- * unabhängiger Einzelbilder) und liefert echtes **visibility** (→ `confidence`) und
- * **presence** pro Landmark — die Basis für Filter und Hysterese (Stufe 1).
+ * **ROI-Crop-Tracking (Stufe 2):** statt immer das ganze (kleine) Vollbild zu
+ * analysieren, wird der voll aufgelöste Frame auf die zuletzt bekannte Personen-Box
+ * (+[GhostTuning.ROI_EXPAND_FRACTION] je Seite) gecroppt — die Person füllt das
+ * Modell-Eingabebild, Extremitäten werden effektiv höher aufgelöst, und die Analyse
+ * bindet an den Kletterer statt auf Zuschauer zu springen (Diagnose G). Geht die
+ * Person verloren, fällt der nächste Frame aufs Vollbild zurück.
+ *
+ * Nachverarbeitung (Stufen 1+2): L/R-Konsistenz → anatomische Plausibilität →
+ * One-Euro-Glättung → Sichtbarkeits-Hysterese; die Roh-Spur bleibt als
+ * [GhostPoseTrack.rawFrames] fürs Debug-Overlay erhalten.
  *
  * Läuft komplett auf [Dispatchers.Default] — eine einmalige Batch-Analyse, bewusst
  * ohne WorkManager (Plan §4). Kooperativ abbrechbar über die aufrufende Coroutine.
@@ -74,41 +84,35 @@ class VideoPoseExtractor @Inject constructor(
 
             var frameWidth = 0
             var frameHeight = 0
+            var roi: RectF? = null
             val frames = ArrayList<GhostPoseFrame>(sampleTimes.size)
             sampleTimes.forEachIndexed { index, timeMs ->
                 coroutineContext.ensureActive()
-                val bitmap = retriever.scaledFrameAt(timeMs, GhostTuning.POSE_INPUT_LONG_SIDE_PX)
-                    ?.asArgb8888()
-                if (bitmap != null) {
-                    // Alle Frames eines Videos haben dieselben (skalierten) Maße —
-                    // sie definieren den Koordinatenraum der Keypoints.
+                val full = retriever.fullFrameAt(timeMs)
+                if (full != null) {
+                    // Alle Frames eines Videos haben dieselben Maße — der (herunter-
+                    // skalierte) Analyse-Frame definiert den Koordinatenraum.
                     if (frameWidth == 0) {
-                        frameWidth = bitmap.width
-                        frameHeight = bitmap.height
+                        val scale = GhostTuning.POSE_INPUT_LONG_SIDE_PX.toFloat() /
+                            maxOf(full.width, full.height)
+                        frameWidth = (full.width * scale).roundToInt()
+                        frameHeight = (full.height * scale).roundToInt()
                     }
-                    val result = landmarker.detectForVideo(
-                        BitmapImageBuilder(bitmap).build(),
-                        timeMs,
-                    )
-                    frames += GhostPoseFrame(
+                    val landmarks = detectLandmarks(
+                        landmarker = landmarker,
+                        full = full,
                         timeMs = timeMs,
-                        // Landmarks kommen normalisiert (0–1) — zurück in den Pixelraum
-                        // des Analyse-Frames, in dem auch Anker + Overlay leben.
-                        landmarks = result.landmarks().firstOrNull().orEmpty()
-                            .mapIndexed { type, lm ->
-                                GhostLandmark(
-                                    type = type,
-                                    x = lm.x() * bitmap.width,
-                                    y = lm.y() * bitmap.height,
-                                    confidence = lm.visibility().orElse(0f),
-                                    presence = lm.presence().orElse(0f),
-                                )
-                            },
+                        analysisWidth = frameWidth,
+                        analysisHeight = frameHeight,
+                        roi = roi,
                     )
-                    bitmap.recycle()
+                    full.recycle()
+                    frames += GhostPoseFrame(timeMs = timeMs, landmarks = landmarks)
+                    roi = nextRoi(roi, landmarks, frameWidth, frameHeight)
                 } else {
                     // Nicht dekodierbarer Frame: leerer Eintrag hält die Zeitachse äquidistant.
                     frames += GhostPoseFrame(timeMs = timeMs, landmarks = emptyList())
+                    roi = null
                 }
                 onProgress(index + 1, sampleTimes.size)
             }
@@ -134,6 +138,110 @@ class VideoPoseExtractor @Inject constructor(
         }
     }
 
+    /**
+     * Eine Inferenz: auf dem ROI-Crop des voll aufgelösten Frames (sofern Box bekannt
+     * und groß genug), sonst auf dem aufs Analyse-Maß skalierten Vollbild. Ergebnis-
+     * Koordinaten immer im Analyse-Frame-Raum.
+     */
+    private fun detectLandmarks(
+        landmarker: PoseLandmarker,
+        full: Bitmap,
+        timeMs: Long,
+        analysisWidth: Int,
+        analysisHeight: Int,
+        roi: RectF?,
+    ): List<GhostLandmark> {
+        val scaleX = full.width.toFloat() / analysisWidth
+        val scaleY = full.height.toFloat() / analysisHeight
+        if (roi != null) {
+            val left = (roi.left * scaleX).roundToInt().coerceIn(0, full.width - 1)
+            val top = (roi.top * scaleY).roundToInt().coerceIn(0, full.height - 1)
+            val width = (roi.width() * scaleX).roundToInt()
+                .coerceIn(1, full.width - left)
+            val height = (roi.height() * scaleY).roundToInt()
+                .coerceIn(1, full.height - top)
+            if (width >= MIN_CROP_PX && height >= MIN_CROP_PX) {
+                val crop = Bitmap.createBitmap(full, left, top, width, height).asArgb8888()
+                val landmarks = runDetection(landmarker, crop, timeMs) { x, y ->
+                    // Crop-normiert → Vollbild-Pixel → Analyse-Raum.
+                    (left + x * width) / scaleX to (top + y * height) / scaleY
+                }
+                crop.recycle()
+                return landmarks
+            }
+        }
+        val scaled = Bitmap.createScaledBitmap(full, analysisWidth, analysisHeight, true)
+            .asArgb8888()
+        val landmarks = runDetection(landmarker, scaled, timeMs) { x, y ->
+            x * analysisWidth to y * analysisHeight
+        }
+        scaled.recycle()
+        return landmarks
+    }
+
+    private inline fun runDetection(
+        landmarker: PoseLandmarker,
+        bitmap: Bitmap,
+        timeMs: Long,
+        toAnalysisSpace: (Float, Float) -> Pair<Float, Float>,
+    ): List<GhostLandmark> =
+        landmarker.detectForVideo(BitmapImageBuilder(bitmap).build(), timeMs)
+            .landmarks().firstOrNull().orEmpty()
+            .mapIndexed { type, lm ->
+                val (x, y) = toAnalysisSpace(lm.x(), lm.y())
+                GhostLandmark(
+                    type = type,
+                    x = x,
+                    y = y,
+                    confidence = lm.visibility().orElse(0f),
+                    presence = lm.presence().orElse(0f),
+                )
+            }
+
+    /**
+     * Personen-Box für den nächsten Frame: Bounding-Box der sicheren Landmarks,
+     * je Seite um [GhostTuning.ROI_EXPAND_FRACTION] erweitert, zeitlich geglättet
+     * (ruhige Box → stabileres internes Tracking auf dem Crop-Strom). Zu wenige
+     * sichere Landmarks ⇒ null (Person verloren, Vollbild-Suche).
+     */
+    private fun nextRoi(
+        previous: RectF?,
+        landmarks: List<GhostLandmark>,
+        analysisWidth: Int,
+        analysisHeight: Int,
+    ): RectF? {
+        val confident = landmarks.filter {
+            it.confidence >= GhostTuning.MIN_LANDMARK_CONFIDENCE
+        }
+        if (confident.size < GhostTuning.ROI_MIN_CONFIDENT_LANDMARKS) return null
+        var minX = Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        confident.forEach {
+            if (it.x < minX) minX = it.x
+            if (it.y < minY) minY = it.y
+            if (it.x > maxX) maxX = it.x
+            if (it.y > maxY) maxY = it.y
+        }
+        val expandX = (maxX - minX) * GhostTuning.ROI_EXPAND_FRACTION
+        val expandY = (maxY - minY) * GhostTuning.ROI_EXPAND_FRACTION
+        val box = RectF(
+            (minX - expandX).coerceAtLeast(0f),
+            (minY - expandY).coerceAtLeast(0f),
+            (maxX + expandX).coerceAtMost(analysisWidth.toFloat()),
+            (maxY + expandY).coerceAtMost(analysisHeight.toFloat()),
+        )
+        if (previous == null) return box
+        val t = GhostTuning.ROI_BOX_SMOOTHING
+        return RectF(
+            previous.left + (box.left - previous.left) * t,
+            previous.top + (box.top - previous.top) * t,
+            previous.right + (box.right - previous.right) * t,
+            previous.bottom + (box.bottom - previous.bottom) * t,
+        )
+    }
+
     companion object {
         /**
          * Modell-Asset in app/src/main/assets/ (MediaPipe lädt nicht selbst nach).
@@ -142,6 +250,9 @@ class VideoPoseExtractor @Inject constructor(
          * nicht stabil genug werden) — Entscheidung s. Code-Entscheidungen.md.
          */
         const val MODEL_ASSET = "pose_landmarker_full.task"
+
+        /** Kleinere Crops als das Modell-Eingabemaß bringen nichts mehr — Vollbild-Fallback. */
+        private const val MIN_CROP_PX = 64
     }
 }
 

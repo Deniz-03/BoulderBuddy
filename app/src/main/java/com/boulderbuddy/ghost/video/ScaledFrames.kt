@@ -14,6 +14,16 @@ import kotlin.math.roundToInt
  * OPTION_CLOSEST (statt CLOSEST_SYNC) ist pro Frame teurer, liefert aber den tatsächlich
  * zeitnächsten Frame — bei nur wenigen Keyframes pro GOP wären Sync-Frames viel zu grob.
  */
+/**
+ * Voll aufgelöster, korrekt rotierter Frame nahe [timeMs] — für das ROI-Crop-Tracking
+ * der Pose-Extraktion (Stufe 2): der Crop braucht die volle Auflösung, damit die
+ * Person im Ausschnitt effektiv höher aufgelöst ist als im 720er-Vollbild.
+ * (getFrameAtTime rotiert zuverlässig; nur die skalierte Variante hat das latente
+ * Rotations-Problem aus Diagnose F.)
+ */
+internal fun MediaMetadataRetriever.fullFrameAt(timeMs: Long): Bitmap? =
+    getFrameAtTime(timeMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST)
+
 internal fun MediaMetadataRetriever.scaledFrameAt(timeMs: Long, longSide: Int): Bitmap? {
     val timeUs = timeMs * 1000
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
