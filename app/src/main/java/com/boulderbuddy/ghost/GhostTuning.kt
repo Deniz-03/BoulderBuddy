@@ -14,11 +14,12 @@ object GhostTuning {
 
     /**
      * Abtastrate der Offline-Pose-Extraktion in Frames/Sekunde. Kompromiss aus
-     * Analysedauer (accurate-Modell braucht ~0,2–0,4 s/Frame) und zeitlicher Auflösung
-     * des Fortschrittssignals fürs DTW. Beide Videos werden mit derselben Rate
-     * abgetastet — das ersetzt das Resampling aus P8.
+     * Analysedauer und zeitlicher Auflösung des Fortschrittssignals fürs DTW. Beide
+     * Videos werden mit derselben Rate abgetastet — das ersetzt das Resampling aus P8.
+     * Stufe 1: 6 → 12 fps — bei 30-fps-Material verwarf 6 fps vier von fünf Frames,
+     * schnelle Züge fielen zwischen die Samples (Aliasing/"Teleportieren").
      */
-    const val POSE_SAMPLE_FPS: Double = 6.0
+    const val POSE_SAMPLE_FPS: Double = 12.0
 
     /**
      * Lange Kante der Analyse-Frames in Pixeln. Frames werden vor der Pose-Erkennung
@@ -46,8 +47,10 @@ object GhostTuning {
 
     // --- Fortschrittssignal / Routenpfad (M3) ---------------------------------
 
-    /** Gauss-Sigma (in Sample-Frames) für die Glättung von Trajektorie und Signal (P8). */
-    const val SMOOTHING_SIGMA_FRAMES: Double = 2.0
+    /** Gauss-Sigma (in Sample-Frames) für die Glättung von Trajektorie und Signal (P8).
+     *  4 Frames ≈ 333 ms bei 12 fps — mit der Abtastrate skaliert, damit die Glättung
+     *  in Echtzeit dieselbe bleibt wie vor Stufe 1 (2 Frames bei 6 fps). */
+    const val SMOOTHING_SIGMA_FRAMES: Double = 4.0
 
     /** Stützpunkte, auf die der Pfad-Vorschlag (geglättete Hüfttrajektorie) reduziert wird. */
     const val PATH_SUGGESTION_POINTS: Int = 12
@@ -81,9 +84,9 @@ object GhostTuning {
      *  Fall MAD ≈ 0 (sehr gleichförmige Bewegung) ab. */
     const val FALL_SPEED_MIN_MEDIAN_FACTOR: Double = 2.0
 
-    /** So viele Sample-Frames muss die Abwärtsbewegung anhalten (~0,7 s bei 6 fps) —
+    /** So viele Sample-Frames muss die Abwärtsbewegung anhalten (~0,7 s bei 12 fps) —
      *  entprellt Ausschütteln und dynamische Züge (P5-Grenzfälle). */
-    const val FALL_MIN_DOWNWARD_FRAMES: Int = 4
+    const val FALL_MIN_DOWNWARD_FRAMES: Int = 8
 
     /** Fade-out-Dauer des Skeletts am Abbruchpunkt (P4c: Abbruch als Feature). */
     const val ABORT_FADE_MS: Long = 800L
