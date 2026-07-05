@@ -73,4 +73,47 @@ class PoseSmoothingTest {
             assertThat(frame.landmarks.single().presence).isEqualTo(1f)
         }
     }
+
+    // --- Sichtbarkeits-Hysterese (Stufe 1.4) ---------------------------------
+
+    private fun visibilityFrames(visibilities: List<Float>): List<GhostPoseFrame> =
+        visibilities.mapIndexed { index, v ->
+            GhostPoseFrame(
+                timeMs = index * 83L,
+                landmarks = listOf(GhostLandmark(type = 15, x = 100f, y = 50f, confidence = v)),
+            )
+        }
+
+    @Test
+    fun `dip zwischen ausblend- und zeichenschwelle flackert nicht`() {
+        // Vorher: 0.45 < 0.5 → Landmark verschwand. Jetzt: sichtbar geworden bei 0.9,
+        // gehalten bei 0.45 (≥ 0.3) — Confidence auf Zeichen-Schwelle angehoben.
+        val result = applyVisibilityHysteresis(
+            visibilityFrames(listOf(0.9f, 0.45f, 0.4f, 0.45f, 0.9f)),
+        )
+        result.forEach { assertThat(it.landmarks).hasSize(1) }
+        assertThat(result[1].landmarks.single().confidence).isAtLeast(0.5f)
+    }
+
+    @Test
+    fun `kurzer tiefer dip wird entprellt, langer blendet aus`() {
+        // 2 Frames unter 0.3 (< VISIBILITY_HIDE_FRAMES=3) → gehalten;
+        // ab dem 3. Frame in Folge → ausgeblendet, bis visibility wieder ≥ 0.5.
+        val result = applyVisibilityHysteresis(
+            visibilityFrames(listOf(0.9f, 0.1f, 0.1f, 0.1f, 0.1f, 0.9f)),
+        )
+        assertThat(result[1].landmarks).hasSize(1) // Entprell-Fenster
+        assertThat(result[2].landmarks).hasSize(1)
+        assertThat(result[3].landmarks).isEmpty() // 3. Frame unter Schwelle
+        assertThat(result[4].landmarks).isEmpty()
+        assertThat(result[5].landmarks).hasSize(1) // sofortiges Wieder-Einblenden
+    }
+
+    @Test
+    fun `unsicheres landmark wird nie eingeblendet`() {
+        val result = applyVisibilityHysteresis(
+            visibilityFrames(listOf(0.4f, 0.45f, 0.4f)),
+        )
+        result.forEach { assertThat(it.landmarks).isEmpty() }
+    }
 }

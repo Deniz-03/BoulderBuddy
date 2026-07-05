@@ -85,3 +85,60 @@ fun smoothPoseFrames(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
         )
     }
 }
+
+/**
+ * Hysterese über visibility (Stufe 1, Root Cause B): die harte 0.5-Schwelle beim
+ * Zeichnen ließ Landmarks am Schwellwert ein-/ausflackern. Stattdessen:
+ *
+ * - **Einblenden** sofort, sobald visibility ≥ [GhostTuning.MIN_LANDMARK_CONFIDENCE].
+ * - **Sichtbar bleiben**, solange visibility ≥ [GhostTuning.VISIBILITY_HIDE_THRESHOLD];
+ *   die gemeldete Confidence wird dabei auf die Zeichen-Schwelle angehoben, damit
+ *   nachgelagerte Konsumenten (Overlay, Hüftsignal) das gehaltene Landmark behalten.
+ * - **Ausblenden** erst nach [GhostTuning.VISIBILITY_HIDE_FRAMES] Frames in Folge
+ *   unter der Ausblendschwelle (echte Verdeckung statt Rausch-Dip).
+ *
+ * Läuft NACH [smoothPoseFrames] auf der geglätteten Spur; die Roh-Spur bleibt
+ * unangetastet (Debug-Vergleich).
+ */
+fun applyVisibilityHysteresis(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
+    class LandmarkState {
+        var visible = false
+        var framesBelowHide = 0
+    }
+
+    val states = HashMap<Int, LandmarkState>()
+    return frames.map { frame ->
+        val seen = HashSet<Int>()
+        val kept = frame.landmarks.mapNotNull { lm ->
+            seen += lm.type
+            val state = states.getOrPut(lm.type) { LandmarkState() }
+            if (!state.visible) {
+                if (lm.confidence >= GhostTuning.MIN_LANDMARK_CONFIDENCE) {
+                    state.visible = true
+                    state.framesBelowHide = 0
+                    lm
+                } else {
+                    null
+                }
+            } else if (lm.confidence >= GhostTuning.VISIBILITY_HIDE_THRESHOLD) {
+                state.framesBelowHide = 0
+                lm.copy(confidence = maxOf(lm.confidence, GhostTuning.MIN_LANDMARK_CONFIDENCE))
+            } else if (++state.framesBelowHide >= GhostTuning.VISIBILITY_HIDE_FRAMES) {
+                state.visible = false
+                null
+            } else {
+                // Noch im Entprell-Fenster: halten, Position kommt vom Filter.
+                lm.copy(confidence = GhostTuning.MIN_LANDMARK_CONFIDENCE)
+            }
+        }
+        // Ganz fehlende Landmarks (leerer Frame/Decode-Lücke) zählen als "unter Schwelle".
+        states.forEach { (type, state) ->
+            if (state.visible && type !in seen &&
+                ++state.framesBelowHide >= GhostTuning.VISIBILITY_HIDE_FRAMES
+            ) {
+                state.visible = false
+            }
+        }
+        frame.copy(landmarks = kept)
+    }
+}

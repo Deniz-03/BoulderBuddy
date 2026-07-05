@@ -49,6 +49,16 @@ object GhostTuning {
      *  statt die Position vom veralteten Zustand "nachzuziehen". */
     const val FILTER_RESET_GAP_FRAMES: Int = 3
 
+    /** Hysterese-Ausblendschwelle: ein SICHTBARES Landmark bleibt sichtbar, solange
+     *  visibility ≥ diesem Wert — erst darunter beginnt der Ausblend-Zähler.
+     *  (Einblenden verlangt weiterhin ≥ [MIN_LANDMARK_CONFIDENCE].) */
+    const val VISIBILITY_HIDE_THRESHOLD: Float = 0.3f
+
+    /** So viele Sample-Frames in Folge muss visibility unter der Ausblendschwelle
+     *  liegen, bevor das Landmark verschwindet (~250 ms bei 12 fps) — verhindert
+     *  das Ein-/Ausflackern am Schwellwert (Root Cause B). */
+    const val VISIBILITY_HIDE_FRAMES: Int = 3
+
     /** Mindestanzahl abgetasteter Frames — kürzere Videos sind nicht analysierbar (P8). */
     const val MIN_POSE_FRAMES: Int = 10
 
