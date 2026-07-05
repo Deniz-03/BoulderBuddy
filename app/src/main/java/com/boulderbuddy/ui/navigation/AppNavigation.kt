@@ -222,6 +222,7 @@ fun AppNavigation(
                     onRemoveLastPathPoint = viewModel::removeLastPathPoint,
                     onResetPath = viewModel::resetPathToSuggestion,
                     onConfirmPath = viewModel::confirmPath,
+                    onSetViewMode = viewModel::setViewMode,
                     onBackToSelection = viewModel::backToSelection,
                     onBackToAnchors = viewModel::backToAnchors,
                     onBackToPath = viewModel::backToPath,

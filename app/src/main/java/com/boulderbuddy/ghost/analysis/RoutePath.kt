@@ -63,6 +63,28 @@ class RoutePolyline(val points: List<GhostPoint>) {
         return bestArc
     }
 
+    /** Kürzester Abstand von [p] zur Polylinie — laterale Abweichung vom Pfad (P7). */
+    fun distanceTo(p: GhostPoint): Double {
+        var best = Double.MAX_VALUE
+        for (i in 0 until points.size - 1) {
+            val a = points[i]
+            val b = points[i + 1]
+            val abx = (b.x - a.x).toDouble()
+            val aby = (b.y - a.y).toDouble()
+            val lenSq = abx * abx + aby * aby
+            val t = if (lenSq == 0.0) {
+                0.0
+            } else {
+                (((p.x - a.x) * abx + (p.y - a.y) * aby) / lenSq).coerceIn(0.0, 1.0)
+            }
+            val dx = p.x - (a.x + t * abx)
+            val dy = p.y - (a.y + t * aby)
+            val dist = dx * dx + dy * dy
+            if (dist < best) best = dist
+        }
+        return sqrt(best)
+    }
+
     private fun distance(a: GhostPoint, b: GhostPoint): Double {
         val dx = (a.x - b.x).toDouble()
         val dy = (a.y - b.y).toDouble()

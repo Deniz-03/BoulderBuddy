@@ -13,6 +13,8 @@ import com.boulderbuddy.ghost.analysis.dtw
 import com.boulderbuddy.ghost.analysis.progressSignal
 import com.boulderbuddy.ghost.analysis.smoothedHipTrajectory
 import com.boulderbuddy.ghost.analysis.suggestRoutePath
+import com.boulderbuddy.ghost.analysis.suggestViewMode
+import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ghost.geometry.Homography
 import com.boulderbuddy.ghost.geometry.toVec2
 import com.boulderbuddy.ghost.geometry.transformedBy
@@ -67,6 +69,13 @@ data class GhostClimberUiState(
     val routePath: List<GhostPoint> = emptyList(),
     /** DTW-Zeitmapping Referenz→Vergleich (M3-Ergebnis); steuert den Geist im Player. */
     val timeMapping: GhostTimeMapping? = null,
+    // --- Darstellungsmodus (M4, P7) ---
+    /** Von der Ähnlichkeitsmetrik vorgeschlagener Modus (Vorbelegung). */
+    val suggestedMode: GhostViewMode = GhostViewMode.OVERLAY,
+    /** Kurzbegründung des Vorschlags für die UI. */
+    val suggestionReason: String = "",
+    /** Aktiver Modus — vorbelegt mit [suggestedMode], vom Nutzer überstimmbar. */
+    val viewMode: GhostViewMode = GhostViewMode.OVERLAY,
 ) {
     fun slot(role: GhostRole): GhostVideoSlot =
         if (role == GhostRole.REFERENCE) reference else comparison
@@ -226,16 +235,33 @@ class GhostClimberViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(error = null) }
             try {
-                val mapping = withContext(Dispatchers.Default) {
+                val (mapping, suggestion) = withContext(Dispatchers.Default) {
                     val path = RoutePolyline(state.routePath)
                     val refSignal = progressSignal(refTrack, path)
                         ?: throw IllegalStateException("Referenz: keine verwertbare Pose-Spur")
                     val cmpSignal = progressSignal(ghostTrack, path)
                         ?: throw IllegalStateException("Vergleich: keine verwertbare Pose-Spur")
                     val alignment = dtw(refSignal, cmpSignal, GhostTuning.DTW_BAND_FRACTION)
-                    buildTimeMapping(alignment.path, refTrack.frames, ghostTrack.frames)
+                    val mapping =
+                        buildTimeMapping(alignment.path, refTrack.frames, ghostTrack.frames)
+                    // P7: Ähnlichkeit der Trajektorien → Modus-Vorschlag (Nutzer überstimmt).
+                    val suggestion = suggestViewMode(
+                        refTrajectory = refTrack.smoothedHipTrajectory().orEmpty(),
+                        cmpTrajectory = ghostTrack.smoothedHipTrajectory().orEmpty(),
+                        path = path,
+                        dtwNormalizedDistance = alignment.normalizedDistance,
+                    )
+                    mapping to suggestion
                 }
-                _uiState.update { it.copy(timeMapping = mapping, step = GhostStep.PREVIEW) }
+                _uiState.update {
+                    it.copy(
+                        timeMapping = mapping,
+                        suggestedMode = suggestion.mode,
+                        suggestionReason = suggestion.reason,
+                        viewMode = suggestion.mode,
+                        step = GhostStep.PREVIEW,
+                    )
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -244,6 +270,11 @@ class GhostClimberViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** Nutzer überstimmt den Modus-Vorschlag (P7). */
+    fun setViewMode(mode: GhostViewMode) {
+        _uiState.update { it.copy(viewMode = mode) }
     }
 
     fun backToSelection() {

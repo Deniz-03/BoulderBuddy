@@ -59,4 +59,15 @@ object GhostTuning {
      * Diagonalen abweichen darf. Begrenzt Laufzeit UND verhindert absurde Warps.
      */
     const val DTW_BAND_FRACTION: Double = 0.25
+
+    // --- Modus-Vorschlag Overlay vs. Side-by-Side (M4, P7) ---------------------
+
+    /** Max. normalisierte DTW-Distanz (Anteil der Pfadlänge) für einen Overlay-Vorschlag. */
+    const val MODE_DTW_DISTANCE_MAX_FRACTION: Double = 0.06
+
+    /** Max. Differenz der lateralen Streuung (Anteil der Pfadlänge) für Overlay. */
+    const val MODE_LATERAL_STD_DIFF_MAX_FRACTION: Double = 0.04
+
+    /** Max. Winkel zwischen den PCA-Hauptrichtungen beider Trajektorien für Overlay. */
+    const val MODE_MAIN_DIRECTION_MAX_DEG: Double = 25.0
 }

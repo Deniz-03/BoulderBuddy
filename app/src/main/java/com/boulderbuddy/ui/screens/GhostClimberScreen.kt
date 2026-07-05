@@ -5,6 +5,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,13 +29,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.GhostAnchorEditor
 import com.boulderbuddy.ui.components.GhostPathEditor
+import com.boulderbuddy.ui.components.GhostSideBySidePlayer
 import com.boulderbuddy.ui.components.GhostSkeletonPlayer
 import com.boulderbuddy.ui.components.PhotoPicker
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SectionHeader
+import com.boulderbuddy.ui.components.SelectableChip
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostPoint
+import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -65,6 +69,7 @@ fun GhostClimberScreen(
     onRemoveLastPathPoint: () -> Unit = {},
     onResetPath: () -> Unit = {},
     onConfirmPath: () -> Unit = {},
+    onSetViewMode: (GhostViewMode) -> Unit = {},
     onBackToSelection: () -> Unit = {},
     onBackToAnchors: () -> Unit = {},
     onBackToPath: () -> Unit = {},
@@ -113,7 +118,7 @@ fun GhostClimberScreen(
                         onConfirmPath = onConfirmPath,
                         onBackToAnchors = onBackToAnchors,
                     )
-                    GhostStep.PREVIEW -> PreviewStep(state, onBackToPath)
+                    GhostStep.PREVIEW -> PreviewStep(state, onSetViewMode, onBackToPath)
                 }
 
                 state.error?.let { error ->
@@ -323,39 +328,91 @@ private fun PathStep(
     TextButton(onClick = onBackToAnchors) { Text("Anker anpassen") }
 }
 
-// --- Schritt 4: Synchronisierte Vorschau im Referenzraum ----------------------
+// --- Schritt 4: Synchronisierter Vergleich (Overlay ⇄ Side-by-Side) -----------
 
 @Composable
 private fun PreviewStep(
     state: GhostClimberUiState,
+    onSetViewMode: (GhostViewMode) -> Unit,
     onBackToPath: () -> Unit,
 ) {
     val refUri = state.reference.uri
     val refTrack = state.reference.track
+    val cmpUri = state.comparison.uri
+    val cmpTrack = state.comparison.track
     val ghostTrack = state.ghostTrack
     val mapping = state.timeMapping
-    if (refUri == null || refTrack == null || ghostTrack == null) return
+    if (refUri == null || refTrack == null || cmpUri == null ||
+        cmpTrack == null || ghostTrack == null
+    ) {
+        return
+    }
+    val cmpTimeForPosition: (Long) -> Long = { pos -> mapping?.mapToComparison(pos) ?: pos }
 
-    SectionHeader(text = "Synchronisierte Überlagerung")
-    GhostSkeletonPlayer(
-        uri = refUri,
-        poseTrack = refTrack,
-        ghostTrack = ghostTrack,
-        ghostTimeForPosition = { pos -> mapping?.mapToComparison(pos) ?: pos },
-        modifier = Modifier
-            .fillMaxWidth()
-            // Player im Seitenverhältnis des Videos, damit Letterbox-Ränder
-            // (und damit Overlay-Versatz) gar nicht erst entstehen.
-            .aspectRatio(refTrack.frameWidth.toFloat() / refTrack.frameHeight),
-    )
-    Text(
-        text = "Orange = Referenz, Blau = Geist (Vergleichs-Versuch). Der Geist ist " +
-            "per DTW auf den Routen-Fortschritt der Referenz synchronisiert: an jeder " +
-            "Stelle der Route siehst du beide Körperpositionen im Vergleich — " +
-            "unabhängig vom Tempo.",
-        style = MaterialTheme.typography.labelMedium,
-        color = BoulderBuddy.colors.textTertiary,
-    )
+    SectionHeader(text = "Synchronisierter Vergleich")
+    // Umschalter, vorbelegt mit dem Vorschlag der Ähnlichkeitsmetrik (P7).
+    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+        SelectableChip(
+            label = "Overlay",
+            selected = state.viewMode == GhostViewMode.OVERLAY,
+            onClick = { onSetViewMode(GhostViewMode.OVERLAY) },
+        )
+        SelectableChip(
+            label = "Side-by-Side",
+            selected = state.viewMode == GhostViewMode.SIDE_BY_SIDE,
+            onClick = { onSetViewMode(GhostViewMode.SIDE_BY_SIDE) },
+        )
+    }
+    if (state.suggestionReason.isNotEmpty()) {
+        val suggestedLabel =
+            if (state.suggestedMode == GhostViewMode.OVERLAY) "Overlay" else "Side-by-Side"
+        Text(
+            text = "Vorschlag: $suggestedLabel — ${state.suggestionReason}",
+            style = MaterialTheme.typography.labelMedium,
+            color = BoulderBuddy.colors.textTertiary,
+        )
+    }
+
+    when (state.viewMode) {
+        GhostViewMode.OVERLAY -> {
+            GhostSkeletonPlayer(
+                uri = refUri,
+                poseTrack = refTrack,
+                ghostTrack = ghostTrack,
+                ghostTimeForPosition = cmpTimeForPosition,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Player im Seitenverhältnis des Videos, damit Letterbox-Ränder
+                    // (und damit Overlay-Versatz) gar nicht erst entstehen.
+                    .aspectRatio(refTrack.frameWidth.toFloat() / refTrack.frameHeight),
+            )
+            Text(
+                text = "Orange = Referenz, Blau = Geist (Vergleichs-Versuch, in den " +
+                    "Referenzraum gelegt). Der Geist ist per DTW auf den Routen-" +
+                    "Fortschritt synchronisiert — an jeder Stelle der Route siehst du " +
+                    "beide Körperpositionen, unabhängig vom Tempo.",
+                style = MaterialTheme.typography.labelMedium,
+                color = BoulderBuddy.colors.textTertiary,
+            )
+        }
+        GhostViewMode.SIDE_BY_SIDE -> {
+            GhostSideBySidePlayer(
+                refUri = refUri,
+                refTrack = refTrack,
+                cmpUri = cmpUri,
+                cmpTrack = cmpTrack,
+                cmpTimeForPosition = cmpTimeForPosition,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = "Links Referenz (steuert die Wiedergabe), rechts der Vergleichs-" +
+                    "Versuch — automatisch an derselben Stelle der Route. Ehrlicher als " +
+                    "ein Overlay, wenn die Beta sich deutlich unterscheidet.",
+                style = MaterialTheme.typography.labelMedium,
+                color = BoulderBuddy.colors.textTertiary,
+            )
+        }
+    }
     TextButton(onClick = onBackToPath) { Text("Pfad anpassen") }
 }
 

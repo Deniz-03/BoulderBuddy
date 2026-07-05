@@ -10,12 +10,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
@@ -24,14 +20,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostPoseTrack
-import com.boulderbuddy.ghost.model.GhostSkeleton
-import com.boulderbuddy.ghost.model.landmarksAt
 import com.boulderbuddy.ui.theme.RouteBlue
 import com.boulderbuddy.ui.theme.RouteOrange
 import kotlinx.coroutines.delay
-import kotlin.math.min
 
 /**
  * Video-Player mit Skelett-Overlay für Ghost Climber. Folgt dem Lifecycle-Muster
@@ -103,69 +95,18 @@ fun GhostSkeletonPlayer(
         // Ohne pointerInput konsumiert der Canvas keine Touches — die Player-Controls
         // darunter bleiben bedienbar.
         Canvas(modifier = Modifier.matchParentSize()) {
-            // Fit-Transformation der PlayerView nachrechnen (Letterbox, zentriert).
-            val scale = min(
-                size.width / poseTrack.frameWidth,
-                size.height / poseTrack.frameHeight,
-            )
-            val offsetX = (size.width - poseTrack.frameWidth * scale) / 2f
-            val offsetY = (size.height - poseTrack.frameHeight * scale) / 2f
-
             // Geist zuerst, Referenz obendrauf — die eigene Bewegung bleibt führend.
             if (ghostTrack != null) {
-                drawSkeleton(
+                drawSkeletonOverlay(
                     track = ghostTrack,
                     timeMs = ghostTimeForPosition(positionMs),
                     color = ghostColor.copy(alpha = 0.75f),
-                    scale = scale,
-                    offsetX = offsetX,
-                    offsetY = offsetY,
                 )
             }
-            drawSkeleton(
+            drawSkeletonOverlay(
                 track = poseTrack,
                 timeMs = positionMs,
                 color = skeletonColor,
-                scale = scale,
-                offsetX = offsetX,
-                offsetY = offsetY,
-            )
-        }
-    }
-}
-
-private fun DrawScope.drawSkeleton(
-    track: GhostPoseTrack,
-    timeMs: Long,
-    color: Color,
-    scale: Float,
-    offsetX: Float,
-    offsetY: Float,
-) {
-    val landmarks = track.landmarksAt(timeMs)
-        .filter { it.confidence >= GhostTuning.MIN_LANDMARK_CONFIDENCE }
-    if (landmarks.isEmpty()) return
-
-    fun toCanvas(x: Float, y: Float) = Offset(offsetX + x * scale, offsetY + y * scale)
-
-    val byType = landmarks.associateBy { it.type }
-    GhostSkeleton.BONES.forEach { (fromType, toType) ->
-        val from = byType[fromType] ?: return@forEach
-        val to = byType[toType] ?: return@forEach
-        drawLine(
-            color = color,
-            start = toCanvas(from.x, from.y),
-            end = toCanvas(to.x, to.y),
-            strokeWidth = 3.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-    }
-    landmarks.forEach { landmark ->
-        if (landmark.type in GhostSkeleton.JOINT_TYPES) {
-            drawCircle(
-                color = color,
-                radius = 4.dp.toPx(),
-                center = toCanvas(landmark.x, landmark.y),
             )
         }
     }
