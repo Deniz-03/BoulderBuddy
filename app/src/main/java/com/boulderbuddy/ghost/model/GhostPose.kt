@@ -19,13 +19,19 @@ data class GhostPoint(
     val y: Float,
 )
 
-/** Ein ML-Kit-Landmark: `type` = PoseLandmark-Konstante (0–32), `confidence` = InFrameLikelihood. */
+/**
+ * Ein Pose-Landmark: `type` = BlazePose-Index ([GhostLandmarkTypes], 0–32).
+ * Seit Stufe 3 (MediaPipe): `confidence` = **visibility** (Position vertrauenswürdig,
+ * ersetzt den früheren InFrameLikelihood-Missbrauch, Root Cause C) und `presence` =
+ * Wahrscheinlichkeit, dass der Punkt überhaupt im Bild ist.
+ */
 @Serializable
 data class GhostLandmark(
     val type: Int,
     val x: Float,
     val y: Float,
     val confidence: Float,
+    val presence: Float = 1f,
 )
 
 /** Alle Landmarks eines abgetasteten Video-Frames. Leere Liste = keine Pose erkannt. */
@@ -78,6 +84,7 @@ fun GhostPoseTrack.landmarksAt(timeMs: Long): List<GhostLandmark> {
             x = la.x + (lb.x - la.x) * t,
             y = la.y + (lb.y - la.y) * t,
             confidence = minOf(la.confidence, lb.confidence),
+            presence = minOf(la.presence, lb.presence),
         )
     }
 }

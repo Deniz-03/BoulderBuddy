@@ -47,10 +47,13 @@ class GhostArtifactStore @Inject constructor(
     /** Dateipfad der (gecachten) Pose-Spur eines Videos — wird in der DB referenziert (M5). */
     fun poseTrackPath(videoUri: String): String = poseTrackFile(videoUri).absolutePath
 
-    // Die Abtastrate steckt mit im Cache-Schlüssel: ändert sich GhostTuning.POSE_SAMPLE_FPS,
-    // veralten alte Spuren automatisch statt mit falschem Raster weiterzuleben.
+    // Abtastrate UND Pipeline-Marker stecken im Cache-Schlüssel: ändert sich
+    // GhostTuning.POSE_SAMPLE_FPS oder die Pose-Pipeline (Modell/Filter-Semantik),
+    // veralten alte Spuren automatisch statt mit falschen Werten weiterzuleben.
+    // "mp-full-1" = MediaPipe pose_landmarker_full, Stufe 3 (ML-Kit-Spuren hätten
+    // InFrameLikelihood statt visibility als confidence — nicht vergleichbar).
     private fun poseTrackFile(videoUri: String): File =
-        File(dir, "pose_${sha1("$videoUri@${GhostTuning.POSE_SAMPLE_FPS}")}.json")
+        File(dir, "pose_${sha1("$videoUri@${GhostTuning.POSE_SAMPLE_FPS}@mp-full-1")}.json")
 
     private fun sha1(value: String): String =
         MessageDigest.getInstance("SHA-1")

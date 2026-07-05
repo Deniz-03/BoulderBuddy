@@ -1,6 +1,6 @@
 package com.boulderbuddy.ghost.model
 
-import com.google.mlkit.vision.pose.PoseLandmark
+import com.boulderbuddy.ghost.model.GhostLandmarkTypes as T
 
 /**
  * Skelett-Topologie fürs Overlay: welche Landmark-Paare als "Knochen" verbunden werden.
@@ -11,25 +11,25 @@ object GhostSkeleton {
 
     val BONES: List<Pair<Int, Int>> = listOf(
         // Rumpf
-        PoseLandmark.LEFT_SHOULDER to PoseLandmark.RIGHT_SHOULDER,
-        PoseLandmark.LEFT_SHOULDER to PoseLandmark.LEFT_HIP,
-        PoseLandmark.RIGHT_SHOULDER to PoseLandmark.RIGHT_HIP,
-        PoseLandmark.LEFT_HIP to PoseLandmark.RIGHT_HIP,
+        T.LEFT_SHOULDER to T.RIGHT_SHOULDER,
+        T.LEFT_SHOULDER to T.LEFT_HIP,
+        T.RIGHT_SHOULDER to T.RIGHT_HIP,
+        T.LEFT_HIP to T.RIGHT_HIP,
         // Arme
-        PoseLandmark.LEFT_SHOULDER to PoseLandmark.LEFT_ELBOW,
-        PoseLandmark.LEFT_ELBOW to PoseLandmark.LEFT_WRIST,
-        PoseLandmark.RIGHT_SHOULDER to PoseLandmark.RIGHT_ELBOW,
-        PoseLandmark.RIGHT_ELBOW to PoseLandmark.RIGHT_WRIST,
+        T.LEFT_SHOULDER to T.LEFT_ELBOW,
+        T.LEFT_ELBOW to T.LEFT_WRIST,
+        T.RIGHT_SHOULDER to T.RIGHT_ELBOW,
+        T.RIGHT_ELBOW to T.RIGHT_WRIST,
         // Beine
-        PoseLandmark.LEFT_HIP to PoseLandmark.LEFT_KNEE,
-        PoseLandmark.LEFT_KNEE to PoseLandmark.LEFT_ANKLE,
-        PoseLandmark.RIGHT_HIP to PoseLandmark.RIGHT_KNEE,
-        PoseLandmark.RIGHT_KNEE to PoseLandmark.RIGHT_ANKLE,
+        T.LEFT_HIP to T.LEFT_KNEE,
+        T.LEFT_KNEE to T.LEFT_ANKLE,
+        T.RIGHT_HIP to T.RIGHT_KNEE,
+        T.RIGHT_KNEE to T.RIGHT_ANKLE,
         // Füße
-        PoseLandmark.LEFT_ANKLE to PoseLandmark.LEFT_HEEL,
-        PoseLandmark.LEFT_HEEL to PoseLandmark.LEFT_FOOT_INDEX,
-        PoseLandmark.RIGHT_ANKLE to PoseLandmark.RIGHT_HEEL,
-        PoseLandmark.RIGHT_HEEL to PoseLandmark.RIGHT_FOOT_INDEX,
+        T.LEFT_ANKLE to T.LEFT_HEEL,
+        T.LEFT_HEEL to T.LEFT_FOOT_INDEX,
+        T.RIGHT_ANKLE to T.RIGHT_HEEL,
+        T.RIGHT_HEEL to T.RIGHT_FOOT_INDEX,
     )
 
     /** Nur diese Landmark-Typen werden als Gelenkpunkte gezeichnet. */

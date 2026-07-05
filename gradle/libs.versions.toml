@@ -20,9 +20,10 @@ coil = "3.3.0"
 media3 = "1.5.1"
 # Glance (Phase 7.4c): Homescreen-App-Widget. Eigene Versionslinie, nicht vom Compose-BOM.
 glance = "1.1.1"
-# ML Kit Pose Detection (Phase 7.5 Ghost Climber): On-Device-Skelett-Erkennung (native Google-Lib
-# statt MediaPipe). Homographie/DTW werden selbst in Kotlin implementiert (kein OpenCV).
-mlkitPoseDetection = "18.0.0-beta5"
+# MediaPipe Tasks Pose Landmarker (Phase 7.5b Ghost Climber, Stufe 3): ersetzt ML Kit Pose —
+# gleiches BlazePose, aber echtes visibility/presence pro Landmark + RunningMode.VIDEO mit
+# internem Tracking. Modell-Asset pose_landmarker_full.task liegt in app/src/main/assets/.
+mediapipeTasksVision = "0.10.35"
 lifecycleViewmodelCompose = "2.10.0"
 kotlinxSerializationJson = "1.9.0"
 material3Adaptive = "1.1.0"
@@ -76,10 +77,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
 
-# ML Kit Pose Detection (Phase 7.5 Ghost Climber). "accurate"-Modell = genauer, für Offline-Analyse
-# (Latenz unkritisch); "pose-detection" (base) wäre die schlankere Alternative.
-mlkit-pose-detection-accurate = { group = "com.google.mlkit", name = "pose-detection-accurate", version.ref = "mlkitPoseDetection" }
-mlkit-pose-detection = { group = "com.google.mlkit", name = "pose-detection", version.ref = "mlkitPoseDetection" }
+# MediaPipe Tasks Vision (Phase 7.5b, Stufe 3): PoseLandmarker mit RunningMode.VIDEO.
+mediapipe-tasks-vision = { group = "com.google.mediapipe", name = "tasks-vision", version.ref = "mediapipeTasksVision" }
 
 # Material3 Adaptive (Tablet-Layouts: ListDetailPaneScaffold, WindowSizeClass) — Phase 7.1.
 # Eigene Versionslinie, NICHT vom Compose-BOM verwaltet.

@@ -95,9 +95,10 @@ dependencies {
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
 
-    // ML Kit Pose Detection (Phase 7.5 Ghost Climber): On-Device-Skelett-Erkennung je Frame.
+    // MediaPipe Pose Landmarker (Phase 7.5b, Stufe 3): On-Device-Skelett-Erkennung mit echtem
+    // visibility/presence je Landmark; Modell-Asset in assets/ (MediaPipe lädt nicht selbst nach).
     // Homographie + Dynamic Time Warping werden selbst in Kotlin implementiert (kein OpenCV).
-    implementation(libs.mlkit.pose.detection.accurate)
+    implementation(libs.mediapipe.tasks.vision)
 
     // Kotlinx Serialization (type-safe navigation)
     implementation(libs.kotlinx.serialization.json)

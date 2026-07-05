@@ -3,8 +3,8 @@ package com.boulderbuddy.ghost.analysis
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostPoint
 import com.boulderbuddy.ghost.model.GhostPoseFrame
+import com.boulderbuddy.ghost.model.GhostLandmarkTypes
 import com.boulderbuddy.ghost.model.GhostPoseTrack
-import com.google.mlkit.vision.pose.PoseLandmark
 import kotlin.math.ceil
 import kotlin.math.exp
 
@@ -23,10 +23,10 @@ fun GhostPoseFrame.hipCenterOrNull(
     minConfidence: Float = GhostTuning.MIN_LANDMARK_CONFIDENCE,
 ): GhostPoint? {
     val left = landmarks.firstOrNull {
-        it.type == PoseLandmark.LEFT_HIP && it.confidence >= minConfidence
+        it.type == GhostLandmarkTypes.LEFT_HIP && it.confidence >= minConfidence
     }
     val right = landmarks.firstOrNull {
-        it.type == PoseLandmark.RIGHT_HIP && it.confidence >= minConfidence
+        it.type == GhostLandmarkTypes.RIGHT_HIP && it.confidence >= minConfidence
     }
     return when {
         left != null && right != null ->
