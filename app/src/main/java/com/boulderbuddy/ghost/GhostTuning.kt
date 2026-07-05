@@ -28,8 +28,26 @@ object GhostTuning {
      */
     const val POSE_INPUT_LONG_SIDE_PX: Int = 720
 
-    /** InFrameLikelihood-Schwelle, unter der ein Landmark als "verloren" gilt (P8). */
+    /** Visibility-Schwelle, unter der ein Landmark als "verloren" gilt (P8, seit
+     *  Stufe 3 echtes MediaPipe-visibility statt InFrameLikelihood). */
     const val MIN_LANDMARK_CONFIDENCE: Float = 0.5f
+
+    // --- Zeitliche Stabilisierung (Stufe 1, 7.5b) ------------------------------
+
+    /** One-Euro: Grund-Cutoff in Hz — je niedriger, desto ruhiger steht das Skelett
+     *  bei statischem Griff. */
+    const val ONE_EURO_MIN_CUTOFF_HZ: Double = 1.0
+
+    /** One-Euro: Geschwindigkeitsanteil des Cutoffs — je höher, desto weniger Lag
+     *  bei schnellen Zügen (dafür weniger Glättung in Bewegung). */
+    const val ONE_EURO_BETA: Double = 0.02
+
+    /** One-Euro: Cutoff der Ableitungs-Glättung in Hz (Standardwert des Papers). */
+    const val ONE_EURO_DERIV_CUTOFF_HZ: Double = 1.0
+
+    /** Fehlt ein Landmark länger als so viele Sample-Frames, startet sein Filter neu,
+     *  statt die Position vom veralteten Zustand "nachzuziehen". */
+    const val FILTER_RESET_GAP_FRAMES: Int = 3
 
     /** Mindestanzahl abgetasteter Frames — kürzere Videos sind nicht analysierbar (P8). */
     const val MIN_POSE_FRAMES: Int = 10

@@ -120,7 +120,10 @@ class VideoPoseExtractor @Inject constructor(
                 frameHeight = frameHeight,
                 durationMs = durationMs,
                 sampleFps = GhostTuning.POSE_SAMPLE_FPS,
-                frames = frames,
+                // Stufe 1: One-Euro-geglättete Positionen sind die Arbeits-Spur;
+                // die Roh-Spur bleibt fürs Debug-Overlay (roh vs. gefiltert) erhalten.
+                frames = smoothPoseFrames(frames),
+                rawFrames = frames,
             )
         } finally {
             retriever.release()
