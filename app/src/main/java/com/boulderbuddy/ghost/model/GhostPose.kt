@@ -45,6 +45,11 @@ data class GhostPoseTrack(
     val durationMs: Long,
     val sampleFps: Double,
     val frames: List<GhostPoseFrame>,
+    /**
+     * Ungefilterte Roh-Landmarks fürs Debug-Overlay (Stufe 0: roh vs. gefiltert
+     * vergleichbar machen). null, solange kein Filter aktiv ist ([frames] = roh).
+     */
+    val rawFrames: List<GhostPoseFrame>? = null,
 )
 
 /**

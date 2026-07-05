@@ -27,6 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -422,6 +426,8 @@ private fun PreviewStep(
         return
     }
     val cmpTimeForPosition: (Long) -> Long = { pos -> mapping?.mapToComparison(pos) ?: pos }
+    // Debug-Ansicht (Stufe 0): Roh-Keypoints + Kennzahlen-HUD im Overlay-Player.
+    var debugHud by rememberSaveable { mutableStateOf(false) }
 
     SectionHeader(text = "Synchronisierter Vergleich")
     // Umschalter, vorbelegt mit dem Vorschlag der Ähnlichkeitsmetrik (P7).
@@ -435,6 +441,11 @@ private fun PreviewStep(
             label = "Side-by-Side",
             selected = state.viewMode == GhostViewMode.SIDE_BY_SIDE,
             onClick = { onSetViewMode(GhostViewMode.SIDE_BY_SIDE) },
+        )
+        SelectableChip(
+            label = "Debug",
+            selected = debugHud,
+            onClick = { debugHud = !debugHud },
         )
     }
     if (state.suggestionReason.isNotEmpty()) {
@@ -456,6 +467,7 @@ private fun PreviewStep(
                 ghostTimeForPosition = cmpTimeForPosition,
                 abortTimeMs = state.refAbortTimeMs,
                 ghostAbortTimeMs = state.cmpAbortTimeMs,
+                debug = debugHud,
                 modifier = Modifier
                     .fillMaxWidth()
                     // Player im Seitenverhältnis des Videos, damit Letterbox-Ränder
