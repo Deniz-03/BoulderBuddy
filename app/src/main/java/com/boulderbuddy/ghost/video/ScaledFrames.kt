@@ -1,6 +1,7 @@
 package com.boulderbuddy.ghost.video
 
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.media.MediaMetadataRetriever
 import android.os.Build
 import kotlin.math.roundToInt
@@ -28,7 +29,13 @@ internal fun MediaMetadataRetriever.scaledFrameAt(timeMs: Long, longSide: Int): 
     val timeUs = timeMs * 1000
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
         // Skaliert passend in die Ziel-Box unter Erhalt des Seitenverhältnisses.
-        return getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST, longSide, longSide)
+        val scaled = getScaledFrameAtTime(
+            timeUs,
+            MediaMetadataRetriever.OPTION_CLOSEST,
+            longSide,
+            longSide,
+        )
+        return scaled?.let { withGuardedOrientation(it) }
     }
     // API 26: voll dekodieren und selbst herunterskalieren.
     val full = getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST) ?: return null
@@ -42,4 +49,31 @@ internal fun MediaMetadataRetriever.scaledFrameAt(timeMs: Long, longSide: Int): 
     )
     if (scaled !== full) full.recycle()
     return scaled
+}
+
+/**
+ * Orientierungs-Guard (Stufe 4, Diagnose F): getScaledFrameAtTime wendet auf manchen
+ * Geräten die Rotations-Metadata der skalierten Variante NICHT an — der Frame liegt
+ * dann quer, Anker- und Pose-Raum passen nicht mehr zusammen (Skelett 90° verdreht).
+ * Erwartete Anzeige-Orientierung aus den Metadaten ableiten und bei Mismatch selbst
+ * nachrotieren.
+ */
+private fun MediaMetadataRetriever.withGuardedOrientation(bitmap: Bitmap): Bitmap {
+    val rotation = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)
+        ?.toIntOrNull() ?: return bitmap
+    if (rotation % 180 == 0) return bitmap
+    val codedWidth = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+        ?.toIntOrNull() ?: return bitmap
+    val codedHeight = extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+        ?.toIntOrNull() ?: return bitmap
+    if (codedWidth == codedHeight) return bitmap
+    // Bei 90°/270° muss das Display-Bild das GEDREHTE Seitenverhältnis haben. Liegt es
+    // noch im kodierten Verhältnis, hat das Gerät die Rotation verschluckt → selbst drehen.
+    val bitmapPortrait = bitmap.height > bitmap.width
+    val displayPortrait = codedWidth > codedHeight // gedreht: kodiert quer ⇒ Anzeige hoch
+    if (bitmapPortrait == displayPortrait) return bitmap
+    val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+    val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    if (rotated !== bitmap) bitmap.recycle()
+    return rotated
 }
