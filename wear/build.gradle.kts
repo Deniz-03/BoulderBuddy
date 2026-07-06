@@ -62,4 +62,8 @@ dependencies {
     implementation(libs.play.services.wearable)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // JVM-Unit-Tests der Android-freien Detektions-State-Machine (B.2/B.5.4).
+    testImplementation(libs.junit)
+    testImplementation(libs.truth)
 }
