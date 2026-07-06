@@ -16,12 +16,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
@@ -50,7 +48,6 @@ enum class BottomNavTab(
     Sessions(Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth, "Sessions"),
     Stats(Icons.Filled.BarChart, Icons.Outlined.BarChart, "Statistik"),
     Timer(Icons.Filled.Timer, Icons.Outlined.Timer, "Hangboard-Timer"),
-    GhostClimber(Icons.Filled.DirectionsRun, Icons.Outlined.DirectionsRun, "Ghost Climber"),
 }
 
 private val InactiveColor = M3OnPrimary.copy(alpha = 0.45f)

@@ -1,0 +1,99 @@
+package com.boulderbuddy.ghost.model
+
+import kotlinx.serialization.Serializable
+
+// =============================================================================
+// Ghost Climber — Datenmodell der Pose-Extraktion (Phase 7.5, M1)
+// =============================================================================
+//
+// Die Modelle sind @Serializable, weil Keypoints laut Plan (A.2) als JSON-Datei im
+// App-Storage landen (Pfad in der DB, keine BLOB-Spalten) — siehe GhostArtifactStore.
+// Koordinaten leben im PIXELRAUM des skalierten Analyse-Frames (GhostTuning
+// .POSE_INPUT_LONG_SIDE_PX), nicht im Original-Video: entscheidend ist nur, dass
+// Posen UND Homographie-Anker eines Videos denselben Raum teilen.
+
+/** Einfacher 2D-Punkt im Analyse-Frame-Raum — für Anker (M2) und Routenpfad (M3). */
+@Serializable
+data class GhostPoint(
+    val x: Float,
+    val y: Float,
+)
+
+/**
+ * Ein Pose-Landmark: `type` = BlazePose-Index ([GhostLandmarkTypes], 0–32).
+ * Seit Stufe 3 (MediaPipe): `confidence` = **visibility** (Position vertrauenswürdig,
+ * ersetzt den früheren InFrameLikelihood-Missbrauch, Root Cause C) und `presence` =
+ * Wahrscheinlichkeit, dass der Punkt überhaupt im Bild ist.
+ */
+@Serializable
+data class GhostLandmark(
+    val type: Int,
+    val x: Float,
+    val y: Float,
+    val confidence: Float,
+    val presence: Float = 1f,
+)
+
+/** Alle Landmarks eines abgetasteten Video-Frames. Leere Liste = keine Pose erkannt. */
+@Serializable
+data class GhostPoseFrame(
+    val timeMs: Long,
+    val landmarks: List<GhostLandmark>,
+)
+
+/** Komplette Pose-Spur eines Videos (Ergebnis von VideoPoseExtractor, gecacht als JSON). */
+@Serializable
+data class GhostPoseTrack(
+    val videoUri: String,
+    /** Maße des skalierten Analyse-Frames — Referenz fürs Overlay-Mapping. */
+    val frameWidth: Int,
+    val frameHeight: Int,
+    val durationMs: Long,
+    val sampleFps: Double,
+    val frames: List<GhostPoseFrame>,
+    /**
+     * Ungefilterte Roh-Landmarks fürs Debug-Overlay (Stufe 0: roh vs. gefiltert
+     * vergleichbar machen). null, solange kein Filter aktiv ist ([frames] = roh).
+     */
+    val rawFrames: List<GhostPoseFrame>? = null,
+)
+
+/**
+ * Landmarks zur Wiedergabezeit [timeMs], linear zwischen den beiden umliegenden
+ * Sample-Frames interpoliert (die Extraktion tastet mit ~12 fps ab, das Video
+ * läuft mit 30+ — ohne Interpolation springt das Skelett sichtbar).
+ *
+ * Blink-Fix (Stufe 1, Root Cause B): fehlt ein Landmark in genau EINEM der beiden
+ * Nachbar-Frames (einzelner Aussetzer), wird es aus dem anderen gehalten statt für
+ * das ganze Sample-Intervall zu verschwinden. Erst wenn es in beiden Nachbarn fehlt
+ * (echte Lücke), blendet das Overlay es aus.
+ */
+fun GhostPoseTrack.landmarksAt(timeMs: Long): List<GhostLandmark> {
+    if (frames.isEmpty()) return emptyList()
+    val insertion = frames.binarySearchBy(timeMs) { it.timeMs }
+    if (insertion >= 0) return frames[insertion].landmarks
+    val after = -insertion - 1
+    if (after <= 0) return frames.first().landmarks
+    if (after >= frames.size) return frames.last().landmarks
+    val a = frames[after - 1]
+    val b = frames[after]
+    val t = (timeMs - a.timeMs).toFloat() / (b.timeMs - a.timeMs).toFloat()
+    val byTypeA = a.landmarks.associateBy { it.type }
+    val byTypeB = b.landmarks.associateBy { it.type }
+    return (byTypeA.keys + byTypeB.keys).mapNotNull { type ->
+        val la = byTypeA[type]
+        val lb = byTypeB[type]
+        when {
+            la != null && lb != null -> GhostLandmark(
+                type = type,
+                x = la.x + (lb.x - la.x) * t,
+                y = la.y + (lb.y - la.y) * t,
+                confidence = minOf(la.confidence, lb.confidence),
+                presence = minOf(la.presence, lb.presence),
+            )
+            // Einseitiger Aussetzer: kurz halten (max. ein Sample-Intervall).
+            la != null -> la
+            else -> lb
+        }
+    }
+}

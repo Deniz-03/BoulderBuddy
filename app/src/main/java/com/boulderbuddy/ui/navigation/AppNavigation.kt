@@ -28,6 +28,7 @@ import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.screens.BoulderDetailScreen
 import com.boulderbuddy.ui.screens.BoulderUebersichtScreen
 import com.boulderbuddy.ui.screens.EinstellungenScreen
+import com.boulderbuddy.ui.screens.GhostClimberScreen
 import com.boulderbuddy.ui.screens.HangboardTimerScreen
 import com.boulderbuddy.ui.screens.HomeScreen
 import com.boulderbuddy.ui.screens.RouteHinzufuegenScreen
@@ -38,6 +39,7 @@ import com.boulderbuddy.ui.screens.StatistikScreen
 import com.boulderbuddy.ui.viewmodel.BoulderDetailViewModel
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtViewModel
 import com.boulderbuddy.ui.viewmodel.EinstellungenViewModel
+import com.boulderbuddy.ui.viewmodel.GhostClimberViewModel
 import com.boulderbuddy.ui.viewmodel.HangboardTimerViewModel
 import com.boulderbuddy.ui.viewmodel.HomeViewModel
 import com.boulderbuddy.ui.viewmodel.RouteHinzufuegenViewModel
@@ -201,6 +203,32 @@ fun AppNavigation(
                     onSetDarkMode = viewModel::setDarkMode,
                     exportMessage = exportMessage,
                     onExportMessageShown = viewModel::consumeExportMessage,
+                    onOpenGhostClimber = { navController.navigate(GhostClimber) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<GhostClimber> {
+                val viewModel: GhostClimberViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                GhostClimberScreen(
+                    state = state,
+                    onSelectVideo = viewModel::onVideoSelected,
+                    onAnalyze = viewModel::analyze,
+                    onSelectAnchorFrame = viewModel::loadAnchorFrame,
+                    onAddAnchor = viewModel::addAnchor,
+                    onRemoveLastAnchor = viewModel::removeLastAnchor,
+                    onComputeAlignment = viewModel::computeAlignment,
+                    onAddPathPoint = viewModel::addPathPoint,
+                    onRemoveLastPathPoint = viewModel::removeLastPathPoint,
+                    onResetPath = viewModel::resetPathToSuggestion,
+                    onConfirmPath = viewModel::confirmPath,
+                    onSetViewMode = viewModel::setViewMode,
+                    onSaveAnalysis = viewModel::saveAnalysis,
+                    onRestoreAnalysis = viewModel::restoreAnalysis,
+                    onDeleteAnalysis = viewModel::deleteAnalysis,
+                    onBackToSelection = viewModel::backToSelection,
+                    onBackToAnchors = viewModel::backToAnchors,
+                    onBackToPath = viewModel::backToPath,
                     onBack = { navController.popBackStack() },
                 )
             }

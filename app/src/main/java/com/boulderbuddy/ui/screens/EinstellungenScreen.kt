@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.Watch
@@ -77,6 +78,9 @@ fun EinstellungenScreen(
     exportMessage: String? = null,
     // Meldet dem ViewModel, dass die Export-Rückmeldung angezeigt wurde.
     onExportMessageShown: () -> Unit = {},
+    // Öffnet den experimentellen Ghost-Climber-Flow (Phase 7.5) — bewusst hier statt
+    // im MVP-Kernfluss verankert (Plan A.4).
+    onOpenGhostClimber: () -> Unit = {},
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
@@ -243,6 +247,23 @@ fun EinstellungenScreen(
                         icon = Icons.Outlined.Info,
                         label = "Über BoulderBuddy",
                         value = "v0.1", // TODO: aus BuildConfig.VERSION_NAME
+                    )
+                }
+
+                // --- Gruppe: Experimental (7.5) ---
+                Column {
+                    SectionHeader(
+                        text = "Experimental",
+                        modifier = Modifier.padding(
+                            horizontal = Dimens.paddingL,
+                            vertical = Dimens.paddingS,
+                        ),
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Science,
+                        label = "Ghost Climber",
+                        value = "Beta",
+                        onClick = onOpenGhostClimber,
                     )
                 }
             }

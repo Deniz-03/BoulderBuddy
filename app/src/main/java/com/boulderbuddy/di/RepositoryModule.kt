@@ -1,5 +1,7 @@
 package com.boulderbuddy.di
 
+import com.boulderbuddy.data.repository.GhostAnalysisRepository
+import com.boulderbuddy.data.repository.GhostAnalysisRepositoryImpl
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GradeRepositoryImpl
 import com.boulderbuddy.data.repository.GymRepository
@@ -57,4 +59,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGhostAnalysisRepository(
+        impl: GhostAnalysisRepositoryImpl,
+    ): GhostAnalysisRepository
 }
