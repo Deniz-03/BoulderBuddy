@@ -2,13 +2,17 @@ package com.boulderbuddy.fake
 
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
-import com.boulderbuddy.data.db.entity.HangboardSessionEntity
+import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.repository.GradeRepository
+import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.HangboardRepository
-import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
@@ -20,7 +24,7 @@ import kotlinx.coroutines.flow.map
 /**
  * In-Memory-Fakes der Repository-/Settings-Interfaces für JVM-ViewModel-Tests (Phase 7.6.4).
  * Bewusst schlank: nur so viel Verhalten, wie die Tests brauchen; Schreibpfade sammeln, was
- * das ViewModel erzeugt (z.B. [FakeHangboardSessionRepository.created]).
+ * das ViewModel erzeugt (z.B. [FakeHangboardWorkoutRepository.created]).
  */
 class FakeSettingsRepository(
     initialTimerConfig: TimerConfig = TimerConfig(),
@@ -105,21 +109,38 @@ class FakeGradeRepository : GradeRepository {
     override suspend fun updateGrade(grade: GradeEntity) {}
 }
 
-class FakeHangboardSessionRepository : HangboardSessionRepository {
-    val all = MutableStateFlow<List<HangboardSessionEntity>>(emptyList())
-    /** Alles, was das ViewModel über [create] getrackt hat (Assertion-Ziel). */
-    val created = mutableListOf<HangboardSessionEntity>()
+class FakeHangboardWorkoutRepository : HangboardWorkoutRepository {
+    val all = MutableStateFlow<List<HangboardWorkoutWithSegments>>(emptyList())
+    /** Alles, was das ViewModel über [create] gespeichert hat (Assertion-Ziel). */
+    val created = mutableListOf<HangboardWorkoutWithSegments>()
 
-    override fun observeBySession(sessionId: Int): Flow<List<HangboardSessionEntity>> =
-        all.map { list -> list.filter { it.sessionId == sessionId } }
+    override fun observeBySession(sessionId: Int): Flow<List<HangboardWorkoutWithSegments>> =
+        all.map { list -> list.filter { it.workout.sessionId == sessionId } }
 
-    override fun observeAll(): Flow<List<HangboardSessionEntity>> = all
+    override fun observeAll(): Flow<List<HangboardWorkoutWithSegments>> = all
 
-    override suspend fun create(session: HangboardSessionEntity): Int {
-        created += session
-        all.value = all.value + session
-        return created.size
+    override suspend fun create(
+        workout: HangboardWorkoutEntity,
+        segments: List<HangboardSegmentEntity>,
+    ): Int {
+        val id = created.size + 1
+        val withSegments = HangboardWorkoutWithSegments(
+            workout = workout.copy(id = id),
+            segments = segments.map { it.copy(workoutId = id) },
+        )
+        created += withSegments
+        all.value = all.value + withSegments
+        return id
     }
+}
+
+class FakeGymRepository : GymRepository {
+    val all = MutableStateFlow<List<GymEntity>>(emptyList())
+
+    override fun observeAll(): Flow<List<GymEntity>> = all
+    override suspend fun getById(gymId: Int): GymEntity? = all.value.find { it.id == gymId }
+    override suspend fun create(gym: GymEntity): Int = 0
+    override suspend fun update(gym: GymEntity) {}
 }
 
 class FakeHangboardRepository : HangboardRepository {

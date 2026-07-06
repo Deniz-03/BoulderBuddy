@@ -1,8 +1,11 @@
 package com.boulderbuddy.wearsync
 
 import android.util.Log
-import com.boulderbuddy.data.db.entity.HangboardSessionEntity
-import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
+import com.boulderbuddy.data.db.entity.HangboardWorkoutOrigin
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
@@ -13,10 +16,9 @@ import javax.inject.Inject
 
 /**
  * Empfängt einen auf der Uhr abgeschlossenen Hangboard-Durchlauf (Wear Data Layer, MessageClient)
- * und trägt ihn — **falls auf dem Phone eine Session aktiv ist** — in genau diese Session.
- *
- * Das spiegelt `HangboardTimerViewModel.recordWorkout()`: gibt es keine aktive Session, wird
- * nichts geschrieben (kein FK-Ziel, kein Clutter). Der Timer auf der Uhr läuft trotzdem eigenständig.
+ * und speichert ihn **immer** als Hangboard-Workout (§0 Säule 2): Läuft auf dem Phone eine
+ * Session, wird er an sie gehängt, sonst als eigenständiges Training (`sessionId = null`).
+ * Die Verknüpfungs-Entscheidung fällt hier — beim Persistieren, nicht auf der Uhr.
  *
  * Vertrag mit der Uhr: `com.boulderbuddy.wear.data.WearSyncContract`
  * (Pfad + Payload-Format identisch dupliziert, da getrennte Module).
@@ -25,7 +27,7 @@ import javax.inject.Inject
 class HangboardWearListenerService : WearableListenerService() {
 
     @Inject lateinit var sessionRepository: SessionRepository
-    @Inject lateinit var hangboardSessionRepository: HangboardSessionRepository
+    @Inject lateinit var hangboardWorkoutRepository: HangboardWorkoutRepository
 
     override fun onMessageReceived(event: MessageEvent) {
         if (event.path != PATH_HANGBOARD_COMPLETED) return
@@ -36,21 +38,35 @@ class HangboardWearListenerService : WearableListenerService() {
         // onMessageReceived läuft bereits auf einem Hintergrund-Thread → runBlocking ist ok.
         runBlocking {
             val sessionId = sessionRepository.observeActive().first()?.id
-            if (sessionId == null) {
-                Log.d(TAG, "Keine aktive Session — Uhr-Durchlauf wird nicht getrackt.")
-                return@runBlocking
-            }
-            hangboardSessionRepository.create(
-                HangboardSessionEntity(
-                    sessionId = sessionId,
-                    completedSets = run.completedSets,
-                    totalSets = run.totalSets,
-                    hangSec = run.hangSec,
-                    restSec = run.restSec,
-                    date = run.date,
+            // Segmente aus der Vorgabe ableiten (manueller Uhr-Timer, letzter Satz ohne Pause).
+            val segments = List(run.completedSets) { i ->
+                HangboardSegmentEntity(
+                    workoutId = 0,
+                    setIndex = i,
+                    hangMs = run.hangSec * 1000L,
+                    restMs = if (i < run.completedSets - 1) run.restSec * 1000L else 0L,
                 )
+            }
+            // Dauer des Durchlaufs rückrechnen — die Uhr überträgt nur den Abschluss-Zeitpunkt.
+            val durationMs = segments.sumOf { it.hangMs + it.restMs }
+            hangboardWorkoutRepository.create(
+                HangboardWorkoutEntity(
+                    sessionId = sessionId,
+                    mode = HangboardWorkoutMode.MANUAL,
+                    origin = HangboardWorkoutOrigin.WATCH,
+                    startedAt = run.date - durationMs,
+                    endedAt = run.date,
+                    plannedSets = run.totalSets,
+                    plannedHangSec = run.hangSec,
+                    plannedRestSec = run.restSec,
+                ),
+                segments,
             )
-            Log.d(TAG, "Uhr-Durchlauf in Session $sessionId getrackt.")
+            Log.d(
+                TAG,
+                if (sessionId != null) "Uhr-Workout in Session $sessionId gespeichert."
+                else "Uhr-Workout als eigenständiges Training gespeichert.",
+            )
         }
     }
 

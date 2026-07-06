@@ -7,7 +7,7 @@ import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.model.RouteStatus
 import com.boulderbuddy.data.repository.GradeRepository
-import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.components.BarChartEntry
@@ -33,11 +33,11 @@ data class StatistikUiState(
     val distributionBySystem: Map<Int, List<BarChartEntry>> = emptyMap(),
     val activity: List<Float> = emptyList(),
     // --- Hangboard-Training ---
-    /** Anzahl abgeschlossener Hangboard-Durchläufe (sessionübergreifend). */
+    /** Anzahl abgeschlossener Hangboard-Workouts (Phone+Uhr, manuell+auto, auch ohne Session). */
     val hangboardWorkouts: Int = 0,
-    /** Summe aller absolvierten Sätze über alle Durchläufe. */
+    /** Summe aller absolvierten Sätze (= Segmente) über alle Workouts. */
     val hangboardSets: Int = 0,
-    /** Gesamte Hängezeit als Kurzform (z.B. "12min", "1.5h"). */
+    /** Gesamte Hängezeit (Summe der gemessenen Segment-Hängezeiten) als Kurzform. */
     val hangboardHangTime: String = "–",
 )
 
@@ -49,7 +49,7 @@ class StatistikViewModel @Inject constructor(
     sessionRepository: SessionRepository,
     routeRepository: RouteRepository,
     gradeRepository: GradeRepository,
-    hangboardSessionRepository: HangboardSessionRepository,
+    hangboardWorkoutRepository: HangboardWorkoutRepository,
 ) : ViewModel() {
 
     val uiState: StateFlow<StatistikUiState> = combine(
@@ -57,8 +57,8 @@ class StatistikViewModel @Inject constructor(
         routeRepository.observeAll(),
         gradeRepository.observeAllGrades(),
         gradeRepository.observeAllSystems(),
-        hangboardSessionRepository.observeAll(),
-    ) { sessions, routes, grades, systems, hangboardSessions ->
+        hangboardWorkoutRepository.observeAll(),
+    ) { sessions, routes, grades, systems, hangboardWorkouts ->
         val gradesById = grades.associateBy { it.id }
         val sessionsById = sessions.associateBy { it.id }
 
@@ -66,8 +66,10 @@ class StatistikViewModel @Inject constructor(
         val flashes = topped.count { it.attempts <= 1 }
         val flashRate = if (topped.isEmpty()) "–" else "${flashes * 100 / topped.size}%"
 
-        val hangboardSets = hangboardSessions.sumOf { it.completedSets }
-        val hangboardHangSeconds = hangboardSessions.sumOf { it.completedSets * it.hangSec }
+        // Hängezeit = Summe der gemessenen Segment-Dauern (bei AUTO korrekt, bei MANUAL
+        // identisch zur früheren Plan-Rechnung completedSets × hangSec).
+        val hangboardSets = hangboardWorkouts.sumOf { it.segments.size }
+        val hangboardHangMs = hangboardWorkouts.sumOf { it.totalHangMs }
 
         // Grade-Verteilung pro System (systemübergreifende Sortierung wäre bedeutungslos, da
         // `order` pro System zählt und Labels verschiedener Systeme nicht vergleichbar sind).
@@ -83,10 +85,10 @@ class StatistikViewModel @Inject constructor(
             distributionSystems = distributionSystems,
             distributionBySystem = distributionBySystem,
             activity = activity(routes, sessionsById),
-            hangboardWorkouts = hangboardSessions.size,
+            hangboardWorkouts = hangboardWorkouts.size,
             hangboardSets = hangboardSets,
-            hangboardHangTime = if (hangboardSessions.isEmpty()) "–"
-                else formatDurationShort(hangboardHangSeconds * 1000L),
+            hangboardHangTime = if (hangboardWorkouts.isEmpty()) "–"
+                else formatDurationShort(hangboardHangMs),
         )
     }.stateIn(
         scope = viewModelScope,

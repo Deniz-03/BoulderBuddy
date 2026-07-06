@@ -2,10 +2,14 @@ package com.boulderbuddy.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.boulderbuddy.data.db.entity.HangboardSessionEntity
+import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
+import com.boulderbuddy.data.db.entity.HangboardWorkoutOrigin
+import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.HangboardRepository
-import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.data.settings.TimerConfig
@@ -31,14 +35,16 @@ import javax.inject.Inject
  * [updateConfig] persistiert (letzte Einstellung gemerkt). Benannte Voreinstellungen
  * (Presets) liegen dagegen im [HangboardRepository] und werden hier eingebunden
  * ([savePreset]/[deletePreset]/[applyPreset]). Ein bis zum Ende absolvierter Durchlauf
- * wird in der aktiven Kletter-Session getrackt (siehe [recordWorkout]).
+ * wird **immer** als Hangboard-Workout gespeichert — läuft eine Kletter-Session, wird er
+ * an sie gehängt, sonst als eigenständiges Training (siehe [recordWorkout], §0 Säule 2).
  */
 @HiltViewModel
 class HangboardTimerViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val sessionRepository: SessionRepository,
-    private val hangboardSessionRepository: HangboardSessionRepository,
+    private val hangboardWorkoutRepository: HangboardWorkoutRepository,
     private val hangboardRepository: HangboardRepository,
+    private val gymRepository: GymRepository,
 ) : ViewModel() {
 
     // Konfiguration (var, da über updateConfig änderbar). Defaults bis DataStore geladen ist.
@@ -57,6 +63,10 @@ class HangboardTimerViewModel @Inject constructor(
     private var timerJob: Job? = null
     // Verhindert doppeltes Tracken desselben abgeschlossenen Durchlaufs.
     private var recorded = false
+    // Echter Startzeitpunkt des laufenden Durchlaufs (erster Play nach Reset).
+    private var startedAtMillis: Long? = null
+    // Speicherort-Feedback nach DONE (§0 Säule 3), z.B. "In Session „Halle X" gespeichert".
+    private var savedTo: String? = null
 
     private val _uiState = MutableStateFlow(snapshot())
     val uiState: StateFlow<HangboardTimerUiState> = _uiState.asStateFlow()
@@ -86,6 +96,8 @@ class HangboardTimerViewModel @Inject constructor(
         secondsLeft = hangSec
         running = false
         recorded = false
+        startedAtMillis = null
+        savedTo = null
         _uiState.value = snapshot()
     }
 
@@ -149,6 +161,7 @@ class HangboardTimerViewModel @Inject constructor(
     private fun start() {
         // Nach dem Ende neu starten: erst zurücksetzen.
         if (phase == TimerPhase.DONE) onReset()
+        if (startedAtMillis == null) startedAtMillis = System.currentTimeMillis()
         running = true
         _uiState.value = snapshot()
         timerJob?.cancel()
@@ -193,22 +206,44 @@ class HangboardTimerViewModel @Inject constructor(
     }
 
     /**
-     * Trackt einen abgeschlossenen Durchlauf in der aktuell aktiven Kletter-Session.
-     * Gibt es keine aktive Session, wird nichts gespeichert (kein FK-Ziel, kein Clutter).
+     * Speichert den abgeschlossenen Durchlauf als Hangboard-Workout — **immer** (§0 Säule 2):
+     * Läuft eine Kletter-Session, wird er an sie gehängt, sonst als eigenständiges Training
+     * (`sessionId = null`). Die Segmente sind beim manuellen Timer aus der Vorgabe abgeleitet
+     * (identische Dauern, letzter Satz ohne Pause). Danach wird der Speicherort im UI gemeldet.
      */
     private fun recordWorkout() {
         viewModelScope.launch {
-            val sessionId = sessionRepository.observeActive().first()?.id ?: return@launch
-            hangboardSessionRepository.create(
-                HangboardSessionEntity(
-                    sessionId = sessionId,
-                    completedSets = totalSets,
-                    totalSets = totalSets,
-                    hangSec = hangSec,
-                    restSec = restSec,
-                    date = System.currentTimeMillis(),
+            val session = sessionRepository.observeActive().first()
+            val endedAt = System.currentTimeMillis()
+            val segments = List(totalSets) { i ->
+                HangboardSegmentEntity(
+                    workoutId = 0,
+                    setIndex = i,
+                    hangMs = hangSec * 1000L,
+                    restMs = if (i < totalSets - 1) restSec * 1000L else 0L,
                 )
+            }
+            hangboardWorkoutRepository.create(
+                HangboardWorkoutEntity(
+                    sessionId = session?.id,
+                    mode = HangboardWorkoutMode.MANUAL,
+                    origin = HangboardWorkoutOrigin.PHONE,
+                    startedAt = startedAtMillis ?: endedAt,
+                    endedAt = endedAt,
+                    plannedSets = totalSets,
+                    plannedHangSec = hangSec,
+                    plannedRestSec = restSec,
+                ),
+                segments,
             )
+            savedTo = if (session != null) {
+                val gymName = gymRepository.getById(session.gymId)?.name
+                if (gymName != null) "In Session „$gymName“ gespeichert"
+                else "In aktiver Session gespeichert"
+            } else {
+                "Als eigenständiges Hangboard-Training gespeichert"
+            }
+            _uiState.value = snapshot()
         }
     }
 
@@ -228,6 +263,10 @@ class HangboardTimerViewModel @Inject constructor(
             hangSec = hangSec,
             restSec = restSec,
             isRunning = running,
+            doneSummary = if (phase == TimerPhase.DONE) {
+                "$totalSets Sätze · ${format(totalSets * hangSec)} Hängezeit"
+            } else null,
+            savedTo = if (phase == TimerPhase.DONE) savedTo else null,
             presets = presets.map {
                 TimerPreset(
                     id = it.id,
