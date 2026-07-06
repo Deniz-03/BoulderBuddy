@@ -118,7 +118,7 @@ class PosePlausibilityTest {
             frame(249L, 300f, 100f),
             frame(332L, 400f, 100f),
         )
-        val result = enforcePoseScaleConsistency(frames)
+        val result = enforcePoseConsistency(frames)
         val shoulder = result[2].landmarks.single { it.type == T.LEFT_SHOULDER }
         val hip = result[2].landmarks.single { it.type == T.LEFT_HIP }
         // Rumpf wieder ~100 statt 10 (interpoliert zwischen Frame 1 und 3).
@@ -143,7 +143,33 @@ class PosePlausibilityTest {
             frame(0L, 100f), frame(83L, 110f), frame(166L, 90f),
             frame(249L, 105f), frame(332L, 95f),
         )
-        assertThat(enforcePoseScaleConsistency(frames)).isEqualTo(frames)
+        assertThat(enforcePoseConsistency(frames)).isEqualTo(frames)
+    }
+
+    @Test
+    fun `isolierter positionssprung wird korrigiert`() {
+        // Ganze Pose bewegt sich langsam; Frame 2 springt als Ganzes weit weg (Größe/Form
+        // normal) → nur das Positions-Gate greift, der Frame wird interpoliert.
+        fun frame(timeMs: Long, cx: Float) = GhostPoseFrame(
+            timeMs = timeMs,
+            landmarks = listOf(
+                landmark(T.LEFT_SHOULDER, cx - 20f, 100f),
+                landmark(T.RIGHT_SHOULDER, cx + 20f, 100f),
+                landmark(T.LEFT_HIP, cx - 20f, 200f),
+                landmark(T.RIGHT_HIP, cx + 20f, 200f),
+            ),
+        )
+        val frames = listOf(
+            frame(0L, 100f), frame(83L, 110f), frame(166L, 400f),
+            frame(249L, 130f), frame(332L, 140f),
+        )
+        val result = enforcePoseConsistency(frames)
+        // Frame 2 zurück auf die Interpolation zwischen Frame 1 (cx=110) und Frame 3
+        // (cx=130) → cx≈120, linke Schulter bei cx−20 = 100.
+        assertThat(result[2].landmarks.single { it.type == T.LEFT_SHOULDER }.x)
+            .isWithin(1f).of(100f)
+        // Unverschobene Nachbarn bleiben unangetastet.
+        assertThat(result[1].landmarks.single { it.type == T.LEFT_SHOULDER }.x).isEqualTo(90f)
     }
 
     @Test

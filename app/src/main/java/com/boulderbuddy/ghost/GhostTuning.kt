@@ -122,12 +122,23 @@ object GhostTuning {
 
     /** Pose-Skalen-Gate (7.5c): untere Grenze der Rumpfgröße als Anteil der Median-
      *  Rumpfgröße des Videos. Frames darunter sind ein Ganzkörper-Kollaps ("Schrumpfen")
-     *  und werden per Interpolation ersetzt. 0.6 = 60 % — deutlich unter der normalen
-     *  perspektivischen Schwankung bei fixer Kamera. */
-    const val POSE_SCALE_MIN_RATIO: Double = 0.6
+     *  und werden per Interpolation ersetzt. 0.7 = 70 % (empirisch kalibriert) — fängt
+     *  auch leichtere Kollapse, noch über der normalen perspektivischen Schwankung. */
+    const val POSE_SCALE_MIN_RATIO: Double = 0.7
 
     /** Pose-Skalen-Gate: obere Grenze der Rumpfgröße (aufgeblähte Fehl-Pose). */
     const val POSE_SCALE_MAX_RATIO: Double = 1.7
+
+    /** Pose-Positions-Gate (7.5c): max. Abweichung des Pose-Zentrums vom Fenster-Median
+     *  als Anteil der Median-Körpergröße, bevor der Frame als „verschobenes Skelett"
+     *  (isolierter Ganzkörper-Sprung) gilt und interpoliert wird. 1.0 (empirisch
+     *  kalibriert) = eine ganze Körpergröße — bewusst hoch, damit glatte schnelle
+     *  Bewegungen/Dynos NICHT fälschlich markiert werden, nur grobe Aussetzer. */
+    const val POSE_SHIFT_MAX_RATIO: Double = 1.0
+
+    /** Halbe Fensterbreite (in Sample-Frames) des Zentrum-Medians fürs Positions-Gate.
+     *  2 = Fenster von 5 Frames — robust gegen einen bis zwei Ausreißer. */
+    const val POSE_SHIFT_MEDIAN_WINDOW: Int = 2
 
     /** Mindestanzahl abgetasteter Frames — kürzere Videos sind nicht analysierbar (P8). */
     const val MIN_POSE_FRAMES: Int = 10

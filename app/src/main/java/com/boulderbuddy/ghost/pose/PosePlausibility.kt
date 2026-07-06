@@ -16,68 +16,122 @@ import kotlin.math.hypot
 // Spur, VOR One-Euro-Glättung und Hysterese — die Filter sollen konsistente,
 // physikalisch mögliche Eingaben bekommen.
 
-/** Reihenfolge der Verarbeitungsschritte: Skalen-Konsistenz → L/R-Konsistenz →
- *  Plausibilität. Der Skalen-Gate zuerst, damit L/R und Plausibilität nicht auf einer
- *  kollabierten Pose aufsetzen. */
+/** Reihenfolge der Verarbeitungsschritte: Pose-Konsistenz (Skala + Position) →
+ *  L/R-Konsistenz → Plausibilität. Der Pose-Gate zuerst, damit L/R und Plausibilität
+ *  nicht auf einer kollabierten oder verschobenen Pose aufsetzen. */
 fun cleanPoseFrames(frames: List<GhostPoseFrame>, frameHeight: Int): List<GhostPoseFrame> =
     applyAnatomicalPlausibility(
-        enforceLeftRightConsistency(enforcePoseScaleConsistency(frames)),
+        enforceLeftRightConsistency(enforcePoseConsistency(frames)),
         frameHeight,
     )
 
-// --- Pose-Skalen-Konsistenz (7.5c): Ganzkörper-Kollaps ("Schrumpfen") abfangen -------
+// --- Pose-Konsistenz (7.5c): Ganzkörper-Kollaps + verschobenes Skelett abfangen -------
 //
-// Die Per-Landmark-/Per-Knochen-Filter fangen einen gleichmäßigen Skalenkollaps der
-// GANZEN Pose nicht: der Rumpf steckt in keinem RIGID_BONE, und eine proportional kleine
-// Pose ist in sich konsistent. Deshalb ein Check auf POSE-EBENE: die Rumpfgröße (Schulter-
-// Mitte ↔ Hüft-Mitte) ist bei fixer Kamera weitgehend konstant. Frames, deren Rumpf
-// unplausibel von der Median-Rumpfgröße des Videos abweicht, werden durch zeitliche
-// Interpolation zwischen den nächsten gültigen Frames ersetzt (Offline-Vorteil: die
-// ganze Spur ist bekannt, daher echte Interpolation statt bloßem Einfrieren).
+// Die Per-Landmark-/Per-Knochen-Filter fangen zwei Fehlerbilder der GANZEN Pose nicht:
+// (1) gleichmäßiger Skalenkollaps ("Schrumpfen") — der Rumpf steckt in keinem RIGID_BONE
+// und eine proportional kleine Pose ist in sich konsistent; (2) ein isolierter Ganzkörper-
+// Sprung — Form/Größe stimmen, aber die Pose liegt neben dem Körper. Beides prüft dieser
+// POSE-EBENEN-Pass an einer bei fixer Kamera stabilen Körpergröße und ersetzt Ausreißer
+// durch zeitliche Interpolation der nächsten gültigen Frames (Offline-Vorteil: ganze Spur).
 
 /**
- * Ersetzt Frames mit kollabierter/aufgeblähter Rumpfgröße durch die zeitliche
- * Interpolation der nächsten gültigen Nachbar-Frames. Braucht ≥3 messbare Rumpfgrößen
- * für einen robusten Median, sonst unverändert.
+ * Ersetzt Frames mit unplausibler Körpergröße (Kollaps/Aufblähung) ODER isoliertem
+ * Ganzkörper-Positionssprung durch die zeitliche Interpolation der nächsten gültigen
+ * Nachbar-Frames. Braucht ≥3 messbare Größen für einen robusten Median, sonst unverändert.
  */
-fun enforcePoseScaleConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
-    val scales = frames.map { torsoScale(it) }
+fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
+    if (frames.size < 3) return frames
+    val scales = frames.map { poseScale(it) }
+    val centroids = frames.map { coreCentroid(it) }
     val known = scales.filterNotNull().sorted()
     if (known.size < 3) return frames
     val median = known[known.size / 2]
     val minScale = median * GhostTuning.POSE_SCALE_MIN_RATIO
     val maxScale = median * GhostTuning.POSE_SCALE_MAX_RATIO
 
-    val collapsed = BooleanArray(frames.size) { i ->
+    // Phase 1: Skalen-Kollaps/-Explosion.
+    val invalid = BooleanArray(frames.size) { i ->
         val s = scales[i]
         s != null && (s < minScale || s > maxScale)
     }
-    if (collapsed.none { it }) return frames
+    // Skalen-Urteil einfrieren — Referenz fürs Positions-Gate (kein Kaskadieren).
+    val scaleInvalid = invalid.copyOf()
 
+    // Phase 2: isolierter Positionssprung. Referenz ist der Fenster-Median der Zentroide
+    // skalen-gültiger Frames — eine GLATTE schnelle Bewegung liegt nahe dem Median (wird
+    // NICHT markiert), nur ein Ausreißer, der wegspringt und zurückkehrt, weicht stark ab.
+    val shiftLimit = median * GhostTuning.POSE_SHIFT_MAX_RATIO
+    val half = GhostTuning.POSE_SHIFT_MEDIAN_WINDOW
+    for (i in frames.indices) {
+        if (invalid[i]) continue
+        val c = centroids[i] ?: continue
+        val winX = ArrayList<Double>(2 * half + 1)
+        val winY = ArrayList<Double>(2 * half + 1)
+        for (j in (i - half)..(i + half)) {
+            if (j !in frames.indices || scaleInvalid[j]) continue
+            val cj = centroids[j] ?: continue
+            winX += cj.first
+            winY += cj.second
+        }
+        if (winX.size < 3) continue
+        winX.sort()
+        winY.sort()
+        val mx = winX[winX.size / 2]
+        val my = winY[winY.size / 2]
+        if (hypot(c.first - mx, c.second - my) > shiftLimit) invalid[i] = true
+    }
+
+    if (invalid.none { it }) return frames
     return frames.mapIndexed { i, frame ->
-        if (!collapsed[i]) return@mapIndexed frame
+        if (!invalid[i]) return@mapIndexed frame
         var lo = i - 1
-        while (lo >= 0 && collapsed[lo]) lo--
+        while (lo >= 0 && invalid[lo]) lo--
         var hi = i + 1
-        while (hi < frames.size && collapsed[hi]) hi++
+        while (hi < frames.size && invalid[hi]) hi++
         val prev = if (lo >= 0) frames[lo] else null
         val next = if (hi < frames.size) frames[hi] else null
         frame.copy(landmarks = interpolatePose(prev, next, frame.timeMs))
     }
 }
 
-/** Rumpfgröße (Schulter-Mitte ↔ Hüft-Mitte) in Pixeln, oder null wenn nicht alle vier
- *  Rumpfpunkte sicher sind. */
-private fun torsoScale(frame: GhostPoseFrame): Double? {
-    val ls = frame.confident(GhostLandmarkTypes.LEFT_SHOULDER) ?: return null
-    val rs = frame.confident(GhostLandmarkTypes.RIGHT_SHOULDER) ?: return null
-    val lh = frame.confident(GhostLandmarkTypes.LEFT_HIP) ?: return null
-    val rh = frame.confident(GhostLandmarkTypes.RIGHT_HIP) ?: return null
-    return hypot(
-        ((ls.x + rs.x) - (lh.x + rh.x)).toDouble() / 2.0,
-        ((ls.y + rs.y) - (lh.y + rh.y)).toDouble() / 2.0,
-    )
+/**
+ * Robuste Körpergröße in Pixeln: Median mehrerer struktureller Maße (Schulter-/Hüft-
+ * breite + Rumpfseiten) über die vorhandenen sicheren Punkte (ab Zeichen-Schwelle, damit
+ * auch Kollapse mit gesunkener Confidence noch gemessen werden). Robust gegen einzelne
+ * Fehlpunkte UND gegen perspektivische Rumpfverkürzung (die Breiten bleiben dabei stabil).
+ */
+private fun poseScale(frame: GhostPoseFrame): Double? {
+    val ls = frame.shown(GhostLandmarkTypes.LEFT_SHOULDER)
+    val rs = frame.shown(GhostLandmarkTypes.RIGHT_SHOULDER)
+    val lh = frame.shown(GhostLandmarkTypes.LEFT_HIP)
+    val rh = frame.shown(GhostLandmarkTypes.RIGHT_HIP)
+    val cues = ArrayList<Double>(4)
+    if (ls != null && rs != null) cues += dist(ls, rs)
+    if (lh != null && rh != null) cues += dist(lh, rh)
+    if (ls != null && lh != null) cues += dist(ls, lh)
+    if (rs != null && rh != null) cues += dist(rs, rh)
+    if (cues.isEmpty()) return null
+    cues.sort()
+    return cues[cues.size / 2]
 }
+
+/** Zentrum der Rumpfpunkte (Mittel der vorhandenen Schulter-/Hüftpunkte), oder null bei
+ *  zu wenigen sicheren Punkten. */
+private fun coreCentroid(frame: GhostPoseFrame): Pair<Double, Double>? {
+    val core = listOf(
+        GhostLandmarkTypes.LEFT_SHOULDER, GhostLandmarkTypes.RIGHT_SHOULDER,
+        GhostLandmarkTypes.LEFT_HIP, GhostLandmarkTypes.RIGHT_HIP,
+    ).mapNotNull { frame.shown(it) }
+    if (core.size < 3) return null
+    return core.sumOf { it.x.toDouble() } / core.size to
+        core.sumOf { it.y.toDouble() } / core.size
+}
+
+/** Landmark eines Typs, sofern ≥ Zeichen-Schwelle (großzügiger als [confident]). */
+private fun GhostPoseFrame.shown(type: Int): GhostLandmark? =
+    landmarks.firstOrNull {
+        it.type == type && it.confidence >= GhostTuning.VISIBILITY_SHOW_THRESHOLD
+    }
 
 /** Zeitlich interpolierte Pose zwischen [prev] und [next] (nur gemeinsame Landmark-
  *  Typen); fehlt ein Nachbar, wird der vorhandene gehalten. */
