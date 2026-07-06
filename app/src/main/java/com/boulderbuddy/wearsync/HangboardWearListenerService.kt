@@ -1,5 +1,9 @@
 package com.boulderbuddy.wearsync
 
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
 import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
@@ -7,11 +11,18 @@ import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
 import com.boulderbuddy.data.db.entity.HangboardWorkoutOrigin
 import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.SessionRepository
+import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import java.io.File
+import java.io.InputStream
 import javax.inject.Inject
 
 /**
@@ -70,6 +81,48 @@ class HangboardWearListenerService : WearableListenerService() {
         }
     }
 
+    /**
+     * Sensor-Log-Export der Uhr (B.5.1): DataItem mit CSV-Asset → als Datei in den
+     * Downloads ablegen, damit es für die Offline-Kalibrierung (B.5.3) greifbar ist.
+     */
+    override fun onDataChanged(events: DataEventBuffer) {
+        events.forEach { event ->
+            if (event.type != DataEvent.TYPE_CHANGED) return@forEach
+            if (event.dataItem.uri.path != PATH_SENSOR_LOG) return@forEach
+            val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+            val asset = dataMap.getAsset(KEY_SENSOR_LOG_ASSET) ?: return@forEach
+            val name = dataMap.getString(KEY_SENSOR_LOG_NAME) ?: "sensorlog.csv"
+            try {
+                // onDataChanged läuft auf einem Hintergrund-Thread → Tasks.await ist ok.
+                val fd = Tasks.await(Wearable.getDataClient(this).getFdForAsset(asset))
+                fd.inputStream.use { saveToDownloads(name, it) }
+                Log.d(TAG, "Sensor-Log $name in Downloads/$DOWNLOAD_SUBDIR gespeichert.")
+            } catch (e: Exception) {
+                Log.w(TAG, "Sensor-Log $name konnte nicht gespeichert werden.", e)
+            }
+        }
+    }
+
+    private fun saveToDownloads(name: String, input: InputStream) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, name)
+                put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+                put(
+                    MediaStore.Downloads.RELATIVE_PATH,
+                    "${Environment.DIRECTORY_DOWNLOADS}/$DOWNLOAD_SUBDIR",
+                )
+            }
+            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("MediaStore-Insert für $name fehlgeschlagen")
+            contentResolver.openOutputStream(uri)?.use { input.copyTo(it) }
+        } else {
+            // Pre-Q (minSdk 26): app-eigenes externes Verzeichnis, per Dateimanager erreichbar.
+            val dir = File(getExternalFilesDir(null), DOWNLOAD_SUBDIR).apply { mkdirs() }
+            File(dir, name).outputStream().use { input.copyTo(it) }
+        }
+    }
+
     private data class WearRun(
         val completedSets: Int,
         val totalSets: Int,
@@ -97,7 +150,11 @@ class HangboardWearListenerService : WearableListenerService() {
 
     private companion object {
         const val TAG = "WearListener"
-        // Muss mit WearSyncContract.PATH_HANGBOARD_COMPLETED der Uhr übereinstimmen.
+        // Müssen mit dem WearSyncContract der Uhr übereinstimmen (getrennte Module).
         const val PATH_HANGBOARD_COMPLETED = "/boulderbuddy/hangboard_completed"
+        const val PATH_SENSOR_LOG = "/boulderbuddy/sensor_log"
+        const val KEY_SENSOR_LOG_ASSET = "log"
+        const val KEY_SENSOR_LOG_NAME = "name"
+        const val DOWNLOAD_SUBDIR = "BoulderBuddy"
     }
 }
