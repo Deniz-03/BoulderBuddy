@@ -19,11 +19,12 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 
-// Routen der Wear-Navigation. M3 ersetzt den Sensor-Log-Eintrag durch die
-// Modus-Wahl Manuell/Auto; der Debug-Screen bleibt für Kalibrier-Sessions erreichbar.
+// Routen der Wear-Navigation: Modus-Wahl (Manuell/Auto, §6) + Debug-Screen für
+// Kalibrier-Aufnahmen (B.5).
 private object WearRoutes {
     const val MENU = "menu"
     const val TIMER = "timer"
+    const val AUTO = "auto"
     const val SENSOR_LOG = "sensorlog"
 }
 
@@ -42,10 +43,12 @@ fun WearApp() {
             composable(WearRoutes.MENU) {
                 MenuScreen(
                     onOpenTimer = { navController.navigate(WearRoutes.TIMER) },
+                    onOpenAuto = { navController.navigate(WearRoutes.AUTO) },
                     onOpenSensorLog = { navController.navigate(WearRoutes.SENSOR_LOG) },
                 )
             }
             composable(WearRoutes.TIMER) { TimerScreen() }
+            composable(WearRoutes.AUTO) { AutoHangScreen() }
             composable(WearRoutes.SENSOR_LOG) { SensorLogScreen() }
         }
     }
@@ -54,6 +57,7 @@ fun WearApp() {
 @Composable
 private fun MenuScreen(
     onOpenTimer: () -> Unit,
+    onOpenAuto: () -> Unit,
     onOpenSensorLog: () -> Unit,
 ) {
     Scaffold(timeText = { TimeText() }) {
@@ -73,7 +77,15 @@ private fun MenuScreen(
             item {
                 Chip(
                     onClick = onOpenTimer,
-                    label = { Text("Hangboard-Timer") },
+                    label = { Text("Timer (manuell)") },
+                    colors = ChipDefaults.primaryChipColors(),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                )
+            }
+            item {
+                Chip(
+                    onClick = onOpenAuto,
+                    label = { Text("Auto-Erkennung") },
                     colors = ChipDefaults.primaryChipColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 )

@@ -33,9 +33,15 @@
             android:name="com.google.android.wearable"
             android:required="false" />
 
-        <!-- Sensor-Aufzeichnung (B.5.1): läuft nur während einer Kalibrier-/Auto-Session. -->
+        <!-- Sensor-Aufzeichnung (B.5.1): läuft nur während einer Kalibrier-Session. -->
         <service
             android:name=".sensing.SensorLoggingService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <!-- Auto-Hang-Erkennung (M3): Sensorstrom → HangDetector, nur während der Session. -->
+        <service
+            android:name=".sensing.AutoHangService"
             android:exported="false"
             android:foregroundServiceType="health" />
 
