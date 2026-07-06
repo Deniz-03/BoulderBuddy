@@ -20,6 +20,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
 import com.boulderbuddy.wear.R
+import com.boulderbuddy.wear.data.PhoneConnector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -103,11 +104,21 @@ class AutoHangService : Service(), SensorEventListener {
         if (_tracking.value.active) {
             sensorManager?.unregisterListener(this)
             val segments = detector.finish(SystemClock.elapsedRealtime())
+            val endedAt = System.currentTimeMillis()
             _result.value = AutoWorkoutResult(
                 startedAt = startedAtEpoch,
-                endedAt = System.currentTimeMillis(),
+                endedAt = endedAt,
                 segments = segments,
             )
+            // Ergebnis ans Phone (§2 Kanal 1) — best effort, Verknüpfung entscheidet das Phone.
+            if (segments.isNotEmpty()) {
+                PhoneConnector.sendAutoWorkoutCompleted(
+                    context = this,
+                    startedAt = startedAtEpoch,
+                    endedAt = endedAt,
+                    segments = segments.map { it.hangMs to it.restMs },
+                )
+            }
             vibrate(VIBRATE_DONE)
             Log.d(TAG, "Auto-Erkennung beendet: ${segments.size} Sätze.")
         }

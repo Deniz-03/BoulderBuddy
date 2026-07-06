@@ -51,6 +51,37 @@ object PhoneConnector {
     }
 
     /**
+     * Meldet ein beendetes **Auto**-Workout (gemessene Segmente) an alle verbundenen Nodes.
+     * Das Phone entscheidet beim Persistieren über die Session-Verknüpfung (§0 Säule 2).
+     */
+    fun sendAutoWorkoutCompleted(
+        context: Context,
+        startedAt: Long,
+        endedAt: Long,
+        segments: List<Pair<Long, Long>>,
+    ) {
+        val payload = WearSyncContract.encodeAuto(startedAt, endedAt, segments)
+        val messageClient = Wearable.getMessageClient(context)
+        Wearable.getNodeClient(context).connectedNodes
+            .addOnSuccessListener { nodes ->
+                if (nodes.isEmpty()) {
+                    Log.d(TAG, "Kein verbundener Node — Auto-Workout bleibt lokal auf der Uhr.")
+                    return@addOnSuccessListener
+                }
+                nodes.forEach { node ->
+                    messageClient.sendMessage(
+                        node.id,
+                        WearSyncContract.PATH_HANGBOARD_AUTO_COMPLETED,
+                        payload,
+                    ).addOnFailureListener { e ->
+                        Log.w(TAG, "Senden an ${node.displayName} fehlgeschlagen", e)
+                    }
+                }
+            }
+            .addOnFailureListener { e -> Log.w(TAG, "Node-Abfrage fehlgeschlagen", e) }
+    }
+
+    /**
      * Überträgt ein aufgezeichnetes Sensor-Log (B.5.1) als DataItem-Asset ans Phone, das es
      * in den Downloads ablegt. DataItems werden vom System synchronisiert & gecacht — der
      * Export überlebt damit auch eine kurzzeitig getrennte Verbindung.

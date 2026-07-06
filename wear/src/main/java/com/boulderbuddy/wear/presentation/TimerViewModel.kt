@@ -9,6 +9,8 @@ import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.wear.data.PhoneConnector
+import com.boulderbuddy.wear.data.PresetSyncClient
+import com.boulderbuddy.wear.data.WearPreset
 import com.boulderbuddy.wear.data.WearSettings
 import com.boulderbuddy.wear.data.WearTimerConfig
 import kotlinx.coroutines.Job
@@ -33,6 +35,8 @@ data class WearTimerUiState(
     val restSec: Int,
     val isRunning: Boolean,
     val isConfigurable: Boolean, // true = Timer im Ausgangszustand → Sätze/Zeiten editierbar
+    /** Vom Phone synchronisierte Presets (§0 Säule 4); leer, wenn (noch) keine bekannt. */
+    val presets: List<WearPreset> = emptyList(),
 )
 
 /**
@@ -54,6 +58,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     private var totalSets = 6
     private var hangSec = 7
     private var restSec = 3
+
+    // Vom Phone synchronisierte Presets (Data Layer, letzter gecachter Stand).
+    private var presets: List<WearPreset> = emptyList()
 
     // Interner Lauf-Zustand (getrennt vom UI-State, damit Pause/Resume die Restsekunden behält).
     private var currentSet = 1
@@ -78,7 +85,18 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             restSec = config.restSec
             onReset()
         }
+        // Presets vom Phone beobachten (ändern nur die Auswahl, nicht den Lauf-Zustand).
+        viewModelScope.launch {
+            PresetSyncClient.observePresets(app).collect {
+                presets = it
+                _uiState.value = snapshot()
+            }
+        }
     }
+
+    /** Übernimmt ein synchronisiertes Preset als aktuelle Config (nur im Ausgangszustand). */
+    fun applyPreset(preset: WearPreset) =
+        updateConfig(sets = preset.sets, hang = preset.hangSec, rest = preset.restSec)
 
     fun onPlayPause() {
         if (running) pause() else start()
@@ -200,6 +218,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             restSec = restSec,
             isRunning = running,
             isConfigurable = isConfigurable(),
+            presets = presets,
         )
     }
 

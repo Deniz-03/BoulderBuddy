@@ -64,6 +64,17 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
                         )
                     }
+                    if (result.sets > 0) {
+                        // Best effort (§0 Säule 3): die Session-Verknüpfung entscheidet das Phone.
+                        item {
+                            Text(
+                                text = "An Phone übertragen",
+                                style = MaterialTheme.typography.caption2,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            )
+                        }
+                    }
                     item {
                         Chip(
                             onClick = viewModel::onDismissResult,

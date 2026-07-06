@@ -41,7 +41,13 @@ class HangboardWearListenerService : WearableListenerService() {
     @Inject lateinit var hangboardWorkoutRepository: HangboardWorkoutRepository
 
     override fun onMessageReceived(event: MessageEvent) {
-        if (event.path != PATH_HANGBOARD_COMPLETED) return
+        when (event.path) {
+            PATH_HANGBOARD_COMPLETED -> onManualCompleted(event)
+            PATH_HANGBOARD_AUTO_COMPLETED -> onAutoCompleted(event)
+        }
+    }
+
+    private fun onManualCompleted(event: MessageEvent) {
         val run = parse(String(event.data, Charsets.UTF_8)) ?: run {
             Log.w(TAG, "Ungültige Payload: ${String(event.data, Charsets.UTF_8)}")
             return
@@ -77,6 +83,48 @@ class HangboardWearListenerService : WearableListenerService() {
                 TAG,
                 if (sessionId != null) "Uhr-Workout in Session $sessionId gespeichert."
                 else "Uhr-Workout als eigenständiges Training gespeichert.",
+            )
+        }
+    }
+
+    /**
+     * Auto-Workout der Uhr (M4): gemessene Segmente statt Plan-Werte. Gleiche
+     * Speicher-Entscheidung wie beim manuellen Pfad (§0 Säule 2), planned* bleiben null.
+     */
+    private fun onAutoCompleted(event: MessageEvent) {
+        val run = parseAuto(String(event.data, Charsets.UTF_8)) ?: run {
+            Log.w(TAG, "Ungültige Auto-Payload: ${String(event.data, Charsets.UTF_8)}")
+            return
+        }
+        runBlocking {
+            val sessionId = sessionRepository.observeActive().first()?.id
+            hangboardWorkoutRepository.create(
+                HangboardWorkoutEntity(
+                    sessionId = sessionId,
+                    mode = HangboardWorkoutMode.AUTO,
+                    origin = HangboardWorkoutOrigin.WATCH,
+                    startedAt = run.startedAt,
+                    endedAt = run.endedAt,
+                    plannedSets = null,
+                    plannedHangSec = null,
+                    plannedRestSec = null,
+                ),
+                run.segments.mapIndexed { index, (hangMs, restMs) ->
+                    HangboardSegmentEntity(
+                        workoutId = 0,
+                        setIndex = index,
+                        hangMs = hangMs,
+                        restMs = restMs,
+                    )
+                },
+            )
+            Log.d(
+                TAG,
+                if (sessionId != null) {
+                    "Auto-Workout (${run.segments.size} Sätze) in Session $sessionId gespeichert."
+                } else {
+                    "Auto-Workout (${run.segments.size} Sätze) als eigenständiges Training gespeichert."
+                },
             )
         }
     }
@@ -131,6 +179,33 @@ class HangboardWearListenerService : WearableListenerService() {
         val date: Long,
     )
 
+    private data class WearAutoRun(
+        val startedAt: Long,
+        val endedAt: Long,
+        /** Gemessene Segmente als (hangMs, restMs). */
+        val segments: List<Pair<Long, Long>>,
+    )
+
+    /** Payload = "startedAt;endedAt;hangMs:restMs,hangMs:restMs,…". */
+    private fun parseAuto(payload: String): WearAutoRun? {
+        val parts = payload.split(';')
+        if (parts.size != 3) return null
+        return try {
+            val segments = parts[2].split(',').map { segment ->
+                val (hangMs, restMs) = segment.split(':')
+                hangMs.toLong() to restMs.toLong()
+            }
+            if (segments.isEmpty()) return null
+            WearAutoRun(
+                startedAt = parts[0].toLong(),
+                endedAt = parts[1].toLong(),
+                segments = segments,
+            )
+        } catch (e: RuntimeException) {
+            null
+        }
+    }
+
     /** Payload = "completedSets;totalSets;hangSec;restSec;date". */
     private fun parse(payload: String): WearRun? {
         val parts = payload.split(';')
@@ -152,6 +227,8 @@ class HangboardWearListenerService : WearableListenerService() {
         const val TAG = "WearListener"
         // Müssen mit dem WearSyncContract der Uhr übereinstimmen (getrennte Module).
         const val PATH_HANGBOARD_COMPLETED = "/boulderbuddy/hangboard_completed"
+        // Teilt bewusst den Präfix von PATH_HANGBOARD_COMPLETED → ein Manifest-Filter für beide.
+        const val PATH_HANGBOARD_AUTO_COMPLETED = "/boulderbuddy/hangboard_completed/auto"
         const val PATH_SENSOR_LOG = "/boulderbuddy/sensor_log"
         const val KEY_SENSOR_LOG_ASSET = "log"
         const val KEY_SENSOR_LOG_NAME = "name"
