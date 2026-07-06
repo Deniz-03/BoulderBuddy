@@ -46,6 +46,11 @@ object BoulderUebersicht  // -> BoulderUebersichtScreen
 @Serializable
 object GhostClimber       // -> GhostClimberScreen
 
+// Hangboard-Historie (Phase 7 Anhang B, §0 Säule 5): alle Workouts inkl. eigenständiger
+// Trainings; Einstieg über den Hangboard-Block im Statistik-Screen.
+@Serializable
+object HangboardHistorie  // -> HangboardHistorieScreen
+
 // -----------------------------------------------------------------------------
 // Push-Ziele MIT Argument:
 // -----------------------------------------------------------------------------

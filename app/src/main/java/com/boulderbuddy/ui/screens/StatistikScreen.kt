@@ -1,6 +1,7 @@
 package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -74,6 +75,8 @@ fun StatistikScreen(
     wide: Boolean = false,
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onOpenSettings: () -> Unit = {},
+    // Öffnet die Hangboard-Historie (alle Workouts inkl. eigenständiger Trainings).
+    onOpenHangboardHistorie: () -> Unit = {},
 ) {
     val quickStats = listOf(
         QuickStat(label = "Flash Rate", value = state.flashRate),
@@ -138,7 +141,7 @@ fun StatistikScreen(
                             )
                         }
                     }
-                    item { HangboardSection(state) }
+                    item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
                 } else {
                     // Phone: alles untereinander (unverändert).
                     item {
@@ -149,7 +152,7 @@ fun StatistikScreen(
                             onSelectSystem = { selectedSystemId = it },
                         )
                     }
-                    item { HangboardSection(state) }
+                    item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
                     item { ActivitySection(activity = activity) }
                 }
             }
@@ -219,11 +222,30 @@ private fun GradeDistributionSection(
     }
 }
 
-// Hangboard-Training-Kacheln.
+// Hangboard-Training-Kacheln. Antippen öffnet die Historie aller Workouts (§0 Säule 5) —
+// nur so werden eigenständige Trainings (ohne Session) als Einträge sichtbar.
 @Composable
-private fun HangboardSection(state: StatistikUiState, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-        SectionHeader(text = "Hangboard-Training")
+private fun HangboardSection(
+    state: StatistikUiState,
+    onOpen: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.clickable(onClick = onOpen),
+        verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            SectionHeader(text = "Hangboard-Training")
+            Text(
+                text = "Alle Workouts ›",
+                style = MaterialTheme.typography.labelLarge,
+                color = BoulderBuddy.colors.textTertiary,
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
