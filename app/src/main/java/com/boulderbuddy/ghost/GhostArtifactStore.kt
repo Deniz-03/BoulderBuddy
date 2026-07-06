@@ -50,10 +50,13 @@ class GhostArtifactStore @Inject constructor(
     // Abtastrate UND Pipeline-Marker stecken im Cache-Schlüssel: ändert sich
     // GhostTuning.POSE_SAMPLE_FPS oder die Pose-Pipeline (Modell/Filter-Semantik),
     // veralten alte Spuren automatisch statt mit falschen Werten weiterzuleben.
-    // "mp-full-5" = MediaPipe pose_landmarker_full + ROI-Crop + L/R-Konsistenz +
-    // Plausibilität (Stufe 2) + One-Euro + Hysterese (Stufe 1).
+    // "mp-heavy-10" = heavy + gesenkte MP-Schwellen + ROI-Crop + Pose-Skalen-Gate +
+    // L/R-Konsistenz + Plausibilität-KLEMMEN → Lücken-Interpolation → One-Euro →
+    // Hysterese (gesenkte Zeichen-Schwelle). "-10": Zeichen-Schwelle 0.5→0.3 +
+    // Offline-Lückenfüllung gegen fehlende Glieder/Skelette — neue Spur-Semantik,
+    // alte Spuren veralten, erneute Analyse extrahiert neu.
     private fun poseTrackFile(videoUri: String): File =
-        File(dir, "pose_${sha1("$videoUri@${GhostTuning.POSE_SAMPLE_FPS}@mp-full-5")}.json")
+        File(dir, "pose_${sha1("$videoUri@${GhostTuning.POSE_SAMPLE_FPS}@mp-heavy-10")}.json")
 
     private fun sha1(value: String): String =
         MessageDigest.getInstance("SHA-1")

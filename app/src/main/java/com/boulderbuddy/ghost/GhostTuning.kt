@@ -32,15 +32,35 @@ object GhostTuning {
      *  Stufe 3 echtes MediaPipe-visibility statt InFrameLikelihood). */
     const val MIN_LANDMARK_CONFIDENCE: Float = 0.5f
 
+    /** MediaPipe-Personen-Detektionsschwelle. Default 0.5 belassen — tiefer lädt
+     *  Zuschauer/Fehldetektionen ein (der ROI-Crop hält die Analyse ohnehin an der
+     *  Person). */
+    const val MP_MIN_DETECTION_CONFIDENCE: Float = 0.5f
+
+    /** MediaPipe-Präsenz-Schwelle je Landmark. 7.5c: 0.3 (unter Default 0.5), damit
+     *  Glieder auch in unsicheren Kletterposen ausgegeben statt unterdrückt werden —
+     *  die nachgelagerten Filter (Plausibilität/Hysterese) sortieren Unplausibles. */
+    const val MP_MIN_PRESENCE_CONFIDENCE: Float = 0.3f
+
+    /** MediaPipe-Tracking-Schwelle (VIDEO-Modus): ab welcher Tracking-Confidence der
+     *  interne Tracker die Person als verloren betrachtet und neu detektiert. 7.5c:
+     *  0.3 (unter Default 0.5), damit der Tracker bei kurzen Unsicherheiten dranbleibt
+     *  statt ganz abzureißen (Ganzkörper-Blinken). */
+    const val MP_MIN_TRACKING_CONFIDENCE: Float = 0.3f
+
     // --- Zeitliche Stabilisierung (Stufe 1, 7.5b) ------------------------------
 
     /** One-Euro: Grund-Cutoff in Hz — je niedriger, desto ruhiger steht das Skelett
-     *  bei statischem Griff. */
-    const val ONE_EURO_MIN_CUTOFF_HZ: Double = 1.0
+     *  bei statischem Griff (aber träger). 7.5c-Experiment: 1.5 — höherer Cutoff als
+     *  der ursprüngliche 1.0, damit das Skelett reaktiver bleibt; der zuvor getestete
+     *  0.5 machte die Bewegung unnatürlich träge. Mit den übrigen Fixes ausprobieren. */
+    const val ONE_EURO_MIN_CUTOFF_HZ: Double = 1.5
 
     /** One-Euro: Geschwindigkeitsanteil des Cutoffs — je höher, desto weniger Lag
-     *  bei schnellen Zügen (dafür weniger Glättung in Bewegung). */
-    const val ONE_EURO_BETA: Double = 0.02
+     *  bei schnellen Zügen (dafür weniger Glättung in Bewegung). 7.5c-Experiment:
+     *  0.015 — leicht unter dem ursprünglichen 0.02, die Reaktivität trägt schon der
+     *  höhere Grund-Cutoff. */
+    const val ONE_EURO_BETA: Double = 0.015
 
     /** One-Euro: Cutoff der Ableitungs-Glättung in Hz (Standardwert des Papers). */
     const val ONE_EURO_DERIV_CUTOFF_HZ: Double = 1.0
@@ -49,15 +69,28 @@ object GhostTuning {
      *  statt die Position vom veralteten Zustand "nachzuziehen". */
     const val FILTER_RESET_GAP_FRAMES: Int = 3
 
+    /** Zeichen-/Einblendschwelle (7.5c): ab dieser visibility wird ein Landmark
+     *  GEZEICHNET — bewusst unter [MIN_LANDMARK_CONFIDENCE] (0.5), weil BlazePose für
+     *  sichtbare Kletter-Gliedmaßen oft nur ~0.3–0.45 meldet und diese sonst fehlen.
+     *  Getrennt von der GEOMETRISCHEN Vertrauensschwelle (0.5, für Skala/Homographie/
+     *  Plausibilität), die höher bleibt. */
+    const val VISIBILITY_SHOW_THRESHOLD: Float = 0.3f
+
     /** Hysterese-Ausblendschwelle: ein SICHTBARES Landmark bleibt sichtbar, solange
-     *  visibility ≥ diesem Wert — erst darunter beginnt der Ausblend-Zähler.
-     *  (Einblenden verlangt weiterhin ≥ [MIN_LANDMARK_CONFIDENCE].) */
-    const val VISIBILITY_HIDE_THRESHOLD: Float = 0.3f
+     *  visibility ≥ diesem Wert — erst darunter beginnt der Ausblend-Zähler. 7.5c:
+     *  0.3 → 0.2, damit schwach erkannte Glieder nicht vorzeitig verschwinden. */
+    const val VISIBILITY_HIDE_THRESHOLD: Float = 0.2f
 
     /** So viele Sample-Frames in Folge muss visibility unter der Ausblendschwelle
      *  liegen, bevor das Landmark verschwindet (~250 ms bei 12 fps) — verhindert
      *  das Ein-/Ausflackern am Schwellwert (Root Cause B). */
     const val VISIBILITY_HIDE_FRAMES: Int = 3
+
+    /** Maximale Länge (in Sample-Frames) einer zeitlichen Landmark-Lücke, die offline
+     *  per Interpolation zwischen den umgebenden sicheren Vorkommen gefüllt wird
+     *  (~0,67 s bei 12 fps). Längere Ausfälle bleiben leer (echte Verdeckung), statt
+     *  eine Pose zu erfinden. Behebt fehlende Glieder und ganz fehlende Skelette. */
+    const val MAX_GAP_FILL_FRAMES: Int = 8
 
     // --- Detektionsqualität (Stufe 2, 7.5b) ------------------------------------
 
@@ -86,6 +119,15 @@ object GhostTuning {
     /** ROI-Crop: Glättung der Box über die Zeit (0 = einfrieren, 1 = sofort springen) —
      *  ruhige Box hilft dem internen MediaPipe-Tracking auf dem Crop-Strom. */
     const val ROI_BOX_SMOOTHING: Float = 0.5f
+
+    /** Pose-Skalen-Gate (7.5c): untere Grenze der Rumpfgröße als Anteil der Median-
+     *  Rumpfgröße des Videos. Frames darunter sind ein Ganzkörper-Kollaps ("Schrumpfen")
+     *  und werden per Interpolation ersetzt. 0.6 = 60 % — deutlich unter der normalen
+     *  perspektivischen Schwankung bei fixer Kamera. */
+    const val POSE_SCALE_MIN_RATIO: Double = 0.6
+
+    /** Pose-Skalen-Gate: obere Grenze der Rumpfgröße (aufgeblähte Fehl-Pose). */
+    const val POSE_SCALE_MAX_RATIO: Double = 1.7
 
     /** Mindestanzahl abgetasteter Frames — kürzere Videos sind nicht analysierbar (P8). */
     const val MIN_POSE_FRAMES: Int = 10

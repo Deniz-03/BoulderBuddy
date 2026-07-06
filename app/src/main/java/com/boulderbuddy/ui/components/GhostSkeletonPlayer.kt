@@ -61,6 +61,9 @@ fun GhostSkeletonPlayer(
     ghostTrack: GhostPoseTrack? = null,
     ghostColor: Color = RouteBlue,
     ghostTimeForPosition: (Long) -> Long = { it },
+    /** Ein-/Ausblenden der einzelnen Skelette im Overlay (7.5c). */
+    showSkeleton: Boolean = true,
+    showGhost: Boolean = true,
     /** Abbruchzeitpunkte (P4c): das jeweilige Skelett faded dort aus. Referenz auf
      *  der Video-Zeitachse, Geist auf der Zeitachse des Vergleichs-Videos. */
     abortTimeMs: Long? = null,
@@ -118,7 +121,7 @@ fun GhostSkeletonPlayer(
         // darunter bleiben bedienbar.
         Canvas(modifier = Modifier.matchParentSize()) {
             // Geist zuerst, Referenz obendrauf — die eigene Bewegung bleibt führend.
-            if (ghostTrack != null) {
+            if (ghostTrack != null && showGhost) {
                 drawSkeletonOverlay(
                     track = ghostTrack,
                     timeMs = ghostTimeForPosition(positionMs),
@@ -126,12 +129,14 @@ fun GhostSkeletonPlayer(
                     abortTimeMs = ghostAbortTimeMs,
                 )
             }
-            drawSkeletonOverlay(
-                track = poseTrack,
-                timeMs = positionMs,
-                color = skeletonColor,
-                abortTimeMs = abortTimeMs,
-            )
+            if (showSkeleton) {
+                drawSkeletonOverlay(
+                    track = poseTrack,
+                    timeMs = positionMs,
+                    color = skeletonColor,
+                    abortTimeMs = abortTimeMs,
+                )
+            }
             if (debug) {
                 // Roh vs. gefiltert: die ungefilterten Keypoints in Signalfarbe darüber —
                 // der sichtbare Abstand zum gefilterten Skelett IST der Filter-Effekt.

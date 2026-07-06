@@ -1,6 +1,7 @@
 package com.boulderbuddy.ghost.pose
 
 import com.boulderbuddy.ghost.GhostTuning
+import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostPoseFrame
 import kotlin.math.PI
 import kotlin.math.abs
@@ -87,6 +88,73 @@ fun smoothPoseFrames(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
 }
 
 /**
+ * Füllt kurze zeitliche Lücken EINZELNER Landmarks durch lineare Interpolation
+ * zwischen den umgebenden sicheren Vorkommen (offline, ganze Spur bekannt). Behebt
+ * (a) in Einzelframes fehlende Gliedmaßen und (b) ganz fehlende Skelette über kurze
+ * Strecken — solange die Lücke ≤ [GhostTuning.MAX_GAP_FILL_FRAMES] Sample-Frames ist
+ * und von sicheren Vorkommen (≥ [GhostTuning.VISIBILITY_SHOW_THRESHOLD]) eingerahmt
+ * wird. Gefüllte Landmarks bekommen Confidence [GhostTuning.MIN_LANDMARK_CONFIDENCE],
+ * damit sie gezeichnet werden; sie ersetzen ein evtl. vorhandenes unsicheres Vorkommen.
+ *
+ * Läuft VOR [smoothPoseFrames]: die gefüllten Frames schließen die Lücke, sodass der
+ * One-Euro-Filter durchgehend glättet statt nach der Lücke neu zu starten.
+ */
+fun fillLandmarkGaps(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
+    if (frames.size < 3) return frames
+
+    // Pro Typ: Frame-Indizes mit sicherem Vorkommen (Anker).
+    val anchorsByType = HashMap<Int, MutableList<Int>>()
+    frames.forEachIndexed { i, frame ->
+        frame.landmarks.forEach { lm ->
+            if (lm.confidence >= GhostTuning.VISIBILITY_SHOW_THRESHOLD) {
+                anchorsByType.getOrPut(lm.type) { ArrayList() }.add(i)
+            }
+        }
+    }
+
+    // Zu füllende Landmarks je Frame-Index sammeln.
+    val fills = HashMap<Int, MutableList<GhostLandmark>>()
+    anchorsByType.forEach { (type, indices) ->
+        for (k in 0 until indices.size - 1) {
+            val prevIdx = indices[k]
+            val nextIdx = indices[k + 1]
+            val gap = nextIdx - prevIdx - 1
+            if (gap <= 0 || gap > GhostTuning.MAX_GAP_FILL_FRAMES) continue
+            val prevLm = frames[prevIdx].landmarks.first { it.type == type }
+            val nextLm = frames[nextIdx].landmarks.first { it.type == type }
+            val prevTime = frames[prevIdx].timeMs
+            val span = (frames[nextIdx].timeMs - prevTime).toFloat()
+            for (i in (prevIdx + 1) until nextIdx) {
+                // Nicht füllen, wenn der Typ hier ohnehin schon sicher ist.
+                if (frames[i].landmarks.any {
+                        it.type == type && it.confidence >= GhostTuning.VISIBILITY_SHOW_THRESHOLD
+                    }
+                ) {
+                    continue
+                }
+                val t = if (span <= 0f) 0f else ((frames[i].timeMs - prevTime) / span).coerceIn(0f, 1f)
+                fills.getOrPut(i) { ArrayList() }.add(
+                    GhostLandmark(
+                        type = type,
+                        x = prevLm.x + (nextLm.x - prevLm.x) * t,
+                        y = prevLm.y + (nextLm.y - prevLm.y) * t,
+                        confidence = GhostTuning.MIN_LANDMARK_CONFIDENCE,
+                    ),
+                )
+            }
+        }
+    }
+    if (fills.isEmpty()) return frames
+
+    return frames.mapIndexed { i, frame ->
+        val add = fills[i] ?: return@mapIndexed frame
+        val addedTypes = add.mapTo(HashSet()) { it.type }
+        // Vorhandenes (unsicheres) Vorkommen desselben Typs durch die Füllung ersetzen.
+        frame.copy(landmarks = frame.landmarks.filter { it.type !in addedTypes } + add)
+    }
+}
+
+/**
  * Hysterese über visibility (Stufe 1, Root Cause B): die harte 0.5-Schwelle beim
  * Zeichnen ließ Landmarks am Schwellwert ein-/ausflackern. Stattdessen:
  *
@@ -104,39 +172,56 @@ fun applyVisibilityHysteresis(frames: List<GhostPoseFrame>): List<GhostPoseFrame
     class LandmarkState {
         var visible = false
         var framesBelowHide = 0
+        /** Letzte gezeichnete Position — zum Überbrücken ganz fehlender Frames. */
+        var last: GhostLandmark? = null
     }
 
     val states = HashMap<Int, LandmarkState>()
     return frames.map { frame ->
         val seen = HashSet<Int>()
-        val kept = frame.landmarks.mapNotNull { lm ->
+        val kept = ArrayList<GhostLandmark>(frame.landmarks.size)
+        frame.landmarks.forEach { lm ->
             seen += lm.type
             val state = states.getOrPut(lm.type) { LandmarkState() }
-            if (!state.visible) {
-                if (lm.confidence >= GhostTuning.MIN_LANDMARK_CONFIDENCE) {
-                    state.visible = true
+            val emitted: GhostLandmark? = when {
+                !state.visible ->
+                    if (lm.confidence >= GhostTuning.VISIBILITY_SHOW_THRESHOLD) {
+                        state.visible = true
+                        state.framesBelowHide = 0
+                        // Auf die Zeichen-Confidence anheben, damit SkeletonDraw das
+                        // (evtl. schwach erkannte) Landmark auch zeichnet.
+                        lm.copy(confidence = maxOf(lm.confidence, GhostTuning.MIN_LANDMARK_CONFIDENCE))
+                    } else {
+                        null
+                    }
+                lm.confidence >= GhostTuning.VISIBILITY_HIDE_THRESHOLD -> {
                     state.framesBelowHide = 0
-                    lm
-                } else {
+                    lm.copy(confidence = maxOf(lm.confidence, GhostTuning.MIN_LANDMARK_CONFIDENCE))
+                }
+                ++state.framesBelowHide >= GhostTuning.VISIBILITY_HIDE_FRAMES -> {
+                    state.visible = false
                     null
                 }
-            } else if (lm.confidence >= GhostTuning.VISIBILITY_HIDE_THRESHOLD) {
-                state.framesBelowHide = 0
-                lm.copy(confidence = maxOf(lm.confidence, GhostTuning.MIN_LANDMARK_CONFIDENCE))
-            } else if (++state.framesBelowHide >= GhostTuning.VISIBILITY_HIDE_FRAMES) {
-                state.visible = false
-                null
-            } else {
                 // Noch im Entprell-Fenster: halten, Position kommt vom Filter.
-                lm.copy(confidence = GhostTuning.MIN_LANDMARK_CONFIDENCE)
+                else -> lm.copy(confidence = GhostTuning.MIN_LANDMARK_CONFIDENCE)
+            }
+            if (emitted != null) {
+                state.last = emitted
+                kept += emitted
             }
         }
-        // Ganz fehlende Landmarks (leerer Frame/Decode-Lücke) zählen als "unter Schwelle".
+        // Ganz fehlende Landmarks (leerer Frame/Decode-Lücke): solange noch im Halte-
+        // fenster, die letzte bekannte Position weiterzeichnen statt eine Lücke zu
+        // lassen — überbrückt kurze Aussetzer und reduziert so das Flackern (7.5c).
         states.forEach { (type, state) ->
-            if (state.visible && type !in seen &&
-                ++state.framesBelowHide >= GhostTuning.VISIBILITY_HIDE_FRAMES
-            ) {
-                state.visible = false
+            if (state.visible && type !in seen) {
+                if (++state.framesBelowHide >= GhostTuning.VISIBILITY_HIDE_FRAMES) {
+                    state.visible = false
+                } else {
+                    state.last?.let {
+                        kept += it.copy(confidence = GhostTuning.MIN_LANDMARK_CONFIDENCE)
+                    }
+                }
             }
         }
         frame.copy(landmarks = kept)

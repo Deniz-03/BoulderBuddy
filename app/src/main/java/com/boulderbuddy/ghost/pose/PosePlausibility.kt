@@ -16,9 +16,91 @@ import kotlin.math.hypot
 // Spur, VOR One-Euro-Glättung und Hysterese — die Filter sollen konsistente,
 // physikalisch mögliche Eingaben bekommen.
 
-/** Reihenfolge der Verarbeitungsschritte: L/R-Konsistenz → Plausibilität. */
+/** Reihenfolge der Verarbeitungsschritte: Skalen-Konsistenz → L/R-Konsistenz →
+ *  Plausibilität. Der Skalen-Gate zuerst, damit L/R und Plausibilität nicht auf einer
+ *  kollabierten Pose aufsetzen. */
 fun cleanPoseFrames(frames: List<GhostPoseFrame>, frameHeight: Int): List<GhostPoseFrame> =
-    applyAnatomicalPlausibility(enforceLeftRightConsistency(frames), frameHeight)
+    applyAnatomicalPlausibility(
+        enforceLeftRightConsistency(enforcePoseScaleConsistency(frames)),
+        frameHeight,
+    )
+
+// --- Pose-Skalen-Konsistenz (7.5c): Ganzkörper-Kollaps ("Schrumpfen") abfangen -------
+//
+// Die Per-Landmark-/Per-Knochen-Filter fangen einen gleichmäßigen Skalenkollaps der
+// GANZEN Pose nicht: der Rumpf steckt in keinem RIGID_BONE, und eine proportional kleine
+// Pose ist in sich konsistent. Deshalb ein Check auf POSE-EBENE: die Rumpfgröße (Schulter-
+// Mitte ↔ Hüft-Mitte) ist bei fixer Kamera weitgehend konstant. Frames, deren Rumpf
+// unplausibel von der Median-Rumpfgröße des Videos abweicht, werden durch zeitliche
+// Interpolation zwischen den nächsten gültigen Frames ersetzt (Offline-Vorteil: die
+// ganze Spur ist bekannt, daher echte Interpolation statt bloßem Einfrieren).
+
+/**
+ * Ersetzt Frames mit kollabierter/aufgeblähter Rumpfgröße durch die zeitliche
+ * Interpolation der nächsten gültigen Nachbar-Frames. Braucht ≥3 messbare Rumpfgrößen
+ * für einen robusten Median, sonst unverändert.
+ */
+fun enforcePoseScaleConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
+    val scales = frames.map { torsoScale(it) }
+    val known = scales.filterNotNull().sorted()
+    if (known.size < 3) return frames
+    val median = known[known.size / 2]
+    val minScale = median * GhostTuning.POSE_SCALE_MIN_RATIO
+    val maxScale = median * GhostTuning.POSE_SCALE_MAX_RATIO
+
+    val collapsed = BooleanArray(frames.size) { i ->
+        val s = scales[i]
+        s != null && (s < minScale || s > maxScale)
+    }
+    if (collapsed.none { it }) return frames
+
+    return frames.mapIndexed { i, frame ->
+        if (!collapsed[i]) return@mapIndexed frame
+        var lo = i - 1
+        while (lo >= 0 && collapsed[lo]) lo--
+        var hi = i + 1
+        while (hi < frames.size && collapsed[hi]) hi++
+        val prev = if (lo >= 0) frames[lo] else null
+        val next = if (hi < frames.size) frames[hi] else null
+        frame.copy(landmarks = interpolatePose(prev, next, frame.timeMs))
+    }
+}
+
+/** Rumpfgröße (Schulter-Mitte ↔ Hüft-Mitte) in Pixeln, oder null wenn nicht alle vier
+ *  Rumpfpunkte sicher sind. */
+private fun torsoScale(frame: GhostPoseFrame): Double? {
+    val ls = frame.confident(GhostLandmarkTypes.LEFT_SHOULDER) ?: return null
+    val rs = frame.confident(GhostLandmarkTypes.RIGHT_SHOULDER) ?: return null
+    val lh = frame.confident(GhostLandmarkTypes.LEFT_HIP) ?: return null
+    val rh = frame.confident(GhostLandmarkTypes.RIGHT_HIP) ?: return null
+    return hypot(
+        ((ls.x + rs.x) - (lh.x + rh.x)).toDouble() / 2.0,
+        ((ls.y + rs.y) - (lh.y + rh.y)).toDouble() / 2.0,
+    )
+}
+
+/** Zeitlich interpolierte Pose zwischen [prev] und [next] (nur gemeinsame Landmark-
+ *  Typen); fehlt ein Nachbar, wird der vorhandene gehalten. */
+private fun interpolatePose(
+    prev: GhostPoseFrame?,
+    next: GhostPoseFrame?,
+    timeMs: Long,
+): List<GhostLandmark> {
+    if (prev == null && next == null) return emptyList()
+    if (prev == null) return next!!.landmarks
+    if (next == null) return prev.landmarks
+    val span = (next.timeMs - prev.timeMs).toFloat()
+    val t = if (span <= 0f) 0f else ((timeMs - prev.timeMs) / span).coerceIn(0f, 1f)
+    val nextByType = next.landmarks.associateBy { it.type }
+    return prev.landmarks.mapNotNull { a ->
+        val b = nextByType[a.type] ?: return@mapNotNull null
+        a.copy(
+            x = a.x + (b.x - a.x) * t,
+            y = a.y + (b.y - a.y) * t,
+            confidence = minOf(a.confidence, b.confidence),
+        )
+    }
+}
 
 // --- Links/Rechts-Konsistenz (Punkt 8) ---------------------------------------
 
@@ -98,17 +180,21 @@ private val RIGID_BONES: List<Pair<Int, Int>> = listOf(
 )
 
 /**
- * Verwirft physisch unmögliche Landmarks (zwei Pässe über die Offline-Spur):
+ * Zieht physisch unmögliche Landmarks auf die plausible Grenze zurück, statt sie zu
+ * verwerfen (zwei Pässe über die Offline-Spur):
  *
- * 1. **Knochenlängen-Konstanz:** Median jeder Knochenlänge über den ganzen Track
- *    (robust gegen die Ausreißer selbst); Frames, deren Länge um mehr als
- *    [GhostTuning.BONE_LENGTH_TOLERANCE_FACTOR] abweicht, verlieren das distale Gelenk.
- * 2. **Geschwindigkeitslimit:** springt ein Gelenk schneller als
- *    [GhostTuning.MAX_LANDMARK_SPEED_FRAME_HEIGHTS_PER_S], ist es ein Fehlgriff des
- *    Modells (Teleport), nicht Bewegung — verworfen.
+ * 1. **Geschwindigkeitslimit:** springt ein Gelenk schneller als
+ *    [GhostTuning.MAX_LANDMARK_SPEED_FRAME_HEIGHTS_PER_S], wird es entlang der
+ *    Bewegungsrichtung auf die maximal mögliche Distanz zur letzten akzeptierten
+ *    Position geklemmt (kein Teleport, aber das Gelenk bleibt am Körper).
+ * 2. **Knochenlängen-Konstanz:** Median jeder Knochenlänge über den ganzen Track
+ *    (robust gegen die Ausreißer selbst); weicht die Länge um mehr als
+ *    [GhostTuning.BONE_LENGTH_TOLERANCE_FACTOR] ab, wird das DISTALE Gelenk entlang
+ *    der Knochenrichtung auf die Toleranzgrenze der Median-Länge gezogen.
  *
- * Verworfene Landmarks fängt downstream der Blink-Fix/die Hysterese ab (kurz
- * halten, bei anhaltender Lücke ausblenden).
+ * 7.5c: früher wurden Verstöße VERWORFEN — das ließ Glieder verschwinden und wieder
+ * auftauchen (sichtbares "Morphen"). Klemmen hält die Kette geschlossen und dämpft
+ * nur den unplausiblen Anteil; die nachgelagerte One-Euro-Glättung glättet den Rest.
  */
 fun applyAnatomicalPlausibility(
     frames: List<GhostPoseFrame>,
@@ -126,7 +212,7 @@ fun applyAnatomicalPlausibility(
         if (lengths.isEmpty()) null else lengths[lengths.size / 2]
     }
 
-    // Pass 2: Verstöße verwerfen. Geschwindigkeit gegen die letzte AKZEPTIERTE
+    // Pass 2: Verstöße klemmen. Geschwindigkeit gegen die letzte AKZEPTIERTE
     // Position des Gelenks (mit ihrem Zeitstempel) prüfen.
     val lastAccepted = HashMap<Int, Pair<GhostLandmark, Long>>()
     val tolerance = GhostTuning.BONE_LENGTH_TOLERANCE_FACTOR
@@ -134,24 +220,41 @@ fun applyAnatomicalPlausibility(
         val kept = HashMap<Int, GhostLandmark>(frame.landmarks.size)
         frame.landmarks.forEach { lm -> kept[lm.type] = lm }
 
-        // Geschwindigkeitslimit.
+        // Geschwindigkeitslimit: auf die maximal mögliche Distanz zum Vorframe klemmen.
         frame.landmarks.forEach { lm ->
             val (prev, prevTimeMs) = lastAccepted[lm.type] ?: return@forEach
             val dtS = (frame.timeMs - prevTimeMs) / 1000.0
             if (dtS <= 0) return@forEach
             val speedLimit = GhostTuning.MAX_LANDMARK_SPEED_FRAME_HEIGHTS_PER_S *
                 frameHeight * dtS
-            if (dist(prev, lm) > speedLimit) kept.remove(lm.type)
+            val moved = dist(prev, lm)
+            if (moved > speedLimit && moved > 0.0) {
+                val f = (speedLimit / moved).toFloat()
+                kept[lm.type] = lm.copy(
+                    x = prev.x + (lm.x - prev.x) * f,
+                    y = prev.y + (lm.y - prev.y) * f,
+                )
+            }
         }
 
-        // Knochenlängen-Konstanz (proximal → distal).
+        // Knochenlängen-Konstanz (proximal → distal): distales Gelenk auf die
+        // Toleranzgrenze der Median-Länge ziehen, Richtung beibehalten.
         RIGID_BONES.forEach { bone ->
             val median = medianLength[bone] ?: return@forEach
             val from = kept[bone.first] ?: return@forEach
             val to = kept[bone.second] ?: return@forEach
             val length = dist(from, to)
-            if (length > median * tolerance || length < median / tolerance) {
-                kept.remove(bone.second)
+            val limit = when {
+                length > median * tolerance -> median * tolerance
+                length < median / tolerance -> median / tolerance
+                else -> return@forEach
+            }
+            if (length > 0.0) {
+                val f = (limit / length).toFloat()
+                kept[bone.second] = to.copy(
+                    x = from.x + (to.x - from.x) * f,
+                    y = from.y + (to.y - from.y) * f,
+                )
             }
         }
 
@@ -160,7 +263,8 @@ fun applyAnatomicalPlausibility(
                 lastAccepted[lm.type] = lm to frame.timeMs
             }
         }
-        frame.copy(landmarks = frame.landmarks.filter { kept.containsKey(it.type) })
+        // Geklemmte Koordinaten aus kept übernehmen; Reihenfolge der Original-Spur halten.
+        frame.copy(landmarks = frame.landmarks.mapNotNull { kept[it.type] })
     }
 }
 

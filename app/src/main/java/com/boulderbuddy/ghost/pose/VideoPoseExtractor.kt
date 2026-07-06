@@ -68,6 +68,12 @@ class VideoPoseExtractor @Inject constructor(
                 )
                 .setRunningMode(RunningMode.VIDEO)
                 .setNumPoses(1)
+                // 7.5c: Präsenz-/Tracking-Schwelle unter Default (0.5), damit der VIDEO-
+                // Tracker bei unsicheren Kletterposen dranbleibt statt abzureißen
+                // (weniger Ganzkörper-Aussetzer); Detektion bleibt bei 0.5.
+                .setMinPoseDetectionConfidence(GhostTuning.MP_MIN_DETECTION_CONFIDENCE)
+                .setMinPosePresenceConfidence(GhostTuning.MP_MIN_PRESENCE_CONFIDENCE)
+                .setMinTrackingConfidence(GhostTuning.MP_MIN_TRACKING_CONFIDENCE)
                 .build(),
         )
         try {
@@ -124,11 +130,11 @@ class VideoPoseExtractor @Inject constructor(
                 frameHeight = frameHeight,
                 durationMs = durationMs,
                 sampleFps = GhostTuning.POSE_SAMPLE_FPS,
-                // Stufe 2+1: L/R-Konsistenz + Plausibilität (auf roh), dann One-Euro-
-                // Glättung + Sichtbarkeits-Hysterese bilden die Arbeits-Spur;
-                // die Roh-Spur bleibt fürs Debug-Overlay erhalten.
+                // Stufe 2+1: Skalen-Gate/L/R/Plausibilität (auf roh) → Lücken offline
+                // interpolieren → One-Euro-Glättung → Sichtbarkeits-Hysterese bilden die
+                // Arbeits-Spur; die Roh-Spur bleibt fürs Debug-Overlay erhalten.
                 frames = applyVisibilityHysteresis(
-                    smoothPoseFrames(cleanPoseFrames(frames, frameHeight)),
+                    smoothPoseFrames(fillLandmarkGaps(cleanPoseFrames(frames, frameHeight))),
                 ),
                 rawFrames = frames,
             )
@@ -245,11 +251,13 @@ class VideoPoseExtractor @Inject constructor(
     companion object {
         /**
          * Modell-Asset in app/src/main/assets/ (MediaPipe lädt nicht selbst nach).
-         * "full" statt "heavy": Kompromiss aus Genauigkeit und APK-Größe/Analysezeit
-         * (heavy wäre die Eskalationsstufe, falls die Kletter-OOD-Posen mit full
-         * nicht stabil genug werden) — Entscheidung s. Code-Entscheidungen.md.
+         * "heavy" (7.5c): Eskalationsstufe von "full", nachdem die Kletter-OOD-Posen
+         * (Rücken zur Kamera, Überkopf-Reaches) mit "full" zu unsicher erkannt wurden —
+         * sichtbar als Blinken/Morphen der Glieder. Heavy erkennt die Roh-Posen
+         * deutlich stabiler; Kosten: ~+21 MB APK und langsamere (offline, einmalige)
+         * Analyse. Entscheidung s. Code-Entscheidungen.md.
          */
-        const val MODEL_ASSET = "pose_landmarker_full.task"
+        const val MODEL_ASSET = "pose_landmarker_heavy.task"
 
         /** Kleinere Crops als das Modell-Eingabemaß bringen nichts mehr — Vollbild-Fallback. */
         private const val MIN_CROP_PX = 64

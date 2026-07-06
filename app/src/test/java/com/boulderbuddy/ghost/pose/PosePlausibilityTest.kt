@@ -5,6 +5,7 @@ import com.boulderbuddy.ghost.model.GhostLandmarkTypes as T
 import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import kotlin.math.hypot
 
 /** Stufe 2 (7.5b): Links/Rechts-Konsistenz + anatomische Plausibilität. */
 class PosePlausibilityTest {
@@ -56,9 +57,10 @@ class PosePlausibilityTest {
     // --- Anatomische Plausibilität --------------------------------------------
 
     @Test
-    fun `knochenlaengen-ausreisser verliert das distale gelenk`() {
+    fun `knochenlaengen-ausreisser wird auf plausible laenge geklemmt`() {
         // Oberarm (Schulter→Ellbogen) ist in 9 Frames ~100 px lang, in einem 300 px —
-        // der halluzinierte Ellbogen fliegt raus, die Schulter bleibt.
+        // der Ellbogen bleibt erhalten, wird aber auf die Toleranzgrenze (Median 100 ·
+        // Faktor 1,5 = 150 px) unter der Schulter gezogen → y = 100 + 150 = 250.
         val frames = (0 until 10).map { i ->
             val elbowY = if (i == 5) 400f else 200f
             GhostPoseFrame(
@@ -70,22 +72,78 @@ class PosePlausibilityTest {
             )
         }
         val result = applyAnatomicalPlausibility(frames, frameHeight = 720)
-        assertThat(result[5].landmarks.map { it.type }).containsExactly(T.LEFT_SHOULDER)
+        assertThat(result[5].landmarks).hasSize(2)
+        val elbow = result[5].landmarks.single { it.type == T.LEFT_ELBOW }
+        assertThat(elbow.y).isWithin(0.5f).of(250f)
         assertThat(result[4].landmarks).hasSize(2)
         assertThat(result[6].landmarks).hasSize(2)
     }
 
     @Test
-    fun `teleport-sprung wird verworfen`() {
-        // Handgelenk springt in 83 ms um 700 px (~8400 px/s bei 720er-Frame ≈ 11,7
-        // Frame-Höhen/s > Limit 2,5) — physisch unmöglich.
+    fun `teleport-sprung wird auf das geschwindigkeitslimit geklemmt`() {
+        // Handgelenk springt in 83 ms um ~721 px (weit über Limit 2,5 Frame-Höhen/s ·
+        // 720 px · 0,083 s = 149,4 px) — nicht verworfen, sondern auf die maximal
+        // mögliche Distanz zum Vorframe geklemmt (Richtung beibehalten).
         val frames = listOf(
             GhostPoseFrame(0L, listOf(landmark(T.LEFT_WRIST, 100f, 600f))),
             GhostPoseFrame(83L, listOf(landmark(T.LEFT_WRIST, 100f, 600f))),
             GhostPoseFrame(166L, listOf(landmark(T.LEFT_WRIST, 700f, 200f))),
         )
         val result = applyAnatomicalPlausibility(frames, frameHeight = 720)
-        assertThat(result[2].landmarks).isEmpty()
+        val wrist = result[2].landmarks.single()
+        val step = hypot((wrist.x - 100f).toDouble(), (wrist.y - 600f).toDouble())
+        assertThat(step).isWithin(0.5).of(2.5 * 720 * 0.083)
+        assertThat(wrist.x).isLessThan(700f)
+    }
+
+    // --- Pose-Skalen-Konsistenz -----------------------------------------------
+
+    @Test
+    fun `kollabierte pose wird per interpolation auf plausible groesse ersetzt`() {
+        // Rumpf-Landmarks: Schultern bei y, Hüften bei y+torso (Rumpfgröße = torso).
+        fun frame(timeMs: Long, y: Float, torso: Float) = GhostPoseFrame(
+            timeMs = timeMs,
+            landmarks = listOf(
+                landmark(T.LEFT_SHOULDER, 80f, y),
+                landmark(T.RIGHT_SHOULDER, 120f, y),
+                landmark(T.LEFT_HIP, 80f, y + torso),
+                landmark(T.RIGHT_HIP, 120f, y + torso),
+            ),
+        )
+        // 4 normale Frames (Rumpf 100), Frame 2 kollabiert (Rumpf 10, irgendwo weit weg).
+        val frames = listOf(
+            frame(0L, 0f, 100f),
+            frame(83L, 100f, 100f),
+            frame(166L, 999f, 10f),
+            frame(249L, 300f, 100f),
+            frame(332L, 400f, 100f),
+        )
+        val result = enforcePoseScaleConsistency(frames)
+        val shoulder = result[2].landmarks.single { it.type == T.LEFT_SHOULDER }
+        val hip = result[2].landmarks.single { it.type == T.LEFT_HIP }
+        // Rumpf wieder ~100 statt 10 (interpoliert zwischen Frame 1 und 3).
+        assertThat(hip.y - shoulder.y).isWithin(0.5f).of(100f)
+        // Position bei t=0.5 zwischen y=100 (Frame 1) und y=300 (Frame 3) → y≈200.
+        assertThat(shoulder.y).isWithin(0.5f).of(200f)
+    }
+
+    @Test
+    fun `normale groessenschwankung bleibt unveraendert`() {
+        fun frame(timeMs: Long, torso: Float) = GhostPoseFrame(
+            timeMs = timeMs,
+            landmarks = listOf(
+                landmark(T.LEFT_SHOULDER, 80f, 0f),
+                landmark(T.RIGHT_SHOULDER, 120f, 0f),
+                landmark(T.LEFT_HIP, 80f, torso),
+                landmark(T.RIGHT_HIP, 120f, torso),
+            ),
+        )
+        // ±15 % Schwankung — innerhalb der Toleranz, nichts wird ersetzt.
+        val frames = listOf(
+            frame(0L, 100f), frame(83L, 110f), frame(166L, 90f),
+            frame(249L, 105f), frame(332L, 95f),
+        )
+        assertThat(enforcePoseScaleConsistency(frames)).isEqualTo(frames)
     }
 
     @Test

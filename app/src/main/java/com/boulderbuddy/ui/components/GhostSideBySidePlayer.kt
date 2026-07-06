@@ -33,14 +33,14 @@ import kotlin.math.abs
 
 /**
  * Side-by-Side-Vergleich (M4, P7): links das Referenz-Video (mit Controls, führend),
- * rechts das Vergleichs-Video — OHNE eigene Controls, es folgt der Referenz über das
- * DTW-Zeitmapping [cmpTimeForPosition]. Jede Seite zeichnet ihr Skelett im EIGENEN
- * Frame-Raum (der Vergleich unverzerrt, nicht homographie-transformiert — genau der
- * Punkt von Side-by-Side bei unterschiedlicher Beta, P6).
+ * rechts das Vergleichs-Video — OHNE eigene Controls, es läuft 1:1 mit der Referenz
+ * mit (echter Wiedergabe, gespiegeltes Play/Pause, Seek nur zur Drift-Korrektur).
  *
- * Der Folge-Player wird per Seek nachgeführt (~4x/s, nur bei nennenswerter Drift) —
- * für flüssiges 1:1-Playback müssten beide Streams frame-genau gekoppelt dekodieren,
- * das steht bewusst nicht im Abgabe-Umfang.
+ * BEWUSST OHNE DTW-Zeitwarp: das Vergleichs-Video in die Referenzzeit zu warpen ließ
+ * es ruckeln/springen (ständiges Seeken eines pausierten Players). Side-by-Side zeigt
+ * beide Versuche in ihrem eigenen, unverzerrten Tempo — der ehrliche Vergleich bei
+ * unterschiedlicher Beta (P6); die Zeit-Synchronisation bleibt dem Overlay vorbehalten.
+ * Jede Seite zeichnet ihr Skelett im EIGENEN Frame-Raum zur eigenen Videozeit.
  */
 @Composable
 fun GhostSideBySidePlayer(
@@ -48,7 +48,6 @@ fun GhostSideBySidePlayer(
     refTrack: GhostPoseTrack,
     cmpUri: String,
     cmpTrack: GhostPoseTrack,
-    cmpTimeForPosition: (Long) -> Long,
     modifier: Modifier = Modifier,
     refColor: Color = RouteOrange,
     cmpColor: Color = RouteBlue,
@@ -66,7 +65,7 @@ fun GhostSideBySidePlayer(
             playWhenReady = false
         }
     }
-    // Folge-Player: bewusst dauerhaft pausiert, Position kommt ausschließlich per Seek.
+    // Folge-Player: läuft echt mit (kein Seek-Stepping), Play/Pause spiegelt die Referenz.
     val cmpPlayer = remember(cmpUri) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(cmpUri.toUri()))
@@ -88,25 +87,27 @@ fun GhostSideBySidePlayer(
     }
 
     var refPositionMs by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(refPlayer) {
+    var cmpPositionMs by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(refPlayer, cmpPlayer) {
         while (true) {
             refPositionMs = refPlayer.currentPosition
+            cmpPositionMs = cmpPlayer.currentPosition
             delay(33)
         }
     }
-    // Nachführen des Folge-Players: seltener und nur bei Drift > 150 ms, sonst
-    // ruckelt das ständige Seeken mehr als es synchronisiert.
-    LaunchedEffect(cmpPlayer) {
+    // Vergleich läuft 1:1 mit der Referenz: Play/Pause spiegeln, Position nur bei
+    // spürbarer Drift (> 200 ms, z.B. nach einem Scrub) nachziehen — sonst normal
+    // dekodieren lassen, damit die Wiedergabe flüssig bleibt (kein Seek-Stepping).
+    LaunchedEffect(refPlayer, cmpPlayer) {
         while (true) {
-            val target = cmpTimeForPosition(refPlayer.currentPosition)
-            if (abs(cmpPlayer.currentPosition - target) > 150) {
-                cmpPlayer.seekTo(target)
+            if (refPlayer.isPlaying && !cmpPlayer.isPlaying) cmpPlayer.play()
+            if (!refPlayer.isPlaying && cmpPlayer.isPlaying) cmpPlayer.pause()
+            if (abs(cmpPlayer.currentPosition - refPlayer.currentPosition) > 200) {
+                cmpPlayer.seekTo(refPlayer.currentPosition)
             }
-            delay(250)
+            delay(200)
         }
     }
-
-    val cmpPositionMs = cmpTimeForPosition(refPositionMs)
 
     Row(
         modifier = modifier,

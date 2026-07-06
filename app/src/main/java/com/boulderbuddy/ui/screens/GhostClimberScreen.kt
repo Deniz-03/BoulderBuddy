@@ -428,6 +428,9 @@ private fun PreviewStep(
     val cmpTimeForPosition: (Long) -> Long = { pos -> mapping?.mapToComparison(pos) ?: pos }
     // Debug-Ansicht (Stufe 0): Roh-Keypoints + Kennzahlen-HUD im Overlay-Player.
     var debugHud by rememberSaveable { mutableStateOf(false) }
+    // Einzelne Skelette im Overlay ein-/ausblendbar (7.5c).
+    var showReference by rememberSaveable { mutableStateOf(true) }
+    var showGhost by rememberSaveable { mutableStateOf(true) }
 
     SectionHeader(text = "Synchronisierter Vergleich")
     // Umschalter, vorbelegt mit dem Vorschlag der Ähnlichkeitsmetrik (P7).
@@ -460,6 +463,19 @@ private fun PreviewStep(
 
     when (state.viewMode) {
         GhostViewMode.OVERLAY -> {
+            // Sichtbarkeits-Umschalter pro Skelett (7.5c).
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                SelectableChip(
+                    label = "Referenz",
+                    selected = showReference,
+                    onClick = { showReference = !showReference },
+                )
+                SelectableChip(
+                    label = "Geist",
+                    selected = showGhost,
+                    onClick = { showGhost = !showGhost },
+                )
+            }
             GhostSkeletonPlayer(
                 uri = refUri,
                 poseTrack = refTrack,
@@ -467,6 +483,8 @@ private fun PreviewStep(
                 ghostTimeForPosition = cmpTimeForPosition,
                 abortTimeMs = state.refAbortTimeMs,
                 ghostAbortTimeMs = state.cmpAbortTimeMs,
+                showSkeleton = showReference,
+                showGhost = showGhost,
                 debug = debugHud,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -489,15 +507,14 @@ private fun PreviewStep(
                 refTrack = refTrack,
                 cmpUri = cmpUri,
                 cmpTrack = cmpTrack,
-                cmpTimeForPosition = cmpTimeForPosition,
                 refAbortTimeMs = state.refAbortTimeMs,
                 cmpAbortTimeMs = state.cmpAbortTimeMs,
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
                 text = "Links Referenz (steuert die Wiedergabe), rechts der Vergleichs-" +
-                    "Versuch — automatisch an derselben Stelle der Route. Ehrlicher als " +
-                    "ein Overlay, wenn die Beta sich deutlich unterscheidet.",
+                    "Versuch — beide laufen unverzerrt in ihrem eigenen Tempo. Ehrlicher " +
+                    "als ein Overlay, wenn die Beta sich deutlich unterscheidet.",
                 style = MaterialTheme.typography.labelMedium,
                 color = BoulderBuddy.colors.textTertiary,
             )
