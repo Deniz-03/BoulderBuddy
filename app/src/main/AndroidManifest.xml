@@ -5,6 +5,10 @@
     <!-- Gym-Näherungs-Push: Standort-Button im Gym-Editor (Foreground) — M1. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Gym-Näherungs-Push: Geofencing bei geschlossener App + Re-Register nach Boot — M2.
+         ACCESS_BACKGROUND_LOCATION ist ab API 29 separat, ab API 30 nur via Settings-Flow. -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".BoulderBuddyApp"
@@ -38,6 +42,21 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/boulder_widget_info" />
+        </receiver>
+
+        <!-- Gym-Näherungs-Push (M2): Geofence-Transitions (DWELL) vom System. -->
+        <receiver
+            android:name="com.boulderbuddy.proximity.GeofenceBroadcastReceiver"
+            android:exported="false" />
+
+        <!-- Gym-Näherungs-Push (M2): Geofences überleben keinen Reboot → neu registrieren.
+             exported=false reicht — BOOT_COMPLETED ist ein geschützter System-Broadcast. -->
+        <receiver
+            android:name="com.boulderbuddy.proximity.GeofenceBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
         </receiver>
 
         <!-- Empfängt fertige Hangboard-Durchläufe von der Wear-App (Phase 7.2, Data Layer). -->

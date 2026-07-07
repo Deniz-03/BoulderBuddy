@@ -10,6 +10,7 @@ import com.boulderbuddy.data.export.SessionExporter
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.settings.SettingsRepository
+import com.boulderbuddy.proximity.GeofenceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +37,8 @@ data class EinstellungenUiState(
     val selectedGradeSystemId: Int? = null,
     /** Expliziter Dark-Mode-Override; `null` = dem System folgen (7.4a). */
     val darkModeOverride: Boolean? = null,
+    /** Master-Toggle des Gym-Näherungs-Push (M2); Opt-in, Default aus. */
+    val proximityAlertsEnabled: Boolean = false,
 )
 
 @HiltViewModel
@@ -44,6 +47,7 @@ class EinstellungenViewModel @Inject constructor(
     private val gradeRepository: GradeRepository,
     private val settingsRepository: SettingsRepository,
     private val sessionExporter: SessionExporter,
+    private val geofenceManager: GeofenceManager,
 ) : ViewModel() {
 
     // Einmalige Rückmeldung zum Export (Erfolg/Fehler); vom UI als Toast angezeigt und danach
@@ -56,7 +60,8 @@ class EinstellungenViewModel @Inject constructor(
         gradeRepository.observeAllGrades(),
         settingsRepository.selectedGradeSystemId,
         settingsRepository.darkMode,
-    ) { systems, grades, selectedId, darkMode ->
+        settingsRepository.proximityAlertsEnabled,
+    ) { systems, grades, selectedId, darkMode, proximityAlerts ->
         val countBySystem = grades.groupingBy { it.systemId }.eachCount()
         EinstellungenUiState(
             systems = systems.map {
@@ -70,6 +75,7 @@ class EinstellungenViewModel @Inject constructor(
             },
             selectedGradeSystemId = selectedId,
             darkModeOverride = darkMode,
+            proximityAlertsEnabled = proximityAlerts,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -85,6 +91,18 @@ class EinstellungenViewModel @Inject constructor(
     /** Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a). */
     fun setDarkMode(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setDarkMode(enabled) }
+    }
+
+    /**
+     * Master-Toggle des Gym-Näherungs-Push (M2). Registriert die Geofences direkt neu —
+     * "aus" entfernt damit alle Geofences (Plan §12), "an" registriert alle Gyms mit
+     * Koordinaten (sofern Hintergrund-Standort erteilt; den Flow macht der Screen davor).
+     */
+    fun setProximityAlerts(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setProximityAlertsEnabled(enabled)
+            geofenceManager.refreshGeofences()
+        }
     }
 
     /**

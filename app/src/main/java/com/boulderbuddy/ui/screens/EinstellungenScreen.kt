@@ -1,6 +1,8 @@
 package com.boulderbuddy.ui.screens
 
+import android.Manifest
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Vibration
@@ -47,6 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.proximity.hasBackgroundLocationPermission
+import com.boulderbuddy.proximity.hasFineLocationPermission
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SelectableChip
@@ -84,6 +89,8 @@ fun EinstellungenScreen(
     onOpenGhostClimber: () -> Unit = {},
     // Öffnet die Hallen-Verwaltung (Gym-Näherungs-Push M1: Koordinaten + Erinnerungen).
     onOpenGymVerwaltung: () -> Unit = {},
+    // Master-Toggle des Gym-Näherungs-Push (M2); registriert/entfernt die Geofences.
+    onSetProximityAlerts: (Boolean) -> Unit = {},
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
@@ -106,6 +113,61 @@ fun EinstellungenScreen(
         exportMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             onExportMessageShown()
+        }
+    }
+
+    // Hintergrund-Standort-Flow des Gym-Näherungs-Push (M2). Android erzwingt die
+    // Reihenfolge: erst Foreground (FINE) gewähren lassen, DANN Background anfragen —
+    // ab API 30 öffnet die Background-Anfrage den System-Settings-Flow ("Immer erlauben").
+    val backgroundPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        // Toggle auch ohne Background-Grant setzen: der Nutzer kann "Immer erlauben"
+        // später in den System-Einstellungen nachreichen; bis dahin degradiert das
+        // Feature still (GeofenceManager registriert nichts).
+        onSetProximityAlerts(true)
+        if (!granted) {
+            Toast.makeText(
+                context,
+                "Erinnerungen funktionieren nur mit Standort „Immer erlauben“ " +
+                    "(App-Einstellungen).",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+    val foregroundPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        val granted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (!granted) {
+            Toast.makeText(
+                context,
+                "Ohne Standort-Berechtigung sind Gym-Erinnerungen nicht möglich.",
+                Toast.LENGTH_LONG,
+            ).show()
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            !hasBackgroundLocationPermission(context)
+        ) {
+            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            onSetProximityAlerts(true)
+        }
+    }
+    val enableProximityAlerts = {
+        when {
+            !hasFineLocationPermission(context) -> foregroundPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                !hasBackgroundLocationPermission(context) ->
+                backgroundPermissionLauncher.launch(
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+                )
+            else -> onSetProximityAlerts(true)
         }
     }
 
@@ -231,6 +293,22 @@ fun EinstellungenScreen(
                             ToggleSwitch(
                                 checked = haptischesFeedback,
                                 onCheckedChange = { haptischesFeedback = it },
+                            )
+                        },
+                    )
+                    // Gym-Näherungs-Push (M2): "Session starten?"-Erinnerung, wenn man an
+                    // einer hinterlegten Halle ankommt. Einschalten stößt den (mehrstufigen)
+                    // Standort-Permission-Flow an.
+                    SettingsRow(
+                        icon = Icons.Outlined.NotificationsActive,
+                        label = "Gym-Erinnerungen",
+                        trailing = {
+                            ToggleSwitch(
+                                checked = state.proximityAlertsEnabled,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) enableProximityAlerts()
+                                    else onSetProximityAlerts(false)
+                                },
                             )
                         },
                     )

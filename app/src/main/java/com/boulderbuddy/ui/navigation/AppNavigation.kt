@@ -209,6 +209,7 @@ fun AppNavigation(
                     onExportMessageShown = viewModel::consumeExportMessage,
                     onOpenGhostClimber = { navController.navigate(GhostClimber) },
                     onOpenGymVerwaltung = { navController.navigate(GymVerwaltung) },
+                    onSetProximityAlerts = viewModel::setProximityAlerts,
                     onBack = { navController.popBackStack() },
                 )
             }

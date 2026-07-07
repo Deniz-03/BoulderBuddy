@@ -28,10 +28,12 @@ class FakeSettingsRepository(
     private val _selectedGradeSystemId = MutableStateFlow<Int?>(null)
     val timerConfigState = MutableStateFlow(initialTimerConfig)
     val darkModeState = MutableStateFlow<Boolean?>(null)
+    val proximityAlertsState = MutableStateFlow(false)
 
     override val selectedGradeSystemId: Flow<Int?> = _selectedGradeSystemId
     override val timerConfig: Flow<TimerConfig> = timerConfigState
     override val darkMode: Flow<Boolean?> = darkModeState
+    override val proximityAlertsEnabled: Flow<Boolean> = proximityAlertsState
 
     override suspend fun setSelectedGradeSystem(systemId: Int) {
         _selectedGradeSystemId.value = systemId
@@ -43,6 +45,10 @@ class FakeSettingsRepository(
 
     override suspend fun setDarkMode(enabled: Boolean) {
         darkModeState.value = enabled
+    }
+
+    override suspend fun setProximityAlertsEnabled(enabled: Boolean) {
+        proximityAlertsState.value = enabled
     }
 }
 

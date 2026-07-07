@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.repository.GymRepository
+import com.boulderbuddy.proximity.GeofenceManager
 import com.boulderbuddy.proximity.GymLocationClient
 import com.boulderbuddy.ui.navigation.GymBearbeiten
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +41,7 @@ class GymBearbeitenViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val gymRepository: GymRepository,
     private val locationClient: GymLocationClient,
+    private val geofenceManager: GeofenceManager,
 ) : ViewModel() {
 
     private val gymId = savedStateHandle.toRoute<GymBearbeiten>().gymId
@@ -135,6 +137,9 @@ class GymBearbeitenViewModel @Inject constructor(
                     proximityAlertsEnabled = state.alertsEnabled,
                 )
             )
+            // Koordinaten/Radius/Toggle können sich geändert haben → Geofences neu
+            // registrieren (M2). Idempotent, daher bedenkenlos bei jedem Save.
+            geofenceManager.refreshGeofences()
             onSaved()
         }
     }
