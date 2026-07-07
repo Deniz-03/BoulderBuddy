@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.repository.GymRepository
+import com.boulderbuddy.data.repository.GymVisitRepository
 import com.boulderbuddy.proximity.GeofenceManager
 import com.boulderbuddy.proximity.GymLocationClient
 import com.boulderbuddy.ui.navigation.GymBearbeiten
@@ -15,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.format.TextStyle
+import java.util.Locale
 import javax.inject.Inject
 
 /** Editierbarer Zustand des Gym-Editors (Gym-Näherungs-Push, M1). */
@@ -32,6 +35,8 @@ data class GymBearbeitenUiState(
     val capturingLocation: Boolean = false,
     /** Einmalige Fehlermeldung der Standort-Erfassung; vom UI als Toast gezeigt. */
     val locationError: String? = null,
+    /** Gelerntes Besuchsmuster, z.B. "8 Besuche · meist dienstags" (M3); `null` = keine Besuche. */
+    val visitSummary: String? = null,
 ) {
     val hasCoordinates: Boolean get() = latitude != null && longitude != null
 }
@@ -40,6 +45,7 @@ data class GymBearbeitenUiState(
 class GymBearbeitenViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val gymRepository: GymRepository,
+    private val gymVisitRepository: GymVisitRepository,
     private val locationClient: GymLocationClient,
     private val geofenceManager: GeofenceManager,
 ) : ViewModel() {
@@ -63,6 +69,26 @@ class GymBearbeitenViewModel @Inject constructor(
                         alertsEnabled = gym.proximityAlertsEnabled,
                     )
                 }
+            }
+        }
+        // Gelerntes Besuchsmuster live anzeigen (M3): "8 Besuche · meist dienstags".
+        viewModelScope.launch {
+            gymVisitRepository.observeStats(gymId).collect { stats ->
+                val summary = if (stats.totalVisits == 0) {
+                    null
+                } else {
+                    val topDay = stats.visitsByDayOfWeek.maxByOrNull { it.value }?.key
+                    val besuche = if (stats.totalVisits == 1) "1 Besuch" else "${stats.totalVisits} Besuche"
+                    if (topDay == null) {
+                        besuche
+                    } else {
+                        // "Dienstag" → "meist dienstags" (deutsche Wochentage + Suffix "s").
+                        val dayLabel = topDay.getDisplayName(TextStyle.FULL, Locale.GERMAN)
+                            .lowercase(Locale.GERMAN)
+                        "$besuche · meist ${dayLabel}s"
+                    }
+                }
+                _uiState.update { it.copy(visitSummary = summary) }
             }
         }
     }

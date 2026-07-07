@@ -3,9 +3,11 @@ package com.boulderbuddy.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.db.entity.GymVisitEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
+import com.boulderbuddy.data.repository.GymVisitRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,6 +27,7 @@ data class SessionErstellenUiState(
 class SessionErstellenViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val gymRepository: GymRepository,
+    private val gymVisitRepository: GymVisitRepository,
     gradeRepository: GradeRepository,
 ) : ViewModel() {
 
@@ -58,14 +61,22 @@ class SessionErstellenViewModel @Inject constructor(
                 .firstOrNull { it.name.equals(name, ignoreCase = true) }
             val gymId = existing?.id ?: gymRepository.create(GymEntity(name = name))
 
+            val startedAt = System.currentTimeMillis()
             val newId = sessionRepository.create(
                 SessionEntity(
                     gymId = gymId,
                     gradeSystemId = gradeSystemId,
-                    date = System.currentTimeMillis(),
+                    date = startedAt,
                     notes = notiz.trim().ifBlank { null },
                     endedAt = null,
                 )
+            )
+            // Gym-Näherungs-Push (M3): Session-Start zählt als Besuch fürs Besuchsmuster
+            // (Tages-Dedupe im Repository — war heute schon ein Geofence-Besuch da, passiert nichts).
+            gymVisitRepository.logVisit(
+                gymId = gymId,
+                timestamp = startedAt,
+                source = GymVisitEntity.SOURCE_SESSION,
             )
             onCreated(newId)
         }

@@ -155,6 +155,14 @@ fun GymBearbeitenScreen(
 
                 // --- Näherungs-Erinnerung -----------------------------------------
                 SectionHeader(text = "Näherungs-Erinnerung")
+                // Gelerntes Besuchsmuster (M3) — nur wenn schon Besuche geloggt sind.
+                if (state.visitSummary != null) {
+                    Text(
+                        text = state.visitSummary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = BoulderBuddy.colors.textTertiary,
+                    )
+                }
                 Text(
                     text = if (state.hasCoordinates) {
                         "Standort: %.5f, %.5f".format(
