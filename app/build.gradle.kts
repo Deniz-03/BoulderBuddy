@@ -105,6 +105,8 @@ dependencies {
 
     // Wear Data Layer (Phase 7.2): empfängt fertige Hangboard-Durchläufe von der Uhr.
     implementation(libs.play.services.wearable)
+    // Gym-Näherungs-Push: FusedLocation (Standort-Button im Gym-Editor) + Geofencing-API.
+    implementation(libs.play.services.location)
     // Für den von Hilt generierten ServiceComponent-Code (@CanIgnoreReturnValue) — Phase 7.2.
     implementation(libs.error.prone.annotations)
 

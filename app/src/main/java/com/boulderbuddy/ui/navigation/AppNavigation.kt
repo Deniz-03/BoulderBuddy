@@ -29,6 +29,8 @@ import com.boulderbuddy.ui.screens.BoulderDetailScreen
 import com.boulderbuddy.ui.screens.BoulderUebersichtScreen
 import com.boulderbuddy.ui.screens.EinstellungenScreen
 import com.boulderbuddy.ui.screens.GhostClimberScreen
+import com.boulderbuddy.ui.screens.GymBearbeitenScreen
+import com.boulderbuddy.ui.screens.GymVerwaltungScreen
 import com.boulderbuddy.ui.screens.HangboardTimerScreen
 import com.boulderbuddy.ui.screens.HomeScreen
 import com.boulderbuddy.ui.screens.RouteHinzufuegenScreen
@@ -40,6 +42,8 @@ import com.boulderbuddy.ui.viewmodel.BoulderDetailViewModel
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtViewModel
 import com.boulderbuddy.ui.viewmodel.EinstellungenViewModel
 import com.boulderbuddy.ui.viewmodel.GhostClimberViewModel
+import com.boulderbuddy.ui.viewmodel.GymBearbeitenViewModel
+import com.boulderbuddy.ui.viewmodel.GymVerwaltungViewModel
 import com.boulderbuddy.ui.viewmodel.HangboardTimerViewModel
 import com.boulderbuddy.ui.viewmodel.HomeViewModel
 import com.boulderbuddy.ui.viewmodel.RouteHinzufuegenViewModel
@@ -204,6 +208,33 @@ fun AppNavigation(
                     exportMessage = exportMessage,
                     onExportMessageShown = viewModel::consumeExportMessage,
                     onOpenGhostClimber = { navController.navigate(GhostClimber) },
+                    onOpenGymVerwaltung = { navController.navigate(GymVerwaltung) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<GymVerwaltung> {
+                val viewModel: GymVerwaltungViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                GymVerwaltungScreen(
+                    state = state,
+                    onOpenGym = { gymId -> navController.navigate(GymBearbeiten(gymId)) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<GymBearbeiten> {
+                val viewModel: GymBearbeitenViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                GymBearbeitenScreen(
+                    state = state,
+                    onNameChange = viewModel::setName,
+                    onLocationChange = viewModel::setLocation,
+                    onRadiusChange = viewModel::setRadius,
+                    onAlertsEnabledChange = viewModel::setAlertsEnabled,
+                    onCaptureLocation = viewModel::captureCurrentLocation,
+                    onSetCoordinates = viewModel::setCoordinates,
+                    onClearCoordinates = viewModel::clearCoordinates,
+                    onLocationErrorShown = viewModel::consumeLocationError,
+                    onSave = { viewModel.save { navController.popBackStack() } },
                     onBack = { navController.popBackStack() },
                 )
             }

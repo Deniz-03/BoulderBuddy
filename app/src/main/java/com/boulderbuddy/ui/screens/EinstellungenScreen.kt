@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Vibration
@@ -81,6 +82,8 @@ fun EinstellungenScreen(
     // Öffnet den experimentellen Ghost-Climber-Flow (Phase 7.5) — bewusst hier statt
     // im MVP-Kernfluss verankert (Plan A.4).
     onOpenGhostClimber: () -> Unit = {},
+    // Öffnet die Hallen-Verwaltung (Gym-Näherungs-Push M1: Koordinaten + Erinnerungen).
+    onOpenGymVerwaltung: () -> Unit = {},
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
@@ -164,6 +167,20 @@ fun EinstellungenScreen(
                         icon = Icons.Outlined.Add,
                         label = "Grading-System erstellen",
                         onClick = { showCreateGradingDialog = true },
+                    )
+                    // Hallen-Verwaltung (Näherungs-Push M1): Koordinaten, Radius, Erinnerungen.
+                    SettingsRow(
+                        icon = Icons.Outlined.LocationOn,
+                        label = "Hallen verwalten",
+                        onClick = onOpenGymVerwaltung,
+                        trailing = {
+                            Icon(
+                                imageVector = Icons.Outlined.ChevronRight,
+                                contentDescription = null,
+                                tint = BoulderBuddy.colors.textTertiary,
+                                modifier = Modifier.size(Dimens.iconS),
+                            )
+                        },
                     )
                     // Öffnet die Verwaltung (Systeme ansehen/löschen). Zeigt die Anzahl als Kontext.
                     SettingsRow(

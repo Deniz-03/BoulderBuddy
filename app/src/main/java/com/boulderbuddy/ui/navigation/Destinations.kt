@@ -46,6 +46,10 @@ object BoulderUebersicht  // -> BoulderUebersichtScreen
 @Serializable
 object GhostClimber       // -> GhostClimberScreen
 
+// Gym-Verwaltung (Näherungs-Push M1): Liste der Hallen, erreichbar aus den Einstellungen.
+@Serializable
+object GymVerwaltung      // -> GymVerwaltungScreen
+
 // -----------------------------------------------------------------------------
 // Push-Ziele MIT Argument:
 // -----------------------------------------------------------------------------
@@ -55,6 +59,11 @@ data class BoulderDetail(val boulderId: Int)   // -> BoulderDetailScreen
 
 @Serializable
 data class Session(val sessionId: Int)         // -> SessionRoute (aktiv/beendet)
+
+// Gym-Editor (Näherungs-Push M1): Name/Adresse + Koordinaten (Standort-Button),
+// Geofence-Radius und Pro-Gym-Erinnerungs-Toggle.
+@Serializable
+data class GymBearbeiten(val gymId: Int)       // -> GymBearbeitenScreen
 
 // sessionId nullable: Annahme laut Plan ist "mit sessionId", aber die offene Frage
 // (Boulder ohne aktive Session anlegen?) bleibt bewusst offen -> default null.
