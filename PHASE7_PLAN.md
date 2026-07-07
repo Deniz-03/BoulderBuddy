@@ -63,8 +63,13 @@ Priorisierung nach *Requirements-Pflicht → Aufwand/Nutzen → Doku-Wert*:
 > - **Automatische Hangboard-Erkennung auf der Uhr** (Advanced-Ausbau von 7.2): Sensorik erkennt
 >   Hängen/Loslassen, misst Satz- und (variable) Pausenlängen automatisch, bis der Nutzer die
 >   Session auf der Uhr beendet. → **[Anhang B](#anhang-b--fable-5-auftrag-automatische-hangboard-erkennung-uhr)**.
+> - **Gym-Näherungs-Push (Variante B)** (UX-Ausbau): App lernt Besuchshäufigkeit je manuell
+>   hinterlegter Halle und schickt eine gedrosselte „Session starten?"-Push, wenn der Nutzer in
+>   Gym-Nähe erkannt wird (Geofencing + Hintergrund-Standort). Start-Kontext:
+>   [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md).
+>   → **[Anhang C](#anhang-c--fable-5-auftrag-gym-naeherungs-push-variante-b)**.
 >
-> UI folgt in beiden Fällen der Funktion (Function-first).
+> UI folgt in allen Fällen der Funktion (Function-first).
 
 ---
 
@@ -624,3 +629,69 @@ M5: Kalibrierung final + Akku-Check.
    als „lose" Hangboard-Session ohne Kletter-Session-Bezug auf dem Phone speichern? (B.4)
 5. **Genauigkeitsanspruch:** Reicht „gut genug für Demo/Doku" (Abgabe-Kontext) oder wird
    zuverlässige Alltagstauglichkeit erwartet? (steckt den Kalibrieraufwand ab)
+
+---
+
+# Anhang C — Fable-5-Auftrag: Gym-Näherungs-Push (Variante B)
+
+> **Start-Kontext = [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md)** (Repo-Root). Dort stehen alle
+> Repo-Fakten, die verbindlichen Entscheidungen und die Meilensteine M0–M5. Dieser Anhang ist die
+> Kurzfassung/Verankerung im Gesamtplan. **Branch `PushNot`**, DB steht auf **v5**.
+
+## C.0 Ziel & Nicht-Ziele
+
+**Ziel (Variante B, bewusst gewählt gegen automatisches Gym-Discovery):** Die manuelle Gym-Liste
+bleibt. Die App lernt **wann/wie oft** der Nutzer in welcher Halle war und schickt eine
+**Push-Benachrichtigung „Session starten?"**, wenn Nähe zu einer hinterlegten Halle erkannt wird —
+auch bei geschlossener App.
+
+**Nicht-Ziele:** kein Karten-/POI-Discovery, kein Auto-Anlegen von Gyms, kein Server/Cloud, kein
+Bewegungs-Live-Tracking, keine Social-Features.
+
+## C.1 Verbindliche Entscheidungen (mit Deniz geklärt 2026-07-07)
+
+1. **Koordinaten:** Standort-Button „aktuellen Standort übernehmen" im Gym-Editor (FusedLocation).
+   Kein Maps-SDK/API-Key/Geocoding.
+2. **Erkennung:** Android Geofencing-API + `ACCESS_BACKGROUND_LOCATION` (nicht nur Foreground-Polling).
+3. **Push-Politik:** smart — gedrosselt (max 1×/Tag pro Gym, Cooldown), unterdrückt bei aktiver/
+   kürzlich beendeter Session, musterbewusst; nicht bei jeder Ankunft.
+4. **Besuch =** Geofence-Ankunft (DWELL) **und** Session-Start; Tages-Dedupe.
+
+## C.2 Wichtigster Repo-Fakt
+
+**Es gibt heute keine Gym-Verwaltungs-UI** — Gyms entstehen implizit „find-or-create by name"
+(`SessionErstellenViewModel`), `GymEntity` hat nur `name` + Freitext-`location`. Der **Gym-Editor
+(Liste + Bearbeiten + Standort-Button) ist Teil des Auftrags** (M1). Details + alle weiteren
+Repo-Anker in [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md).
+
+## C.3 Datenmodell (DB v5→v6, destruktiv — keine Migration)
+
+- `GymEntity` +`latitude/longitude: Double?`, `geofenceRadiusMeters: Int = 150`,
+  `proximityAlertsEnabled: Boolean = true`.
+- Neue `GymVisitEntity(gymId FK CASCADE, timestamp, source "GEOFENCE"|"SESSION")`.
+- `GymVisitStats` (pure Kotlin, JVM-testbar): Histogramme Wochentag/Stunde, `isTypicalSlot(now)`.
+
+## C.4 Reihenfolge / Meilensteine (jeder = grüner Build = ein Commit)
+
+- **M0** Datenmodell + `GymVisitStats`-Logik (DB v6, Schema-Export). JVM- + DAO-Tests.
+- **M1** Gym-Verwaltungs-Screen + „Standort übernehmen" + Foreground-Permission-Flow.
+- **M2** `GeofenceManager` + `GeofenceBroadcastReceiver` + Boot-Re-Register + Background-Permission +
+  Manifest + Master-Toggle.
+- **M3** Besuchs-Logging (Geofence-DWELL + Session-Start, Tages-Dedupe) + Stats ans UI.
+- **M4** Notification-Channel + Deep-Link (SessionErstellen vorbefüllt, Muster wie Widget-Intent) +
+  `ProximityNotificationPolicy` (pure, JVM-testbar) + Cooldown-Persistenz.
+- **M5** Verifikation echtes Gerät + Kalibrierung (Radius/Cooldown/loiteringDelay).
+
+Baue die **pure Logik** (Stats, Policy) früh und teste sie hart in der JVM — das ist der ohne
+Hardware demonstrierbar korrekte Kern; Geofencing/Notification drumherum sind dünne Adapter.
+
+## C.5 MUSS vor/bei M5 mit Deniz geklärt/getestet werden
+
+1. **Hardware/echter Standort:** Geofence-Auslösung nur mit echtem Standortwechsel prüfbar (physisch
+   zum Gym, oder Emulator-Location / `adb emu geo fix` / Mock-Location). **Wichtigster Punkt für M5.**
+2. **Hintergrund-Verhalten:** Doze / geschlossene App / Hersteller-Akku-Killer sind geräteabhängig —
+   evtl. Batterieoptimierung-Ausnahme; nur am echten Gerät seriös testbar.
+3. **Kalibrierung:** finaler Radius (Start 150 m), `loiteringDelay`, Cooldown-Länge, Definition
+   „typischer Slot" — empirisch, nicht raten. Als benannte Default-Konstanten mit Kommentar.
+4. **Cooldown-Persistenz:** DataStore-Key pro Gym vs. `lastNotifiedAt`-Spalte auf `GymEntity` —
+   Fable entscheidet + dokumentiert (beides ok).
