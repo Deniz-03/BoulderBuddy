@@ -9,6 +9,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.boulderbuddy.proximity.ProximityIntent
 import com.boulderbuddy.ui.navigation.AppNavigation
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.viewmodel.ThemeViewModel
@@ -23,8 +24,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Optionales Sprungziel aus dem Homescreen-Widget (7.4c); nur beim Start-Intent.
+        // Optionales Sprungziel aus dem Homescreen-Widget (7.4c) bzw. der Näherungs-
+        // Notification (M4, gleiches Intent-Extra-Muster); nur beim Start-Intent.
         val widgetNavTarget = intent?.getStringExtra(WidgetIntent.EXTRA_NAV_TARGET)
+        // Gym fürs Vorbefüllen von SessionErstellen (nur von der Näherungs-Notification gesetzt).
+        val navGymId = intent?.getIntExtra(ProximityIntent.EXTRA_GYM_ID, -1)
+            ?.takeIf { it > 0 }
         setContent {
             // Dark-Mode-Override aus den Einstellungen; null = dem System folgen (7.4a).
             val darkModeOverride by themeViewModel.darkModeOverride.collectAsStateWithLifecycle()
@@ -36,6 +41,7 @@ class MainActivity : ComponentActivity() {
                 AppNavigation(
                     windowSizeClass = windowSizeClass,
                     initialNavTarget = widgetNavTarget,
+                    initialNavGymId = navGymId,
                 )
             }
         }

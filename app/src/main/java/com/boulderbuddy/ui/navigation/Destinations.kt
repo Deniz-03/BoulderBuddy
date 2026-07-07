@@ -36,9 +36,6 @@ object Timer          // -> HangboardTimerScreen
 object Einstellungen      // -> EinstellungenScreen
 
 @Serializable
-object SessionErstellen   // -> SessionErstellenScreen
-
-@Serializable
 object BoulderUebersicht  // -> BoulderUebersichtScreen
 
 // Ghost Climber (7.5): bewusst Push-Ziel aus den Einstellungen ("Experimental"),
@@ -53,6 +50,12 @@ object GymVerwaltung      // -> GymVerwaltungScreen
 // -----------------------------------------------------------------------------
 // Push-Ziele MIT Argument:
 // -----------------------------------------------------------------------------
+
+// gymId gesetzt = Ort-Feld mit dieser Halle vorbefüllen (Gym-Näherungs-Push M4:
+// Notification-Deep-Link). null = normaler Flow (Home/Widget) — bestehende
+// argumentlose Aufrufe laufen dank Default weiter.
+@Serializable
+data class SessionErstellen(val gymId: Int? = null)   // -> SessionErstellenScreen
 
 @Serializable
 data class BoulderDetail(val boulderId: Int)   // -> BoulderDetailScreen

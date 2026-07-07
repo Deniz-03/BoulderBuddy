@@ -119,13 +119,34 @@ fun EinstellungenScreen(
     // Hintergrund-Standort-Flow des Gym-Näherungs-Push (M2). Android erzwingt die
     // Reihenfolge: erst Foreground (FINE) gewähren lassen, DANN Background anfragen —
     // ab API 30 öffnet die Background-Anfrage den System-Settings-Flow ("Immer erlauben").
+    // Zum Schluss (M4) POST_NOTIFICATIONS (Runtime-Permission ab API 33) mit anfragen.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        // Toggle unabhängig vom Grant setzen — ohne Notification-Permission degradiert
+        // nur die Anzeige (der Notifier prüft selbst und zeigt dann nichts).
+        onSetProximityAlerts(true)
+        if (!granted) {
+            Toast.makeText(
+                context,
+                "Ohne Benachrichtigungs-Erlaubnis können keine Erinnerungen erscheinen.",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+    val requestNotificationsOrEnable = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            onSetProximityAlerts(true)
+        }
+    }
     val backgroundPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        // Toggle auch ohne Background-Grant setzen: der Nutzer kann "Immer erlauben"
+        // Auch ohne Background-Grant weitermachen: der Nutzer kann "Immer erlauben"
         // später in den System-Einstellungen nachreichen; bis dahin degradiert das
         // Feature still (GeofenceManager registriert nichts).
-        onSetProximityAlerts(true)
         if (!granted) {
             Toast.makeText(
                 context,
@@ -134,6 +155,7 @@ fun EinstellungenScreen(
                 Toast.LENGTH_LONG,
             ).show()
         }
+        requestNotificationsOrEnable()
     }
     val foregroundPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -151,7 +173,7 @@ fun EinstellungenScreen(
         ) {
             backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         } else {
-            onSetProximityAlerts(true)
+            requestNotificationsOrEnable()
         }
     }
     val enableProximityAlerts = {
@@ -167,7 +189,7 @@ fun EinstellungenScreen(
                 backgroundPermissionLauncher.launch(
                     Manifest.permission.ACCESS_BACKGROUND_LOCATION,
                 )
-            else -> onSetProximityAlerts(true)
+            else -> requestNotificationsOrEnable()
         }
     }
 

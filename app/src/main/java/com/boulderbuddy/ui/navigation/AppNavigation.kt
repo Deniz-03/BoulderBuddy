@@ -69,8 +69,11 @@ import com.boulderbuddy.widget.WidgetIntent
 fun AppNavigation(
     // Aus MainActivity (currentWindowAdaptiveInfo): steuert Compact vs. Medium/Expanded.
     windowSizeClass: WindowSizeClass,
-    // Optionales Sprungziel vom Homescreen-Widget (7.4c); null = normaler Start (Home).
+    // Optionales Sprungziel vom Homescreen-Widget (7.4c) bzw. der Näherungs-Notification (M4);
+    // null = normaler Start (Home).
     initialNavTarget: String? = null,
+    // Gym fürs Vorbefüllen von SessionErstellen (nur von der Näherungs-Notification gesetzt).
+    initialNavGymId: Int? = null,
 ) {
     val navController = rememberNavController()
 
@@ -79,7 +82,8 @@ fun AppNavigation(
     LaunchedEffect(initialNavTarget) {
         when (initialNavTarget) {
             WidgetIntent.TARGET_TIMER -> navController.navigateToTab(BottomNavTab.Timer)
-            WidgetIntent.TARGET_NEW_SESSION -> navController.navigate(SessionErstellen)
+            WidgetIntent.TARGET_NEW_SESSION ->
+                navController.navigate(SessionErstellen(gymId = initialNavGymId))
         }
     }
 
@@ -114,7 +118,7 @@ fun AppNavigation(
                 HomeScreen(
                     state = state,
                     onOpenSettings = { navController.navigate(Einstellungen) },
-                    onStartSession = { navController.navigate(SessionErstellen) },
+                    onStartSession = { navController.navigate(SessionErstellen()) },
                     // Boulder zur AKTIVEN Session hinzufügen (echte sessionId aus dem ViewModel).
                     // Ohne aktive Session tut der Klick nichts (die Kachel erscheint dann ohnehin nicht).
                     onAddBoulderToActiveSession = {
@@ -152,7 +156,7 @@ fun AppNavigation(
                     // und Zurück laufen über den Pane-Navigator im SessionsListDetail.
                     SessionsListDetail(
                         state = state,
-                        onCreateSession = { navController.navigate(SessionErstellen) },
+                        onCreateSession = { navController.navigate(SessionErstellen()) },
                         onOpenBoulderOverview = onOpenBoulderOverview,
                         onOpenSettings = { navController.navigate(Einstellungen) },
                         onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
@@ -163,7 +167,7 @@ fun AppNavigation(
                     SessionUebersichtScreen(
                         state = state,
                         onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
-                        onCreateSession = { navController.navigate(SessionErstellen) },
+                        onCreateSession = { navController.navigate(SessionErstellen()) },
                         onOpenBoulderOverview = onOpenBoulderOverview,
                         onOpenSettings = { navController.navigate(Einstellungen) },
                     )
@@ -276,7 +280,8 @@ fun AppNavigation(
                     onCreateSession = { ort, gradeSystemId, notiz ->
                         viewModel.createSession(ort, gradeSystemId, notiz) { newSessionId ->
                             navController.navigate(Session(newSessionId)) {
-                                popUpTo(SessionErstellen) { inclusive = true }
+                                // Reified-Variante: matcht die Route unabhängig vom gymId-Argument.
+                                popUpTo<SessionErstellen> { inclusive = true }
                             }
                         }
                     },

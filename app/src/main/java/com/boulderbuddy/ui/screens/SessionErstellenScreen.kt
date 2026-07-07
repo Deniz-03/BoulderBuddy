@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,6 +52,13 @@ fun SessionErstellenScreen(
     // Gewähltes Gradsystem (ID); null = noch nichts aktiv gewählt → Fallback aufs erste System.
     var selectedSystemId by remember { mutableStateOf<Int?>(null) }
     var notiz by remember { mutableStateOf("") }
+
+    // Vorbefüllung aus dem Näherungs-Notification-Deep-Link (M4): der Gym-Name kommt
+    // asynchron aus dem ViewModel — nur übernehmen, solange der Nutzer nichts getippt hat.
+    LaunchedEffect(state.prefillOrt) {
+        val prefill = state.prefillOrt
+        if (prefill != null && ort.isEmpty()) ort = prefill
+    }
 
     // Effektiv gewähltes System: die aktive Auswahl, sonst das erste vorhandene.
     val effectiveSystemId = selectedSystemId ?: state.systems.firstOrNull()?.id

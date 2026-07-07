@@ -9,6 +9,8 @@
          ACCESS_BACKGROUND_LOCATION ist ab API 29 separat, ab API 30 nur via Settings-Flow. -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Gym-Näherungs-Push: "Session starten?"-Notification (Runtime-Permission ab API 33) — M4. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".BoulderBuddyApp"

@@ -1,7 +1,9 @@
 package com.boulderbuddy.ui.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.db.entity.GymVisitEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
@@ -9,7 +11,9 @@ import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.GymVisitRepository
 import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.ui.navigation.SessionErstellen
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -21,26 +25,46 @@ import javax.inject.Inject
 /** Anzeige-Zustand des "Neue Session"-Screens: die wählbaren Grading-Systeme. */
 data class SessionErstellenUiState(
     val systems: List<GradeSystemUi> = emptyList(),
+    /**
+     * Vorbefüllung des Ort-Felds (Gym-Näherungs-Push M4): Name der Halle aus dem
+     * Notification-Deep-Link (`SessionErstellen(gymId)`); `null` = normaler Flow.
+     */
+    val prefillOrt: String? = null,
 )
 
 @HiltViewModel
 class SessionErstellenViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val gymRepository: GymRepository,
     private val gymVisitRepository: GymVisitRepository,
     gradeRepository: GradeRepository,
 ) : ViewModel() {
 
+    // Gym-Name für die Vorbefüllung (Deep-Link aus der Näherungs-Notification, M4).
+    private val prefillOrtFlow = MutableStateFlow<String?>(null)
+
+    init {
+        val argGymId = savedStateHandle.toRoute<SessionErstellen>().gymId
+        if (argGymId != null) {
+            viewModelScope.launch {
+                prefillOrtFlow.value = gymRepository.getById(argGymId)?.name
+            }
+        }
+    }
+
     // Reale Grading-Systeme (Standards + Custom) für die Auswahl beim Session-Anlegen.
     val uiState: StateFlow<SessionErstellenUiState> = combine(
         gradeRepository.observeAllSystems(),
         gradeRepository.observeAllGrades(),
-    ) { systems, grades ->
+        prefillOrtFlow,
+    ) { systems, grades, prefillOrt ->
         val countBySystem = grades.groupingBy { it.systemId }.eachCount()
         SessionErstellenUiState(
             systems = systems.map {
                 GradeSystemUi(id = it.id, name = it.name, gradeCount = countBySystem[it.id] ?: 0)
             },
+            prefillOrt = prefillOrt,
         )
     }.stateIn(
         scope = viewModelScope,
