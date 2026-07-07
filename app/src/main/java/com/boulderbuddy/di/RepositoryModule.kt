@@ -6,6 +6,8 @@ import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GradeRepositoryImpl
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.GymRepositoryImpl
+import com.boulderbuddy.data.repository.GymVisitRepository
+import com.boulderbuddy.data.repository.GymVisitRepositoryImpl
 import com.boulderbuddy.data.repository.HangboardRepository
 import com.boulderbuddy.data.repository.HangboardRepositoryImpl
 import com.boulderbuddy.data.repository.RouteRepository
@@ -65,4 +67,8 @@ abstract class RepositoryModule {
     abstract fun bindGhostAnalysisRepository(
         impl: GhostAnalysisRepositoryImpl,
     ): GhostAnalysisRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGymVisitRepository(impl: GymVisitRepositoryImpl): GymVisitRepository
 }

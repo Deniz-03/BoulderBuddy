@@ -8,6 +8,7 @@ import com.boulderbuddy.data.db.dao.GhostAnalysisDao
 import com.boulderbuddy.data.db.dao.GradeDao
 import com.boulderbuddy.data.db.dao.GradeSystemDao
 import com.boulderbuddy.data.db.dao.GymDao
+import com.boulderbuddy.data.db.dao.GymVisitDao
 import com.boulderbuddy.data.db.dao.HangboardSessionDao
 import com.boulderbuddy.data.db.dao.HangboardTemplateDao
 import com.boulderbuddy.data.db.dao.RouteDao
@@ -69,4 +70,7 @@ object DatabaseModule {
     @Provides
     fun provideGhostAnalysisDao(db: BoulderBuddyDatabase): GhostAnalysisDao =
         db.ghostAnalysisDao()
+
+    @Provides
+    fun provideGymVisitDao(db: BoulderBuddyDatabase): GymVisitDao = db.gymVisitDao()
 }

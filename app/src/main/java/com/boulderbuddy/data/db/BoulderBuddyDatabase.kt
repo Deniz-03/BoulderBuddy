@@ -7,6 +7,7 @@ import com.boulderbuddy.data.db.dao.GhostAnalysisDao
 import com.boulderbuddy.data.db.dao.GradeDao
 import com.boulderbuddy.data.db.dao.GradeSystemDao
 import com.boulderbuddy.data.db.dao.GymDao
+import com.boulderbuddy.data.db.dao.GymVisitDao
 import com.boulderbuddy.data.db.dao.HangboardSessionDao
 import com.boulderbuddy.data.db.dao.HangboardTemplateDao
 import com.boulderbuddy.data.db.dao.RouteDao
@@ -15,6 +16,7 @@ import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.db.entity.GymVisitEntity
 import com.boulderbuddy.data.db.entity.HangboardSessionEntity
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
 import com.boulderbuddy.data.db.entity.RouteEntity
@@ -34,6 +36,7 @@ import com.boulderbuddy.data.db.entity.SessionEntity
         HangboardTemplateEntity::class,
         HangboardSessionEntity::class,
         GhostAnalysisEntity::class,
+        GymVisitEntity::class,
     ],
     // v2 (Phase 6): RouteEntity um name + sektor erweitert.
     // v3 (MVP-Polish): GradeSystem.gymId nullable (globale Standard-Systeme) +
@@ -41,9 +44,11 @@ import com.boulderbuddy.data.db.entity.SessionEntity
     // v4 (MVP-Polish): Farbe von der Schwierigkeit entkoppelt — Grade.color entfernt,
     // Route.color (eigener Farb-Key) ergänzt; Session.gradeSystemId (Grading pro Session).
     // v5 (Phase 7.5): neue ghost_analysis-Tabelle (gespeicherte Ghost-Climber-Analysen).
+    // v6 (Gym-Näherungs-Push): Gym um Koordinaten/Radius/Alerts-Toggle erweitert +
+    // neue gym_visit-Tabelle (Besuchs-Log für gelernte Besuchsmuster).
     // Keine handgeschriebene Migration nötig: der Provider nutzt destruktive Migration
     // (pre-Release, keine Bestandsnutzer — siehe DatabaseModule).
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -56,6 +61,7 @@ abstract class BoulderBuddyDatabase : RoomDatabase() {
     abstract fun hangboardTemplateDao(): HangboardTemplateDao
     abstract fun hangboardSessionDao(): HangboardSessionDao
     abstract fun ghostAnalysisDao(): GhostAnalysisDao
+    abstract fun gymVisitDao(): GymVisitDao
 
     companion object {
         const val NAME = "boulderbuddy.db"
