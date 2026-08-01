@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,12 +36,15 @@ import com.boulderbuddy.ui.theme.Dimens
 // onClick gehört zum Kern-UI: der Slot IST der Auslöser für Kamera/Galerie —
 // das Öffnen des Pickers selbst bleibt Sache des Screens.
 // imageUri (Phase 6.11): ist es gesetzt, zeigt der Slot das gewählte Foto via Coil.
+// isVideo (Phase 7.3c): ist die Auswahl ein Video, zeigt der Slot statt eines Frames einen
+// klaren Video-Indikator (Coil rendert ohne Video-Decoder kein Vorschaubild).
 @Composable
 fun PhotoPicker(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "Foto aufnehmen",
+    label: String = "Foto/Video aufnehmen",
     imageUri: String? = null,
+    isVideo: Boolean = false,
 ) {
     val borderColor = BoulderBuddy.colors.borderSubtle
     // 16:9 als natürliches Foto-Seitenverhältnis. aspectRatio statt fester Höhe,
@@ -71,7 +75,25 @@ fun PhotoPicker(
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (imageUri != null) {
+        if (imageUri != null && isVideo) {
+            // Video ausgewählt: Play-Symbol + Hinweis statt (nicht vorhandenem) Frame.
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.PlayCircleOutline,
+                    contentDescription = null,
+                    tint = BoulderBuddy.colors.textTertiary,
+                    modifier = Modifier.size(Dimens.iconL),
+                )
+                Text(
+                    text = "Video ausgewählt",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = BoulderBuddy.colors.textTertiary,
+                )
+            }
+        } else if (imageUri != null) {
             AsyncImage(
                 model = imageUri,
                 contentDescription = "Gewähltes Foto",

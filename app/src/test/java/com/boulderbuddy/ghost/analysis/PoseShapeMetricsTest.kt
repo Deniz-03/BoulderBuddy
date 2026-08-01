@@ -1,0 +1,235 @@
+package com.boulderbuddy.ghost.analysis
+
+import com.boulderbuddy.ghost.model.GhostLandmark
+import com.boulderbuddy.ghost.model.GhostLandmarkTypes
+import com.boulderbuddy.ghost.model.GhostPoseFrame
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
+/**
+ * JVM-Tests der Form-Kennzahlen (A7, 7.5e). Sie sind das Messinstrument für „morpht
+ * es noch?" — wenn sie selbst falsch messen, tunt man danach im Nebel.
+ */
+class PoseShapeMetricsTest {
+
+    private fun landmark(type: Int, x: Float, y: Float) =
+        GhostLandmark(type = type, x = x, y = y, confidence = 0.9f, presence = 0.9f)
+
+    /**
+     * Starre Pose der Größe [scale] um ([cx], [cy]): Rumpf plus je ein Ober- und
+     * Unterarm/-bein mit festen Verhältnissen zur Körpergröße.
+     */
+    private fun rigidPose(
+        cx: Float,
+        cy: Float,
+        scale: Float,
+        upperArmRatio: Float = 0.8f,
+    ): GhostPoseFrame {
+        val half = scale / 2
+        return GhostPoseFrame(
+            timeMs = 0L,
+            landmarks = listOf(
+                landmark(GhostLandmarkTypes.LEFT_SHOULDER, cx - half, cy - half),
+                landmark(GhostLandmarkTypes.RIGHT_SHOULDER, cx + half, cy - half),
+                landmark(GhostLandmarkTypes.LEFT_HIP, cx - half, cy + half),
+                landmark(GhostLandmarkTypes.RIGHT_HIP, cx + half, cy + half),
+                landmark(GhostLandmarkTypes.LEFT_ELBOW, cx - half, cy - half + scale * upperArmRatio),
+                landmark(GhostLandmarkTypes.RIGHT_ELBOW, cx + half, cy - half + scale * upperArmRatio),
+                landmark(GhostLandmarkTypes.LEFT_KNEE, cx - half, cy + half + scale),
+                landmark(GhostLandmarkTypes.RIGHT_KNEE, cx + half, cy + half + scale),
+            ),
+        )
+    }
+
+    /**
+     * Der Kern der Normierung: dieselbe Pose in wechselnder GRÖSSE (Kletterer entfernt
+     * sich von der Kamera) ist kein Morphen. Absolute Pixellängen würden hier stark
+     * streuen — das Verhältnis zur Körpergröße nicht.
+     */
+    @Test
+    fun `Global skalierte Pose zaehlt nicht als Morphen`() {
+        // Rate physikalisch gewählt (−20 % über ~17 s): die Körpergrößen-Referenz ist
+        // ein rollierender Median über ~2 s, damit eine Drehung sie nicht mitzieht.
+        val frames = (0 until 200).map { i ->
+            rigidPose(cx = 360f, cy = 640f, scale = 100f - i * 0.1f).copy(timeMs = i * 83L)
+        }
+        val metrics = frames.qualityMetrics()
+
+        // Nicht exakt 0: an den Spurenden ist das Median-Fenster einseitig abgeschnitten,
+        // die Referenz dort also leicht verzerrt. Weit unter jedem echten Formfehler.
+        assertThat(metrics.boneLengthCv).isLessThan(0.02)
+        // Die Körpergröße selbst schwankt hier real — das misst scaleCv, und genau
+        // diese Trennung ist der Zweck der beiden Kennzahlen.
+        assertThat(metrics.scaleCv).isGreaterThan(0.05)
+    }
+
+    @Test
+    fun `Wechselnde Knochenlaenge wird als Morphen erkannt`() {
+        val frames = (0 until 20).map { i ->
+            // Oberarm pendelt zwischen 0,5 und 1,1 Körpergrößen — anatomisch unmöglich.
+            val ratio = if (i % 2 == 0) 0.5f else 1.1f
+            rigidPose(cx = 360f, cy = 640f, scale = 100f, upperArmRatio = ratio)
+                .copy(timeMs = i * 83L)
+        }
+        assertThat(frames.qualityMetrics().boneLengthCv).isGreaterThan(0.1)
+    }
+
+    @Test
+    fun `Ganzkoerper-Kollaps schlaegt auf die Kollaps-Metrik durch`() {
+        val stable = (0 until 20).map { rigidPose(360f, 640f, 100f).copy(timeMs = it * 83L) }
+        val collapsing = stable.mapIndexed { i, frame ->
+            if (i == 10) rigidPose(360f, 640f, 30f).copy(timeMs = i * 83L) else frame
+        }
+
+        assertThat(stable.qualityMetrics().scaleCv).isLessThan(0.01)
+        assertThat(collapsing.qualityMetrics().scaleCv)
+            .isGreaterThan(stable.qualityMetrics().scaleCv)
+    }
+
+    // --- Unruhe-Metrik (S6b) ---------------------------------------------------
+
+    /** Pose mit Rumpfzentrum bei ([cx], [cy]), Körpergröße 100. */
+    private fun poseAt(timeMs: Long, cx: Float, cy: Float) = GhostPoseFrame(
+        timeMs = timeMs,
+        landmarks = listOf(
+            landmark(GhostLandmarkTypes.LEFT_SHOULDER, cx - 50f, cy - 50f),
+            landmark(GhostLandmarkTypes.RIGHT_SHOULDER, cx + 50f, cy - 50f),
+            landmark(GhostLandmarkTypes.LEFT_HIP, cx - 50f, cy + 50f),
+            landmark(GhostLandmarkTypes.RIGHT_HIP, cx + 50f, cy + 50f),
+        ),
+    )
+
+    /**
+     * Der Kern der Unruhe-Metrik: eine gleichmäßige, schnelle Bewegung ist KEINE
+     * Unruhe. Genau diese Trennung fehlte allen bisherigen Kennzahlen.
+     */
+    @Test
+    fun `gleichmaessige Bewegung erzeugt keine Unruhe`() {
+        val frames = (0 until 60).map { poseAt(it * 83L, 300f, 800f - it * 12f) }
+        assertThat(frames.qualityMetrics().centroidWobble).isLessThan(0.005)
+    }
+
+    @Test
+    fun `hin und her wackelndes Skelett schlaegt aus`() {
+        val smooth = (0 until 60).map { poseAt(it * 83L, 300f, 800f - it * 12f) }
+        val wobbly = (0 until 60).map { i ->
+            // Dieselbe Bahn, aber jeder zweite Frame um 15 px zur Seite versetzt —
+            // 15 % einer Körpergröße, also gut sichtbares Wackeln.
+            val offset = if (i % 2 == 0) 0f else 15f
+            poseAt(i * 83L, 300f + offset, 800f - i * 12f)
+        }
+        val wobble = wobbly.qualityMetrics().centroidWobble
+        assertThat(wobble).isGreaterThan(0.03)
+        // Und vor allem: um Größenordnungen über der glatten Bahn.
+        assertThat(wobble).isGreaterThan(smooth.qualityMetrics().centroidWobble * 10)
+    }
+
+    /**
+     * S8c: eine gleichmäßig BESCHLEUNIGTE Bahn ist genauso wenig Unruhe wie eine
+     * gleichförmige — ein Kletterer, der antritt oder abbremst, bewegt sich nicht
+     * unruhig. Der frühere Nachbar-Mittelwert als Referenz zählte genau das mit und
+     * machte zwei Drittel der gemeldeten Zahl aus; gegen so eine Zahl zu optimieren hieße,
+     * die Bewegung wegzufiltern statt das Zittern.
+     */
+    @Test
+    fun `gleichmaessig beschleunigte Bewegung erzeugt keine Unruhe`() {
+        val frames = (0 until 60).map { i ->
+            // Freier Fall in Reinform: rein quadratisch, ohne jedes Rauschen.
+            poseAt(i * 83L, 300f, 200f + 0.5f * i * i)
+        }
+        assertThat(frames.qualityMetrics().centroidWobble).isLessThan(0.005)
+    }
+
+    /** Ein einzelner grober Aussetzer soll die Zahl nicht dominieren — dafür sind die
+     *  Gates zuständig; die Metrik beschreibt die DAUERHAFTE Unruhe. */
+    @Test
+    fun `ein einzelner Ausreisser dominiert die Zahl nicht`() {
+        val frames = (0 until 60).map { i ->
+            val offset = if (i == 30) 200f else 0f
+            poseAt(i * 83L, 300f + offset, 800f - i * 12f)
+        }
+        assertThat(frames.qualityMetrics().centroidWobble).isLessThan(0.005)
+    }
+
+    // --- Puls-Metrik (S7a) -----------------------------------------------------
+
+    /**
+     * Der Grund, warum es diese Kennzahl gibt: die Extraktion behandelt jeden n-ten Frame
+     * anders als die übrigen, und liegt genau dieser Frame systematisch daneben, ist der
+     * Fehler periodisch — für das Auge das auffälligste Fehlerbild überhaupt. Ein Median
+     * über die ganze Spur sieht davon nichts, weil ein Ereignis in jedem zwölften Frame
+     * ihn nicht um einen Zähler verschiebt. Genau diese Blindheit wird hier festgenagelt.
+     */
+    @Test
+    fun `periodischer Ausschlag bleibt im Median unsichtbar und schlaegt im Puls durch`() {
+        val period = com.boulderbuddy.ghost.GhostTuning.ROI_BOX_CHECK_INTERVAL_FRAMES
+        val smooth = (0 until 120).map { poseAt(it * 83L, 300f, 800f - it * 6f) }
+        val pulsing = (0 until 120).map { i ->
+            val offset = if (i % period == 0) 20f else 0f
+            poseAt(i * 83L, 300f + offset, 800f - i * 6f)
+        }
+
+        val metrics = pulsing.qualityMetrics()
+        // Der Median bleibt ruhig — elf von zwölf Frames sind ja sauber.
+        assertThat(metrics.centroidWobble).isLessThan(0.02)
+        // Der Puls nicht.
+        assertThat(metrics.centroidPulse).isGreaterThan(3.0)
+        assertThat(metrics.centroidPulse)
+            .isGreaterThan(smooth.qualityMetrics().centroidPulse * 3)
+    }
+
+    /** Eine glatte, gekrümmte Bahn hat überall etwas Rest — aber keine Phase sticht
+     *  heraus. Ohne diesen Test wäre nicht gesichert, dass der Puls nicht ohnehin
+     *  ständig ausschlägt und damit wertlos ist. */
+    @Test
+    fun `glatte Bahn ohne Periodik hat Puls nahe eins`() {
+        val frames = (0 until 120).map { i ->
+            // Krümmung mit Periode 37 — teilerfremd zur Prüf-Periode, damit sich keine
+            // Phase zufällig mit der Krümmung deckt.
+            val y = 800f - i * 6f + 40f * kotlin.math.sin(i * 2 * Math.PI / 37).toFloat()
+            poseAt(i * 83L, 300f, y)
+        }
+        assertThat(frames.qualityMetrics().centroidPulse).isLessThan(2.0)
+    }
+
+    // --- Morph zeitlich vs. Verteilungsbreite (S7a) -----------------------------
+
+    /**
+     * Die Unterscheidung, an der die alte Morph-Kennzahl gescheitert ist: ein Glied, das
+     * sich über Sekunden gleichmäßig perspektivisch verkürzt, streut in der Länge stark
+     * (das misst [PoseQualityMetrics.boneLengthCv] auch korrekt) — morpht aber nicht.
+     * Morphen ist eine Aussage über die zeitliche REIHENFOLGE, und nur die neue Kennzahl
+     * trifft sie.
+     */
+    @Test
+    fun `gleichmaessige Verkuerzung streut, morpht aber nicht`() {
+        val frames = (0 until 60).map { i ->
+            rigidPose(360f, 640f, 100f, upperArmRatio = 0.9f - i * 0.008f)
+                .copy(timeMs = i * 83L)
+        }
+        val metrics = frames.qualityMetrics()
+
+        assertThat(metrics.boneLengthCv).isGreaterThan(0.08)
+        assertThat(metrics.boneLengthWobble).isLessThan(0.005)
+    }
+
+    @Test
+    fun `von Frame zu Frame wechselnde Laenge schlaegt im Morph-Wert durch`() {
+        val frames = (0 until 20).map { i ->
+            val ratio = if (i % 2 == 0) 0.5f else 1.1f
+            rigidPose(360f, 640f, 100f, upperArmRatio = ratio).copy(timeMs = i * 83L)
+        }
+        assertThat(frames.qualityMetrics().boneLengthWobble).isGreaterThan(0.1)
+    }
+
+    @Test
+    fun `Leere Spur liefert neutrale Kennzahlen statt NaN`() {
+        val metrics = List(5) { GhostPoseFrame(it * 83L, emptyList()) }.qualityMetrics()
+        assertThat(metrics.boneLengthCv).isEqualTo(0.0)
+        assertThat(metrics.scaleCv).isEqualTo(0.0)
+        assertThat(metrics.centroidWobble).isEqualTo(0.0)
+        assertThat(metrics.boneLengthWobble).isEqualTo(0.0)
+        // Neutral heißt hier 1,0 (= keine Periodik), nicht 0 — der Puls ist ein Faktor.
+        assertThat(metrics.centroidPulse).isEqualTo(1.0)
+    }
+}

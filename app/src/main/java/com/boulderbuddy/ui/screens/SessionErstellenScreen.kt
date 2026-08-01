@@ -25,8 +25,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SelectableChip
+import com.boulderbuddy.ui.components.SpeechToTextButton
 import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.TopBar
+import com.boulderbuddy.ui.components.appendSpokenNote
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -135,6 +137,12 @@ fun SessionErstellenScreen(
                     label = "NOTIZ (OPTIONAL)",
                     placeholder = "Ziel für heute...",
                     onChange = {notiz = it},
+                    // Spracheingabe: erkannten Text an die Notiz anhängen (7.4b).
+                    trailing = {
+                        SpeechToTextButton(
+                            onResult = { spoken -> notiz = appendSpokenNote(notiz, spoken) },
+                        )
+                    },
                 )
 
                 // Schiebt den Button ans untere Ende: der Spacer schluckt den restlichen

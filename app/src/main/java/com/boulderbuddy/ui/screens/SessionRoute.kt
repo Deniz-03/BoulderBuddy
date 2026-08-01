@@ -24,7 +24,12 @@ fun SessionRoute(
     onBack: () -> Unit = {},
     onOpenBoulder: (Int) -> Unit = {},
     onAddRoute: (Int) -> Unit = {},
-    viewModel: SessionViewModel = hiltViewModel(),
+    // Assisted-Injection: sessionId wird explizit übergeben. key = "session_$sessionId"
+    // stellt sicher, dass beim Umschalten der Auswahl im Tablet-Detail-Pane (Phase 7.1)
+    // ein frischer ViewModel je Session entsteht.
+    viewModel: SessionViewModel = hiltViewModel<SessionViewModel, SessionViewModel.Factory>(
+        key = "session_$sessionId",
+    ) { factory -> factory.create(sessionId) },
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -36,7 +41,7 @@ fun SessionRoute(
             startMillis = state.startMillis,
             topGrade = state.topGrade,
             boulders = state.boulders,
-            hangboardSessions = state.hangboardSessions,
+            hangboardWorkouts = state.hangboardWorkouts,
             onBack = onBack,
             onOpenBoulder = onOpenBoulder,
             onAddRoute = { onAddRoute(sessionId) },

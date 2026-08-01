@@ -1,17 +1,16 @@
 package com.boulderbuddy.ui.viewmodel
 
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.boulderbuddy.data.db.entity.GradeEntity
-import com.boulderbuddy.data.db.entity.HangboardSessionEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
+import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
-import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.model.formatDayMonth
@@ -19,15 +18,16 @@ import com.boulderbuddy.ui.model.formatDurationShort
 import com.boulderbuddy.ui.model.istGetoppt
 import com.boulderbuddy.ui.model.toBoulderStatus
 import com.boulderbuddy.ui.theme.routeColorForKey
-import com.boulderbuddy.ui.navigation.Session
 import com.boulderbuddy.ui.screens.BoulderStatus
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /** Eine Boulder-Kachel/-Zeile innerhalb einer Session (aktiv wie abgeschlossen). */
 data class SessionBoulderUi(
@@ -39,8 +39,8 @@ data class SessionBoulderUi(
     val versuche: Int,
 )
 
-/** Ein getrackter Hangboard-Durchlauf innerhalb der Session (Kurzbeschreibung). */
-data class HangboardSessionUi(
+/** Ein getracktes Hangboard-Workout innerhalb der Session (Kurzbeschreibung). */
+data class HangboardWorkoutUi(
     val id: Int,
     val summary: String,
 )
@@ -61,22 +61,28 @@ data class SessionUiState(
     val topGrade: String = "–",
     val notes: String = "",
     val boulders: List<SessionBoulderUi> = emptyList(),
-    /** Getrackte Hangboard-Durchläufe; leer = kein "Hangboard-Training"-Block anzeigen. */
-    val hangboardSessions: List<HangboardSessionUi> = emptyList(),
+    /** Getrackte Hangboard-Workouts; leer = kein "Hangboard-Training"-Block anzeigen. */
+    val hangboardWorkouts: List<HangboardWorkoutUi> = emptyList(),
 )
 
-@HiltViewModel
-class SessionViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+// Assisted Injection: die sessionId wird explizit übergeben (nicht mehr aus den
+// Nav-Argumenten gelesen). So funktioniert derselbe ViewModel sowohl an der klassischen
+// Session-Route als auch im Detail-Pane des Tablet-ListDetailPaneScaffold (Phase 7.1),
+// wo es keine eigenen Nav-Argumente gibt.
+@HiltViewModel(assistedFactory = SessionViewModel.Factory::class)
+class SessionViewModel @AssistedInject constructor(
+    @Assisted private val sessionId: Int,
     private val sessionRepository: SessionRepository,
     routeRepository: RouteRepository,
     gymRepository: GymRepository,
     gradeRepository: GradeRepository,
-    hangboardSessionRepository: HangboardSessionRepository,
+    hangboardWorkoutRepository: HangboardWorkoutRepository,
 ) : ViewModel() {
 
-    // sessionId aus den type-safe Navigations-Argumenten der Session-Route.
-    private val sessionId: Int = savedStateHandle.toRoute<Session>().sessionId
+    @AssistedFactory
+    interface Factory {
+        fun create(sessionId: Int): SessionViewModel
+    }
 
     val uiState: StateFlow<SessionUiState> = combine(
         // observeAll (statt eines observeById) macht die Ansicht reaktiv auf endSession:
@@ -85,11 +91,11 @@ class SessionViewModel @Inject constructor(
         routeRepository.observeBySession(sessionId),
         gymRepository.observeAll(),
         gradeRepository.observeAllGrades(),
-        hangboardSessionRepository.observeBySession(sessionId),
-    ) { sessions, routes, gyms, grades, hangboardSessions ->
+        hangboardWorkoutRepository.observeBySession(sessionId),
+    ) { sessions, routes, gyms, grades, hangboardWorkouts ->
         val session = sessions.firstOrNull { it.id == sessionId }
             ?: return@combine SessionUiState(loading = false, exists = false)
-        buildState(session, routes, grades.associateBy { it.id }, hangboardSessions,
+        buildState(session, routes, grades.associateBy { it.id }, hangboardWorkouts,
             gymName = gyms.firstOrNull { it.id == session.gymId }?.name ?: "Unbekannte Halle")
     }.stateIn(
         scope = viewModelScope,
@@ -105,7 +111,7 @@ class SessionViewModel @Inject constructor(
         session: SessionEntity,
         routes: List<RouteEntity>,
         gradesById: Map<Int, GradeEntity>,
-        hangboardSessions: List<HangboardSessionEntity>,
+        hangboardWorkouts: List<HangboardWorkoutWithSegments>,
         gymName: String,
     ): SessionUiState {
         val istAktiv = session.endedAt == null
@@ -145,12 +151,22 @@ class SessionViewModel @Inject constructor(
             topGrade = topGrade,
             notes = session.notes.orEmpty(),
             boulders = boulders,
-            hangboardSessions = hangboardSessions.map {
-                HangboardSessionUi(
-                    id = it.id,
-                    summary = "${it.completedSets} Sätze · ${it.hangSec}s Hang / ${it.restSec}s Pause",
-                )
+            hangboardWorkouts = hangboardWorkouts.map {
+                HangboardWorkoutUi(id = it.workout.id, summary = workoutSummary(it))
             },
         )
+    }
+
+    // Kurzbeschreibung eines Workouts: manuell über die Plan-Werte, auto über die gemessene
+    // Gesamt-Hängezeit (dort gibt es keine Vorgabe).
+    private fun workoutSummary(workout: HangboardWorkoutWithSegments): String {
+        val w = workout.workout
+        return if (w.mode == HangboardWorkoutMode.MANUAL && w.plannedHangSec != null) {
+            "${workout.segments.size} Sätze · ${w.plannedHangSec}s Hang / ${w.plannedRestSec ?: 0}s Pause"
+        } else {
+            val hangSeconds = workout.totalHangMs / 1000
+            val hangTime = "%02d:%02d".format(hangSeconds / 60, hangSeconds % 60)
+            "${workout.segments.size} Sätze · $hangTime Hängezeit (Auto)"
+        }
     }
 }

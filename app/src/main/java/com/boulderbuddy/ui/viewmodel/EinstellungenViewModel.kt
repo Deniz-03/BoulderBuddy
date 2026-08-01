@@ -1,16 +1,20 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.export.SessionExporter
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -30,6 +34,8 @@ data class EinstellungenUiState(
     val systems: List<GradeSystemUi> = emptyList(),
     /** ID des als "Standard-Grading" gewählten Systems; steuert das Grade-Dropdown. */
     val selectedGradeSystemId: Int? = null,
+    /** Expliziter Dark-Mode-Override; `null` = dem System folgen (7.4a). */
+    val darkModeOverride: Boolean? = null,
 )
 
 @HiltViewModel
@@ -37,13 +43,20 @@ class EinstellungenViewModel @Inject constructor(
     private val gymRepository: GymRepository,
     private val gradeRepository: GradeRepository,
     private val settingsRepository: SettingsRepository,
+    private val sessionExporter: SessionExporter,
 ) : ViewModel() {
+
+    // Einmalige Rückmeldung zum Export (Erfolg/Fehler); vom UI als Toast angezeigt und danach
+    // via [consumeExportMessage] geleert. `null` = keine offene Meldung.
+    private val _exportMessage = MutableStateFlow<String?>(null)
+    val exportMessage: StateFlow<String?> = _exportMessage.asStateFlow()
 
     val uiState: StateFlow<EinstellungenUiState> = combine(
         gradeRepository.observeAllSystems(),
         gradeRepository.observeAllGrades(),
         settingsRepository.selectedGradeSystemId,
-    ) { systems, grades, selectedId ->
+        settingsRepository.darkMode,
+    ) { systems, grades, selectedId, darkMode ->
         val countBySystem = grades.groupingBy { it.systemId }.eachCount()
         EinstellungenUiState(
             systems = systems.map {
@@ -56,6 +69,7 @@ class EinstellungenViewModel @Inject constructor(
                 )
             },
             selectedGradeSystemId = selectedId,
+            darkModeOverride = darkMode,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -66,6 +80,31 @@ class EinstellungenViewModel @Inject constructor(
     /** Merkt das gewählte Standard-Grading-System (persistent via DataStore). */
     fun selectGradeSystem(systemId: Int) {
         viewModelScope.launch { settingsRepository.setSelectedGradeSystem(systemId) }
+    }
+
+    /** Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a). */
+    fun setDarkMode(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setDarkMode(enabled) }
+    }
+
+    /**
+     * Exportiert alle Sessions als CSV in das per SAF gewählte Dokument [uri]. Setzt eine
+     * Ergebnis-Meldung ([exportMessage]) für das UI.
+     */
+    fun exportSessions(uri: Uri) {
+        viewModelScope.launch {
+            _exportMessage.value = try {
+                val count = sessionExporter.exportCsv(uri)
+                "$count Sessions als CSV exportiert"
+            } catch (e: Exception) {
+                "Export fehlgeschlagen: ${e.message}"
+            }
+        }
+    }
+
+    /** Bestätigt, dass die Export-Meldung angezeigt wurde (leert sie). */
+    fun consumeExportMessage() {
+        _exportMessage.value = null
     }
 
     /**

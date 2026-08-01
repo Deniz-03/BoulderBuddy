@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "BoulderBuddy"
 include(":app")
+include(":wear")

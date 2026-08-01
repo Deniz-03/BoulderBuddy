@@ -1,6 +1,7 @@
 package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,8 +71,12 @@ private data class QuickStat(val label: String, val value: String)
 fun StatistikScreen(
     // Anzeige-Zustand aus dem StatistikViewModel (Phase 6.8, aus Room aggregiert).
     state: StatistikUiState = StatistikUiState(),
+    // true = breites Layout (Tablet): Grade-Verteilung + Aktivität nebeneinander (Phase 7.1).
+    wide: Boolean = false,
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onOpenSettings: () -> Unit = {},
+    // Öffnet die Hangboard-Historie (alle Workouts inkl. eigenständiger Trainings).
+    onOpenHangboardHistorie: () -> Unit = {},
 ) {
     val quickStats = listOf(
         QuickStat(label = "Flash Rate", value = state.flashRate),
@@ -112,114 +117,179 @@ fun StatistikScreen(
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingXL),
             ) {
                 // --- Quick-Stats ---
-                // height(IntrinsicSize.Min) + fillMaxHeight() → alle Karten gleich hoch
-                // (gleiches Muster wie auf dem Home-Screen).
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
-                    ) {
-                        quickStats.forEach { stat ->
-                            StatCard(
-                                value = stat.value,
-                                label = stat.label,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight(),
-                            )
-                        }
-                    }
+                    QuickStatsRow(quickStats)
                 }
 
-                // --- Grade-Verteilung (pro System, da Grade systemübergreifend nicht vergleichbar) ---
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                        SectionHeader(text = "Grade-Verteilung")
-                        if (state.distributionSystems.isEmpty()) {
-                            Text(
-                                text = "Noch keine getoppten Boulder.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = BoulderBuddy.colors.textSecondary,
-                            )
-                        } else {
-                            // System-Umschalter — nur nötig, wenn in mehreren Systemen getoppt wurde.
-                            if (state.distributionSystems.size > 1) {
-                                Row(
-                                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-                                ) {
-                                    state.distributionSystems.forEach { system ->
-                                        FilterChip(
-                                            label = system.name,
-                                            selected = effectiveSystemId == system.id,
-                                            onClick = { selectedSystemId = system.id },
-                                        )
-                                    }
-                                }
-                            }
-                            BarChart(
-                                entries = gradeDistribution,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                }
-
-                // --- Hangboard-Training ---
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                        SectionHeader(text = "Hangboard-Training")
+                if (wide) {
+                    // Tablet: Grade-Verteilung und Aktivität nebeneinander (top-aligned).
+                    item {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(IntrinsicSize.Min),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingXL),
                         ) {
-                            StatCard(
-                                value = state.hangboardWorkouts.toString(),
-                                label = "Durchläufe",
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            GradeDistributionSection(
+                                state = state,
+                                effectiveSystemId = effectiveSystemId,
+                                gradeDistribution = gradeDistribution,
+                                onSelectSystem = { selectedSystemId = it },
+                                modifier = Modifier.weight(1f),
                             )
-                            StatCard(
-                                value = state.hangboardSets.toString(),
-                                label = "Sätze",
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                            )
-                            StatCard(
-                                value = state.hangboardHangTime,
-                                label = "Hängezeit",
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            ActivitySection(
+                                activity = activity,
+                                modifier = Modifier.weight(1f),
                             )
                         }
                     }
-                }
-
-                // --- Aktivität ---
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                        SectionHeader(text = "Aktivität")
-                        // Kurze Beschreibung, was die Skala zeigt.
-                        // TODO(DB): Zeitraum dynamisch aus den echten Daten bilden
-                        //  (z.B. konkrete Datumsspanne statt "letzten 4 Wochen").
-                        Text(
-                            text = "Deine Kletteraktivität der letzten 4 Wochen",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = BoulderBuddy.colors.textSecondary,
+                    item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
+                } else {
+                    // Phone: alles untereinander (unverändert).
+                    item {
+                        GradeDistributionSection(
+                            state = state,
+                            effectiveSystemId = effectiveSystemId,
+                            gradeDistribution = gradeDistribution,
+                            onSelectSystem = { selectedSystemId = it },
                         )
-                        // fillWidth: Heatmap spannt sich über die gesamte Breite,
-                        // egal wie viele Tage Daten vorliegen.
-                        ActivityHeatmap(
-                            intensities = activity,
-                            fillWidth = true,
-                        )
-                        ActivityLegend()
                     }
+                    item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
+                    item { ActivitySection(activity = activity) }
                 }
             }
         },
     )
+}
+
+// Quick-Stats-Reihe. height(IntrinsicSize.Min) + fillMaxHeight() → alle Karten gleich hoch.
+@Composable
+private fun QuickStatsRow(quickStats: List<QuickStat>, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+    ) {
+        quickStats.forEach { stat ->
+            StatCard(
+                value = stat.value,
+                label = stat.label,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            )
+        }
+    }
+}
+
+// Grade-Verteilung (pro System, da Grade systemübergreifend nicht vergleichbar).
+@Composable
+private fun GradeDistributionSection(
+    state: StatistikUiState,
+    effectiveSystemId: Int?,
+    gradeDistribution: List<BarChartEntry>,
+    onSelectSystem: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+        SectionHeader(text = "Grade-Verteilung")
+        if (state.distributionSystems.isEmpty()) {
+            Text(
+                text = "Noch keine getoppten Boulder.",
+                style = MaterialTheme.typography.bodySmall,
+                color = BoulderBuddy.colors.textSecondary,
+            )
+        } else {
+            // System-Umschalter — nur nötig, wenn in mehreren Systemen getoppt wurde.
+            if (state.distributionSystems.size > 1) {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                ) {
+                    state.distributionSystems.forEach { system ->
+                        FilterChip(
+                            label = system.name,
+                            selected = effectiveSystemId == system.id,
+                            onClick = { onSelectSystem(system.id) },
+                        )
+                    }
+                }
+            }
+            BarChart(
+                entries = gradeDistribution,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+// Hangboard-Training-Kacheln. Antippen öffnet die Historie aller Workouts (§0 Säule 5) —
+// nur so werden eigenständige Trainings (ohne Session) als Einträge sichtbar.
+@Composable
+private fun HangboardSection(
+    state: StatistikUiState,
+    onOpen: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.clickable(onClick = onOpen),
+        verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            SectionHeader(text = "Hangboard-Training")
+            Text(
+                text = "Alle Workouts ›",
+                style = MaterialTheme.typography.labelLarge,
+                color = BoulderBuddy.colors.textTertiary,
+            )
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+        ) {
+            StatCard(
+                value = state.hangboardWorkouts.toString(),
+                label = "Durchläufe",
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
+            StatCard(
+                value = state.hangboardSets.toString(),
+                label = "Sätze",
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
+            StatCard(
+                value = state.hangboardHangTime,
+                label = "Hängezeit",
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+            )
+        }
+    }
+}
+
+// Aktivitäts-Heatmap der letzten Wochen.
+@Composable
+private fun ActivitySection(activity: List<Float>, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+        SectionHeader(text = "Aktivität")
+        // TODO(DB): Zeitraum dynamisch aus den echten Daten bilden
+        //  (z.B. konkrete Datumsspanne statt "letzten 4 Wochen").
+        Text(
+            text = "Deine Kletteraktivität der letzten 4 Wochen",
+            style = MaterialTheme.typography.bodySmall,
+            color = BoulderBuddy.colors.textSecondary,
+        )
+        // fillWidth: Heatmap spannt sich über die gesamte Breite.
+        ActivityHeatmap(
+            intensities = activity,
+            fillWidth = true,
+        )
+        ActivityLegend()
+    }
 }
 
 // "weniger → mehr"-Legende für die Heatmap. Die Zellen spiegeln dieselbe

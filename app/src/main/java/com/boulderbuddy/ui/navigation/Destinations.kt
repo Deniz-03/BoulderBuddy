@@ -41,6 +41,16 @@ object SessionErstellen   // -> SessionErstellenScreen
 @Serializable
 object BoulderUebersicht  // -> BoulderUebersichtScreen
 
+// Ghost Climber (7.5): bewusst Push-Ziel aus den Einstellungen ("Experimental"),
+// KEIN 5. Bottom-Tab — hält den MVP-Kernfluss stabil (Plan A.4).
+@Serializable
+object GhostClimber       // -> GhostClimberScreen
+
+// Hangboard-Historie (Phase 7 Anhang B, §0 Säule 5): alle Workouts inkl. eigenständiger
+// Trainings; Einstieg über den Hangboard-Block im Statistik-Screen.
+@Serializable
+object HangboardHistorie  // -> HangboardHistorieScreen
+
 // -----------------------------------------------------------------------------
 // Push-Ziele MIT Argument:
 // -----------------------------------------------------------------------------

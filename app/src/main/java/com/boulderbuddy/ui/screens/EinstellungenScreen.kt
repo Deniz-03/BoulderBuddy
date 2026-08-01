@@ -1,5 +1,9 @@
 package com.boulderbuddy.ui.screens
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -18,7 +23,9 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.Watch
@@ -29,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
@@ -61,14 +70,41 @@ fun EinstellungenScreen(
     onDeleteGradeSystem: (Int) -> Unit = {},
     // Standard-Grading wählen (persistiert das Grade-System, das das Boulder-Dropdown speist).
     onSelectGradeSystem: (Int) -> Unit = {},
+    // Exportiert alle Sessions als CSV in das gewählte SAF-Dokument (7.3b).
+    onExportSessions: (Uri) -> Unit = {},
+    // Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a).
+    onSetDarkMode: (Boolean) -> Unit = {},
+    // Einmalige Export-Rückmeldung (Toast); null = keine offene Meldung.
+    exportMessage: String? = null,
+    // Meldet dem ViewModel, dass die Export-Rückmeldung angezeigt wurde.
+    onExportMessageShown: () -> Unit = {},
+    // Öffnet den experimentellen Ghost-Climber-Flow (Phase 7.5) — bewusst hier statt
+    // im MVP-Kernfluss verankert (Plan A.4).
+    onOpenGhostClimber: () -> Unit = {},
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
-    // Lokaler UI-State (Geräte-/App-Toggles noch nicht persistiert).
+    // Lokaler UI-State (Geräte-Toggles noch nicht persistiert).
     // TODO: aus den App-Einstellungen lesen/schreiben (DataStore via ViewModel).
     var smartwatchVerbunden by remember { mutableStateOf(true) }
     var haptischesFeedback by remember { mutableStateOf(true) }
-    var darkMode by remember { mutableStateOf(false) }
+    // Effektiver Dark-Mode-Zustand: expliziter Override, sonst dem System folgen. Der Switch
+    // zeigt den aktuell wirksamen Zustand; ein Tap persistiert ihn als expliziten Override (7.4a).
+    val darkMode = state.darkModeOverride ?: isSystemInDarkTheme()
+
+    // SAF-Launcher: legt ein neues CSV-Dokument an; die gewählte URI geht an den Export.
+    val context = LocalContext.current
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv"),
+    ) { uri -> uri?.let(onExportSessions) }
+
+    // Export-Ergebnis als Toast zeigen und danach quittieren.
+    LaunchedEffect(exportMessage) {
+        exportMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            onExportMessageShown()
+        }
+    }
 
     // Steuert die Grading-Dialoge (Standard wählen / anlegen / verwalten).
     var showGradingDialog by remember { mutableStateOf(false) }
@@ -198,14 +234,36 @@ fun EinstellungenScreen(
                         trailing = {
                             ToggleSwitch(
                                 checked = darkMode,
-                                onCheckedChange = { darkMode = it },
+                                onCheckedChange = onSetDarkMode,
                             )
                         },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.FileDownload,
+                        label = "Sessions exportieren (CSV)",
+                        onClick = { exportLauncher.launch("boulderbuddy_sessions.csv") },
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Info,
                         label = "Über BoulderBuddy",
                         value = "v0.1", // TODO: aus BuildConfig.VERSION_NAME
+                    )
+                }
+
+                // --- Gruppe: Experimental (7.5) ---
+                Column {
+                    SectionHeader(
+                        text = "Experimental",
+                        modifier = Modifier.padding(
+                            horizontal = Dimens.paddingL,
+                            vertical = Dimens.paddingS,
+                        ),
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Science,
+                        label = "Ghost Climber",
+                        value = "Beta",
+                        onClick = onOpenGhostClimber,
                     )
                 }
             }

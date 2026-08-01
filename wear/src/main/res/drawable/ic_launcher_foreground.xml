@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Stilisierter Berg/Boulder, zentriert im 72dp-Safe-Zone-Bereich. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,32 L72,68 L36,68 Z" />
+    <path
+        android:fillColor="#FFD166"
+        android:pathData="M42,68 L58,44 L74,68 Z" />
+</vector>
