@@ -25,6 +25,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         // Optionales Sprungziel aus dem Homescreen-Widget (7.4c); nur beim Start-Intent.
         val widgetNavTarget = intent?.getStringExtra(WidgetIntent.EXTRA_NAV_TARGET)
+        // Nur für TARGET_ACTIVE_SESSION gesetzt: die Session, in die das Widget springt.
+        val widgetSessionId = intent
+            ?.getIntExtra(WidgetIntent.EXTRA_SESSION_ID, -1)
+            ?.takeIf { it > 0 }
         setContent {
             // Dark-Mode-Override aus den Einstellungen; null = dem System folgen (7.4a).
             val darkModeOverride by themeViewModel.darkModeOverride.collectAsStateWithLifecycle()
@@ -36,6 +40,7 @@ class MainActivity : ComponentActivity() {
                 AppNavigation(
                     windowSizeClass = windowSizeClass,
                     initialNavTarget = widgetNavTarget,
+                    initialNavSessionId = widgetSessionId,
                 )
             }
         }
