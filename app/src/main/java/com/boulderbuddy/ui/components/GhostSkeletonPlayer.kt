@@ -82,6 +82,14 @@ fun GhostSkeletonPlayer(
      * erraten statt messen.
      */
     debug: Boolean = false,
+    /**
+     * Zeichnet die UNGEFILTERTEN Roh-Keypoints (rot) zusätzlich ins Bild. Getrennt von
+     * [debug], weil beides nichts miteinander zu tun hat: das HUD liefert Zahlen, die
+     * Roh-Spur zeigt Rohdaten. Zusammengeschaltet lagen im Debug-Modus vier Skelette
+     * übereinander, zwei davon per Definition wackelig — nicht wiederzuerkennen, ob das
+     * Ergebnis unruhig ist oder nur die Rohdaten daneben. Deshalb standardmäßig aus.
+     */
+    showRawOverlay: Boolean = false,
     /** Normalisierte DTW-Restdistanz (Anteil der Routenlänge) fürs Debug-HUD. */
     dtwDistanceFraction: Double? = null,
 ) {
@@ -147,9 +155,10 @@ fun GhostSkeletonPlayer(
                     abortTimeMs = abortTimeMs,
                 )
             }
-            if (debug) {
+            if (showRawOverlay) {
                 // Roh vs. gefiltert: die ungefilterten Keypoints in Signalfarbe darüber —
                 // der sichtbare Abstand zum gefilterten Skelett IST der Filter-Effekt.
+                // Dass diese Spur wackelt, ist ihr Zweck und kein Mangel am Ergebnis.
                 poseTrack.rawFrames?.let { raw ->
                     drawSkeletonOverlay(
                         track = poseTrack.copy(frames = raw),
@@ -164,6 +173,8 @@ fun GhostSkeletonPlayer(
                         color = DebugRawColor.copy(alpha = 0.6f),
                     )
                 }
+            }
+            if (debug) {
                 // Warp-Kurve (S0): macht die Treppenstufen des Alignments sichtbar.
                 if (ghostTrack != null) {
                     drawWarpCurve(

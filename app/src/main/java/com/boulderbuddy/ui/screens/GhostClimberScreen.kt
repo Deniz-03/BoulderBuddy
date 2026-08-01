@@ -426,8 +426,12 @@ private fun PreviewStep(
         return
     }
     val cmpTimeForPosition: (Long) -> Long = { pos -> mapping?.mapToComparison(pos) ?: pos }
-    // Debug-Ansicht (Stufe 0): Roh-Keypoints + Kennzahlen-HUD im Overlay-Player.
+    // Debug-Ansicht (Stufe 0): Kennzahlen-HUD + Warp-Kurve im Overlay-Player.
     var debugHud by rememberSaveable { mutableStateOf(false) }
+    // Die ROH-Spur ist bewusst ein eigener Schalter und standardmäßig aus: sie wackelt
+    // per Definition (ungefiltert), und über dem Ergebnis gezeichnet ist nicht mehr
+    // auseinanderzuhalten, ob das Ergebnis unruhig ist oder nur die Rohdaten daneben.
+    var showRaw by rememberSaveable { mutableStateOf(false) }
     // Einzelne Skelette im Overlay ein-/ausblendbar (7.5c).
     var showReference by rememberSaveable { mutableStateOf(true) }
     var showGhost by rememberSaveable { mutableStateOf(true) }
@@ -449,6 +453,22 @@ private fun PreviewStep(
             label = "Debug",
             selected = debugHud,
             onClick = { debugHud = !debugHud },
+        )
+        if (debugHud) {
+            SelectableChip(
+                label = "Roh",
+                selected = showRaw,
+                onClick = { showRaw = !showRaw },
+            )
+        }
+    }
+    if (debugHud && showRaw) {
+        Text(
+            text = "Rot = ungefilterte Roh-Erkennung. Sie wackelt und springt " +
+                "absichtlich — der Abstand zum farbigen Skelett ist genau das, was " +
+                "die Filterkette entfernt.",
+            style = MaterialTheme.typography.labelMedium,
+            color = BoulderBuddy.colors.textTertiary,
         )
     }
     if (state.suggestionReason.isNotEmpty()) {
@@ -486,6 +506,7 @@ private fun PreviewStep(
                 showSkeleton = showReference,
                 showGhost = showGhost,
                 debug = debugHud,
+                showRawOverlay = debugHud && showRaw,
                 dtwDistanceFraction = state.dtwDistanceFraction,
                 modifier = Modifier
                     .fillMaxWidth()
