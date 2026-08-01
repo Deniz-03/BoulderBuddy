@@ -11,9 +11,11 @@ import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.GhostPoseTrack
 import com.boulderbuddy.ghost.video.fullFrameAt
 import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
+import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -32,10 +34,19 @@ import kotlin.math.roundToInt
  *
  * **ROI-Crop-Tracking (Stufe 2):** statt immer das ganze (kleine) Vollbild zu
  * analysieren, wird der voll aufgelöste Frame auf die zuletzt bekannte Personen-Box
- * (+[GhostTuning.ROI_EXPAND_FRACTION] je Seite) gecroppt — die Person füllt das
+ * (+[GhostTuning.ROI_EXPAND_BODY_FRACTION] je Seite) gecroppt — die Person füllt das
  * Modell-Eingabebild, Extremitäten werden effektiv höher aufgelöst, und die Analyse
  * bindet an den Kletterer statt auf Zuschauer zu springen (Diagnose G). Geht die
  * Person verloren, fällt der nächste Frame aufs Vollbild zurück.
+ *
+ * **Ein Weg für die Spur, ein zweiter für die Box (S7b):** Crop und Vollbild zeigen dem
+ * Modell die Person in völlig verschiedenem Maßstab und liefern deshalb systematisch
+ * verschiedene Landmarks. Jeder Wechsel zwischen beiden ist ein Sprung im Ergebnis — im
+ * festen Takt wiederholt eine periodische Störung, die keine nachgelagerte Glättung mehr
+ * entfernen kann und die als regelmäßiges Zucken des Skeletts sichtbar wird. Die Spur
+ * läuft deshalb ausnahmslos über den Crop-Weg; die Kontrolle, ob die Box noch stimmt,
+ * läuft über einen SEPARATEN Landmarker auf einem geweiteten Ausschnitt und beeinflusst
+ * ausschließlich die Box.
  *
  * Nachverarbeitung (Stufen 1+2): L/R-Konsistenz → anatomische Plausibilität →
  * One-Euro-Glättung → Sichtbarkeits-Hysterese; die Roh-Spur bleibt als
@@ -60,22 +71,14 @@ class VideoPoseExtractor @Inject constructor(
         // detectForVideo verlangt streng aufsteigende Timestamps — gegeben, weil die
         // Sample-Zeiten sequenziell durchlaufen werden. Ein Landmarker pro Video, damit
         // das interne Tracking nicht Spuren verschiedener Videos vermischt.
-        val landmarker = PoseLandmarker.createFromOptions(
-            context,
-            PoseLandmarker.PoseLandmarkerOptions.builder()
-                .setBaseOptions(
-                    BaseOptions.builder().setModelAssetPath(MODEL_ASSET).build(),
-                )
-                .setRunningMode(RunningMode.VIDEO)
-                .setNumPoses(1)
-                // 7.5c: Präsenz-/Tracking-Schwelle unter Default (0.5), damit der VIDEO-
-                // Tracker bei unsicheren Kletterposen dranbleibt statt abzureißen
-                // (weniger Ganzkörper-Aussetzer); Detektion bleibt bei 0.5.
-                .setMinPoseDetectionConfidence(GhostTuning.MP_MIN_DETECTION_CONFIDENCE)
-                .setMinPosePresenceConfidence(GhostTuning.MP_MIN_PRESENCE_CONFIDENCE)
-                .setMinTrackingConfidence(GhostTuning.MP_MIN_TRACKING_CONFIDENCE)
-                .build(),
-        )
+        val landmarker = createLandmarker(RunningMode.VIDEO)
+        // Zweiter Landmarker allein für die Box-Prüfung (S7b). Getrennt, weil der
+        // VIDEO-Modus einen internen Tracker führt: schob man ihm alle 12 Frames ein
+        // andersartiges Eingabebild unter, war nicht nur DIESER Frame gestört, sondern
+        // auch der darauf folgende — gemessen war der Nachfolger sogar der schlechtere
+        // (18,2 % gegen 17,0 % Versatz). Der IMAGE-Modus hat keinen solchen Zustand;
+        // die Prüfung läuft damit vollständig neben der Spur her.
+        val checkLandmarker = createLandmarker(RunningMode.IMAGE)
         try {
             retriever.setDataSource(context, videoUri.toUri())
             val durationMs = retriever
@@ -94,6 +97,7 @@ class VideoPoseExtractor @Inject constructor(
             var consecutiveRoiRejects = 0
             val roiStats = IntArray(RoiOutcome.entries.size)
             var fullFrameDetections = 0
+            var boxChecks = 0
             val frames = ArrayList<GhostPoseFrame>(sampleTimes.size)
             sampleTimes.forEachIndexed { index, timeMs ->
                 coroutineContext.ensureActive()
@@ -107,37 +111,55 @@ class VideoPoseExtractor @Inject constructor(
                         frameWidth = (full.width * scale).roundToInt()
                         frameHeight = (full.height * scale).roundToInt()
                     }
-                    // Periodischer Vollbild-Reset (A1): ohne ihn bliebe eine einmal
-                    // falsch eingelaufene Box bis zum Videoende bestehen. Kostet nichts —
-                    // es ist dieselbe Anzahl Inferenzen, nur ohne Crop.
-                    //
-                    // S3d/S4b: zusätzlich nach MEHREREN verworfenen Boxen in Folge. Eine
-                    // einzelne Verwerfung ist normale Rauschabwehr — darauf jedes Mal aufs
-                    // Vollbild zu wechseln kostete mehr Präzision (kleine Person im
-                    // Eingabebild → ungenauere Landmarks → Zittern) als es an Stabilität
-                    // brachte. Erst eine Serie heißt, dass die Box wirklich festhängt.
-                    val forceFullFrame =
-                        index % GhostTuning.ROI_FULL_FRAME_INTERVAL_FRAMES == 0 ||
-                            consecutiveRoiRejects >= GhostTuning.ROI_REANCHOR_AFTER_REJECTS
-                    if (forceFullFrame || roi == null) fullFrameDetections++
+                    // Die SPUR entsteht immer auf demselben Weg: Crop aus der vollen
+                    // Auflösung, sobald eine Box bekannt ist. Vollbild nur noch dort, wo
+                    // es keine Alternative gibt — beim ersten Frame und nach einem echten
+                    // Verlust. Jeder Wechsel zwischen beiden Wegen ist ein Sprung im
+                    // Maßstab des Modell-Eingabebilds und damit ein Sprung im Ergebnis;
+                    // regelmäßig wiederholt ergab das die 1-Hz-Störung aus S7 (Details in
+                    // GhostTuning.ROI_CHECK_WIDEN_FACTOR).
+                    if (roi == null) fullFrameDetections++
                     val landmarks = detectLandmarks(
-                        landmarker = landmarker,
                         full = full,
-                        timeMs = timeMs,
                         analysisWidth = frameWidth,
                         analysisHeight = frameHeight,
-                        roi = if (forceFullFrame) null else roi,
-                    )
-                    full.recycle()
+                        roi = roi,
+                    ) { image -> landmarker.detectForVideo(image, timeMs) }
                     frames += GhostPoseFrame(timeMs = timeMs, landmarks = landmarks)
-                    val step = nextRoi(roi, landmarks, frameWidth, frameHeight)
+
+                    // Box-Pflege, getrennt von der Spur (S7b): periodisch — und zusätzlich
+                    // nach MEHREREN verworfenen Boxen in Folge (S3d/S4b; eine einzelne
+                    // Verwerfung ist normale Rauschabwehr) — wird auf einem geweiteten
+                    // Ausschnitt nachgesehen, ob die Box überhaupt noch auf der Person
+                    // sitzt. Ohne diese Prüfung bliebe ein einmal eingelaufener Box-Fehler
+                    // bis zum Videoende bestehen.
+                    val dueForCheck = roi != null && (
+                        index % GhostTuning.ROI_BOX_CHECK_INTERVAL_FRAMES == 0 ||
+                            consecutiveRoiRejects >= GhostTuning.ROI_REANCHOR_AFTER_REJECTS
+                        )
+                    val checked = if (dueForCheck) {
+                        boxChecks++
+                        checkRoi(
+                            checkLandmarker = checkLandmarker,
+                            full = full,
+                            roi = requireNotNull(roi),
+                            analysisWidth = frameWidth,
+                            analysisHeight = frameHeight,
+                        )
+                    } else {
+                        null
+                    }
+                    full.recycle()
+                    // Die Prüfung darf nur helfen, nie schaden: findet sie niemanden,
+                    // entscheidet der normale Weg über die Box.
+                    val step = checked ?: nextRoi(roi, landmarks, frameWidth, frameHeight)
                     roiStats[step.outcome.ordinal]++
                     roi = step.roi
                     consecutiveRoiRejects = when {
                         step.outcome != RoiOutcome.REJECTED -> 0
                         // Nach dem Neuverankern die Serie zurücksetzen, sonst löst jede
-                        // weitere Verwerfung sofort wieder ein Vollbild aus.
-                        forceFullFrame -> 0
+                        // weitere Verwerfung sofort wieder eine Prüfung aus.
+                        dueForCheck -> 0
                         else -> consecutiveRoiRejects + 1
                     }
                 } else {
@@ -153,12 +175,18 @@ class VideoPoseExtractor @Inject constructor(
             // Extraktions-Diagnose (A7): der ROI-Regelkreis ist im fertigen Track nicht
             // mehr sichtbar — viele REJECTED/LOST heißen, dass die Box laufend gegen die
             // Bremsen läuft und die Roh-Erkennung das eigentliche Problem ist.
+            //
+            // "Vollbild" ist seit S7b die Zahl, auf die es ankommt: jeder dieser Frames
+            // sieht die Person in einem anderen Maßstab als alle übrigen und liegt
+            // deshalb systematisch daneben. Erwartet wird eine kleine einstellige Zahl
+            // (Start + echte Verluste); steigt sie, ist die Box-Verfolgung das Problem.
             Log.d(
                 LOG_TAG,
                 "ROI $videoUri: frisch=${roiStats[RoiOutcome.FRESH.ordinal]} " +
                     "geglättet=${roiStats[RoiOutcome.SMOOTHED.ordinal]} " +
                     "verworfen=${roiStats[RoiOutcome.REJECTED.ordinal]} " +
                     "verloren=${roiStats[RoiOutcome.LOST.ordinal]} " +
+                    "Box-Prüfungen=$boxChecks " +
                     "Vollbild=$fullFrameDetections/${sampleTimes.size}",
             )
 
@@ -195,21 +223,74 @@ class VideoPoseExtractor @Inject constructor(
         } finally {
             retriever.release()
             landmarker.close()
+            checkLandmarker.close()
         }
+    }
+
+    private fun createLandmarker(mode: RunningMode): PoseLandmarker =
+        PoseLandmarker.createFromOptions(
+            context,
+            PoseLandmarker.PoseLandmarkerOptions.builder()
+                .setBaseOptions(
+                    BaseOptions.builder().setModelAssetPath(MODEL_ASSET).build(),
+                )
+                .setRunningMode(mode)
+                .setNumPoses(1)
+                // 7.5c: Präsenz-/Tracking-Schwelle unter Default (0.5), damit der VIDEO-
+                // Tracker bei unsicheren Kletterposen dranbleibt statt abzureißen
+                // (weniger Ganzkörper-Aussetzer); Detektion bleibt bei 0.5.
+                .setMinPoseDetectionConfidence(GhostTuning.MP_MIN_DETECTION_CONFIDENCE)
+                .setMinPosePresenceConfidence(GhostTuning.MP_MIN_PRESENCE_CONFIDENCE)
+                .setMinTrackingConfidence(GhostTuning.MP_MIN_TRACKING_CONFIDENCE)
+                .build(),
+        )
+
+    /**
+     * Prüft auf einem geweiteten Ausschnitt nach, wo die Person wirklich steht, und gibt
+     * die daraus frisch aufgespannte Box zurück (S7b) — oder null, wenn dort niemand zu
+     * finden war und die Box deshalb nicht angetastet werden soll.
+     *
+     * Bewusst [nextRoi] ohne Vorgängerin: die Plausibilitätsbremsen (Schrumpf-/Sprung-
+     * Limit) sind dafür da, das laufende Tracking gegen Rauschen zu schützen — hier
+     * würden sie ausgerechnet den Fall abwehren, für den die Prüfung existiert, nämlich
+     * eine Box, die längst woanders sitzt.
+     */
+    private fun checkRoi(
+        checkLandmarker: PoseLandmarker,
+        full: Bitmap,
+        roi: PoseRoi,
+        analysisWidth: Int,
+        analysisHeight: Int,
+    ): RoiStep? {
+        val wide = roi.widened(
+            factor = GhostTuning.ROI_CHECK_WIDEN_FACTOR,
+            frameWidth = analysisWidth,
+            frameHeight = analysisHeight,
+        )
+        val landmarks = detectLandmarks(
+            full = full,
+            analysisWidth = analysisWidth,
+            analysisHeight = analysisHeight,
+            roi = wide,
+        ) { image -> checkLandmarker.detect(image) }
+        return nextRoi(null, landmarks, analysisWidth, analysisHeight).takeIf { it.roi != null }
     }
 
     /**
      * Eine Inferenz: auf dem ROI-Crop des voll aufgelösten Frames (sofern Box bekannt
      * und groß genug), sonst auf dem aufs Analyse-Maß skalierten Vollbild. Ergebnis-
      * Koordinaten immer im Analyse-Frame-Raum.
+     *
+     * [detect] bestimmt, WELCHER Landmarker läuft — der Spur-Landmarker im VIDEO-Modus
+     * oder der Prüf-Landmarker im IMAGE-Modus. Das Zuschneiden und das Zurückrechnen der
+     * Koordinaten sind für beide identisch und sollen es auch bleiben.
      */
-    private fun detectLandmarks(
-        landmarker: PoseLandmarker,
+    private inline fun detectLandmarks(
         full: Bitmap,
-        timeMs: Long,
         analysisWidth: Int,
         analysisHeight: Int,
         roi: PoseRoi?,
+        detect: (MPImage) -> PoseLandmarkerResult,
     ): List<GhostLandmark> {
         val scaleX = full.width.toFloat() / analysisWidth
         val scaleY = full.height.toFloat() / analysisHeight
@@ -222,7 +303,7 @@ class VideoPoseExtractor @Inject constructor(
                 .coerceIn(1, full.height - top)
             if (width >= MIN_CROP_PX && height >= MIN_CROP_PX) {
                 val crop = Bitmap.createBitmap(full, left, top, width, height).asArgb8888()
-                val landmarks = runDetection(landmarker, crop, timeMs) { x, y ->
+                val landmarks = runDetection(crop, detect) { x, y ->
                     // Crop-normiert → Vollbild-Pixel → Analyse-Raum.
                     (left + x * width) / scaleX to (top + y * height) / scaleY
                 }
@@ -232,7 +313,7 @@ class VideoPoseExtractor @Inject constructor(
         }
         val scaled = Bitmap.createScaledBitmap(full, analysisWidth, analysisHeight, true)
             .asArgb8888()
-        val landmarks = runDetection(landmarker, scaled, timeMs) { x, y ->
+        val landmarks = runDetection(scaled, detect) { x, y ->
             x * analysisWidth to y * analysisHeight
         }
         scaled.recycle()
@@ -240,12 +321,11 @@ class VideoPoseExtractor @Inject constructor(
     }
 
     private inline fun runDetection(
-        landmarker: PoseLandmarker,
         bitmap: Bitmap,
-        timeMs: Long,
+        detect: (MPImage) -> PoseLandmarkerResult,
         toAnalysisSpace: (Float, Float) -> Pair<Float, Float>,
     ): List<GhostLandmark> =
-        landmarker.detectForVideo(BitmapImageBuilder(bitmap).build(), timeMs)
+        detect(BitmapImageBuilder(bitmap).build())
             .landmarks().firstOrNull().orEmpty()
             .mapIndexed { type, lm ->
                 val (x, y) = toAnalysisSpace(lm.x(), lm.y())

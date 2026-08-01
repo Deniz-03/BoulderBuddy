@@ -73,6 +73,42 @@ class RoiTrackingTest {
         }
     }
 
+    // --- Geweitete Prüf-Box (S7b) ----------------------------------------------
+
+    /**
+     * Die Prüf-Box ersetzt den früheren Vollbild-Reset. Sie muss deshalb zweierlei
+     * leisten: deutlich mehr Umgebung zeigen als die laufende Box (sonst findet sie eine
+     * verrutschte Person nie), und dabei dieselbe Geometrie behalten (sonst ist sie genau
+     * der Maßstabssprung, dessen Beseitigung ihr ganzer Zweck ist).
+     */
+    @Test
+    fun `Pruef-Box ist groesser und behaelt die Frame-Geometrie`() {
+        val roi = checkNotNull(
+            nextRoi(null, torsoOnly(360f, 640f, 60f), frameWidth, frameHeight).roi,
+        )
+        val wide = roi.widened(2f, frameWidth, frameHeight)
+
+        assertThat(wide.width).isGreaterThan(roi.width)
+        assertThat(wide.centerX).isWithin(1e-3f).of(roi.centerX)
+        assertThat(wide.centerY).isWithin(1e-3f).of(roi.centerY)
+        val frameAspect = frameWidth.toFloat() / frameHeight
+        assertThat(abs(wide.width / wide.height - frameAspect)).isLessThan(1e-3f)
+    }
+
+    @Test
+    fun `Pruef-Box bleibt im Frame und wird hoechstens das Vollbild`() {
+        // Box am Rand und mit einem Faktor, der jeden Rahmen sprengen würde.
+        val roi = checkNotNull(
+            nextRoi(null, torsoOnly(40f, 1240f, 100f), frameWidth, frameHeight).roi,
+        )
+        val wide = roi.widened(20f, frameWidth, frameHeight)
+
+        assertThat(wide.left).isAtLeast(0f)
+        assertThat(wide.top).isAtLeast(0f)
+        assertThat(wide.right).isAtMost(frameWidth.toFloat())
+        assertThat(wide.bottom).isAtMost(frameHeight.toFloat())
+    }
+
     /** Die Kollaps-Bremse: eine plötzlich einbrechende Box wird verworfen. */
     @Test
     fun `Einbrechende Box wird verworfen und die alte behalten`() {

@@ -319,29 +319,44 @@ private fun PoseSecondStats?.hudLine(): String = if (this == null) {
 private fun GhostPoseTrack.shapeLine(): String {
     val filtered = qualityMetrics()
     val raw = rawFrames?.qualityMetrics()
-    return if (raw == null) {
-        String.format(
-            Locale.GERMANY,
-            "Unruhe %.2f%% · Morph %.1f%% · Überlang %.1f%% · Kollaps %.1f%%",
-            filtered.centroidWobble * 100,
-            filtered.boneLengthCv * 100,
-            filtered.boneOverExtensionRate * 100,
-            filtered.scaleCv * 100,
+    fun pair(filteredValue: Double, rawValue: Double?, digits: Int): String =
+        if (rawValue == null) {
+            String.format(Locale.GERMANY, "%.${digits}f%%", filteredValue * 100)
+        } else {
+            String.format(
+                Locale.GERMANY,
+                "%.${digits}f%% (roh %.${digits}f)",
+                filteredValue * 100,
+                rawValue * 100,
+            )
+        }
+    return buildString {
+        // Puls zuerst: die Zahl, an der die periodische Störung überhaupt erst sichtbar
+        // wurde. Sie ist ein Faktor, kein Prozentwert — 1,0 heißt "keine Periodik".
+        append(
+            String.format(
+                Locale.GERMANY,
+                "Puls %.1f×",
+                filtered.centroidPulse,
+            ),
         )
-    } else {
-        String.format(
-            Locale.GERMANY,
-            "Unruhe %.2f%% (roh %.2f) · Morph %.1f%% (roh %.1f) · " +
-                "Überlang %.1f%% (roh %.1f) · Kollaps %.1f%% (roh %.1f)",
-            filtered.centroidWobble * 100,
-            raw.centroidWobble * 100,
-            filtered.boneLengthCv * 100,
-            raw.boneLengthCv * 100,
-            filtered.boneOverExtensionRate * 100,
-            raw.boneOverExtensionRate * 100,
-            filtered.scaleCv * 100,
-            raw.scaleCv * 100,
-        )
+        raw?.let { append(String.format(Locale.GERMANY, " (roh %.1f×)", it.centroidPulse)) }
+        append(" · Unruhe ").append(pair(filtered.centroidWobble, raw?.centroidWobble, 2))
+        append(" · Morph ").append(pair(filtered.boneLengthWobble, raw?.boneLengthWobble, 2))
+        appendLine()
+        append("     Verkürzung ").append(pair(filtered.boneLengthCv, raw?.boneLengthCv, 1))
+        // Überlang nur roh: nach der rigiden Rekonstruktion ist der Wert konstruktions-
+        // bedingt 0 und sagt nichts mehr aus (der Pass klemmt gegen denselben Median).
+        raw?.let {
+            append(
+                String.format(
+                    Locale.GERMANY,
+                    " · Überlang roh %.1f%%",
+                    it.boneOverExtensionRate * 100,
+                ),
+            )
+        }
+        append(" · Kollaps ").append(pair(filtered.scaleCv, raw?.scaleCv, 1))
     }
 }
 

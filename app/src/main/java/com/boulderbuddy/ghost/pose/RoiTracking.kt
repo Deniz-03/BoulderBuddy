@@ -137,6 +137,27 @@ fun nextRoi(
 }
 
 /**
+ * Geweitete Box für die periodische PRÜFUNG (S7b): dieselbe Mitte, [factor]-fache
+ * Kantenlänge, Seitenverhältnis und Rahmen-Bindung wie bei jeder anderen Box.
+ *
+ * Sie ersetzt den früheren Vollbild-Reset. Der hat die Person dem Modell in einem völlig
+ * anderen Maßstab gezeigt als der normale Crop (gemessen: 57 px Schulterbreite gegen
+ * formatfüllend), und dieser Wechsel im Takt 1:11 war die 1-Hz-Störung, die als Wackeln
+ * sichtbar wurde. Die Prüfung braucht diesen Maßstabssprung nicht — sie muss nur
+ * feststellen können, ob die Box noch auf der Person sitzt, und dafür reicht ein
+ * Ausschnitt, der großzügig um die aktuelle Box herumgreift.
+ */
+fun PoseRoi.widened(factor: Float, frameWidth: Int, frameHeight: Int): PoseRoi =
+    fitInFrame(
+        centerX = centerX,
+        centerY = centerY,
+        width = width * factor,
+        height = height * factor,
+        frameWidth = frameWidth,
+        frameHeight = frameHeight,
+    )
+
+/**
  * Box der Größe [width]×[height] um ([centerX], [centerY]), vollständig im Frame:
  * verschoben statt beschnitten, damit das erzwungene Seitenverhältnis erhalten bleibt.
  * Passt sie gar nicht hinein, wird sie auf Frame-Größe reduziert.

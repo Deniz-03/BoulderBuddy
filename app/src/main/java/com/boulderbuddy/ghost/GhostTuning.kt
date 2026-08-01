@@ -194,21 +194,41 @@ object GhostTuning {
      *  Körpergröße — darüber ist die Box auf etwas anderes gesprungen. */
     const val ROI_MAX_CENTER_JUMP_BODY_FRACTION: Float = 1.5f
 
-    /** ROI-Crop: so viele VERWORFENE Boxen in Folge, bevor auf dem Vollbild neu
+    /** ROI-Crop: so viele VERWORFENE Boxen in Folge, bevor die Box überprüft und neu
      *  verankert wird (S4b). Zuerst löste jede einzelne Verwerfung eine Neuverankerung
-     *  aus — gemessen 74 davon auf 365 Frames, zusammen mit dem periodischen Reset lief
-     *  damit ein Drittel aller Frames auf dem Vollbild. Dort ist die Person klein im
-     *  Modell-Eingabebild und wird ungenauer erkannt; die Roh-Spur wurde messbar
-     *  schlechter (Geist: Morph 36→43 %, Confidence 0,87→0,85, 17 Verluste statt 0),
-     *  und Präzisionsverlust je Frame IST das sichtbare Zittern. Eine einzelne
-     *  Verwerfung ist normale Rauschabwehr; erst mehrere in Folge heißen, dass die Box
-     *  wirklich festhängt. */
+     *  aus — gemessen 74 davon auf 365 Frames. Eine einzelne Verwerfung ist normale
+     *  Rauschabwehr; erst mehrere in Folge heißen, dass die Box wirklich festhängt. */
     const val ROI_REANCHOR_AFTER_REJECTS: Int = 3
 
-    /** ROI-Crop: alle so vielen Sample-Frames wird bewusst auf dem VOLLBILD detektiert
-     *  (~1 s bei 12 fps). Ohne diesen Reset bliebe ein einmal eingelaufener Box-Fehler
-     *  bis zum Videoende bestehen; die Zahl der Inferenzen ändert sich dadurch nicht. */
-    const val ROI_FULL_FRAME_INTERVAL_FRAMES: Int = 12
+    /** ROI-Crop: alle so vielen Sample-Frames wird die Box überprüft (~1 s bei 12 fps).
+     *  Ohne diese Prüfung bliebe ein einmal eingelaufener Box-Fehler bis zum Videoende
+     *  bestehen.
+     *
+     *  S7b: hieß bis hierher ROI_FULL_FRAME_INTERVAL_FRAMES, weil die Prüfung eine
+     *  VOLLBILD-Detektion war, deren Landmarks in die Spur gingen. Genau das war die
+     *  Hauptursache des sichtbaren Wackelns — siehe [ROI_CHECK_WIDEN_FACTOR]. Der Takt
+     *  bleibt, seine Wirkung auf die Spur ist weg. */
+    const val ROI_BOX_CHECK_INTERVAL_FRAMES: Int = 12
+
+    /**
+     * ROI-Crop: Vielfaches, auf das die Box für die periodische PRÜFUNG geweitet wird
+     * (S7b). Der Prüf-Crop kommt weiterhin aus der VOLLEN Auflösung.
+     *
+     * Das ersetzt den früheren Vollbild-Reset, und der Grund ist gemessen: im 720er-
+     * Vollbild ist die Schulterbreite des Kletterers ~57 px, im Crop füllt er das
+     * Eingabebild. Zwei so verschiedene Arbeitspunkte liefern systematisch verschiedene
+     * Landmarks — im Wechsel 11:1 ergab das eine Rechteckstörung bei exakt 1 Hz: das
+     * Skelett sprang einmal pro Sekunde um 17 % der Körpergröße heraus und zurück (nach
+     * der Filterkette noch 3,7 %; One-Euro lässt sie mit einem Grund-Cutoff von 1,5 Hz
+     * ungehindert durch). Eine periodische Störung liest das Auge als Fehler, gleich
+     * starkes zufälliges Rauschen dagegen als Bildrauschen.
+     *
+     * 2,0 ist der Kompromiss: weit genug, dass eine verrutschte Box die Person wieder
+     * ganz enthält und der Fehler auffliegt; eng genug, dass der Maßstabsunterschied
+     * klein bleibt. Die Prüf-Landmarks gehen ohnehin nicht in die Spur — die Weitung
+     * muss die Person nur FINDEN, nicht genau vermessen.
+     */
+    const val ROI_CHECK_WIDEN_FACTOR: Float = 2.0f
 
     /** ROI-Crop: so viele sichere Landmarks braucht die Box, sonst nächster Frame
      *  wieder als Vollbild (Person verloren → neu suchen). */

@@ -135,11 +135,85 @@ class PoseShapeMetricsTest {
         assertThat(frames.qualityMetrics().centroidWobble).isLessThan(0.005)
     }
 
+    // --- Puls-Metrik (S7a) -----------------------------------------------------
+
+    /**
+     * Der Grund, warum es diese Kennzahl gibt: die Extraktion behandelt jeden n-ten Frame
+     * anders als die übrigen, und liegt genau dieser Frame systematisch daneben, ist der
+     * Fehler periodisch — für das Auge das auffälligste Fehlerbild überhaupt. Ein Median
+     * über die ganze Spur sieht davon nichts, weil ein Ereignis in jedem zwölften Frame
+     * ihn nicht um einen Zähler verschiebt. Genau diese Blindheit wird hier festgenagelt.
+     */
+    @Test
+    fun `periodischer Ausschlag bleibt im Median unsichtbar und schlaegt im Puls durch`() {
+        val period = com.boulderbuddy.ghost.GhostTuning.ROI_BOX_CHECK_INTERVAL_FRAMES
+        val smooth = (0 until 120).map { poseAt(it * 83L, 300f, 800f - it * 6f) }
+        val pulsing = (0 until 120).map { i ->
+            val offset = if (i % period == 0) 20f else 0f
+            poseAt(i * 83L, 300f + offset, 800f - i * 6f)
+        }
+
+        val metrics = pulsing.qualityMetrics()
+        // Der Median bleibt ruhig — elf von zwölf Frames sind ja sauber.
+        assertThat(metrics.centroidWobble).isLessThan(0.02)
+        // Der Puls nicht.
+        assertThat(metrics.centroidPulse).isGreaterThan(3.0)
+        assertThat(metrics.centroidPulse)
+            .isGreaterThan(smooth.qualityMetrics().centroidPulse * 3)
+    }
+
+    /** Eine glatte, gekrümmte Bahn hat überall etwas Rest — aber keine Phase sticht
+     *  heraus. Ohne diesen Test wäre nicht gesichert, dass der Puls nicht ohnehin
+     *  ständig ausschlägt und damit wertlos ist. */
+    @Test
+    fun `glatte Bahn ohne Periodik hat Puls nahe eins`() {
+        val frames = (0 until 120).map { i ->
+            // Krümmung mit Periode 37 — teilerfremd zur Prüf-Periode, damit sich keine
+            // Phase zufällig mit der Krümmung deckt.
+            val y = 800f - i * 6f + 40f * kotlin.math.sin(i * 2 * Math.PI / 37).toFloat()
+            poseAt(i * 83L, 300f, y)
+        }
+        assertThat(frames.qualityMetrics().centroidPulse).isLessThan(2.0)
+    }
+
+    // --- Morph zeitlich vs. Verteilungsbreite (S7a) -----------------------------
+
+    /**
+     * Die Unterscheidung, an der die alte Morph-Kennzahl gescheitert ist: ein Glied, das
+     * sich über Sekunden gleichmäßig perspektivisch verkürzt, streut in der Länge stark
+     * (das misst [PoseQualityMetrics.boneLengthCv] auch korrekt) — morpht aber nicht.
+     * Morphen ist eine Aussage über die zeitliche REIHENFOLGE, und nur die neue Kennzahl
+     * trifft sie.
+     */
+    @Test
+    fun `gleichmaessige Verkuerzung streut, morpht aber nicht`() {
+        val frames = (0 until 60).map { i ->
+            rigidPose(360f, 640f, 100f, upperArmRatio = 0.9f - i * 0.008f)
+                .copy(timeMs = i * 83L)
+        }
+        val metrics = frames.qualityMetrics()
+
+        assertThat(metrics.boneLengthCv).isGreaterThan(0.08)
+        assertThat(metrics.boneLengthWobble).isLessThan(0.005)
+    }
+
+    @Test
+    fun `von Frame zu Frame wechselnde Laenge schlaegt im Morph-Wert durch`() {
+        val frames = (0 until 20).map { i ->
+            val ratio = if (i % 2 == 0) 0.5f else 1.1f
+            rigidPose(360f, 640f, 100f, upperArmRatio = ratio).copy(timeMs = i * 83L)
+        }
+        assertThat(frames.qualityMetrics().boneLengthWobble).isGreaterThan(0.1)
+    }
+
     @Test
     fun `Leere Spur liefert neutrale Kennzahlen statt NaN`() {
         val metrics = List(5) { GhostPoseFrame(it * 83L, emptyList()) }.qualityMetrics()
         assertThat(metrics.boneLengthCv).isEqualTo(0.0)
         assertThat(metrics.scaleCv).isEqualTo(0.0)
         assertThat(metrics.centroidWobble).isEqualTo(0.0)
+        assertThat(metrics.boneLengthWobble).isEqualTo(0.0)
+        // Neutral heißt hier 1,0 (= keine Periodik), nicht 0 — der Puls ist ein Faktor.
+        assertThat(metrics.centroidPulse).isEqualTo(1.0)
     }
 }
