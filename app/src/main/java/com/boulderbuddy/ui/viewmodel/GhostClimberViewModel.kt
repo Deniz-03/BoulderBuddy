@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
@@ -10,6 +11,7 @@ import com.boulderbuddy.ghost.GhostArtifactStore
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.analysis.GhostTimeMapping
 import com.boulderbuddy.ghost.analysis.detectAbortFrame
+import com.boulderbuddy.ghost.analysis.qualityMetrics
 import com.boulderbuddy.ghost.analysis.RoutePolyline
 import com.boulderbuddy.ghost.analysis.buildTimeMapping
 import com.boulderbuddy.ghost.analysis.dtw
@@ -248,9 +250,17 @@ class GhostClimberViewModel @Inject constructor(
                         ?: throw IllegalStateException(
                             "Im Referenz-Video wurde keine Person sicher erkannt",
                         )
+                    val ghost = cmpTrack.transformedBy(homography, refTrack)
+                    // Die Homographie ist die einzige Pipeline-Stufe ohne eigene
+                    // Messung — dabei ist sie aus WAND-Ankern geschätzt und wird auf
+                    // den KÖRPER angewendet, verzieht die Pose also zwangsläufig. Hier
+                    // steht schwarz auf weiß, was sie kostet: dieselben Kennzahlen vor
+                    // und nach dem Raumwechsel, beide skalen-normiert und damit direkt
+                    // vergleichbar.
+                    logHomographyCost(cmpTrack, ghost)
                     AlignmentResult(
                         homography = homography,
-                        ghost = cmpTrack.transformedBy(homography, refTrack),
+                        ghost = ghost,
                         trajectory = trajectory,
                         suggestion = suggestRoutePath(refTrack).orEmpty(),
                     )
@@ -314,6 +324,27 @@ class GhostClimberViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Formkennzahlen des Vergleichs-Versuchs vor und nach dem Wechsel in den
+     * Referenzraum (Logcat-Tag "GhostPoseMetrics"). Steigt "Morph" hier deutlich, ist
+     * die Unruhe des Geists eine Folge der Homographie und nicht der Pose-Erkennung —
+     * das ließ sich bisher an keiner Stelle unterscheiden.
+     */
+    private fun logHomographyCost(before: GhostPoseTrack, after: GhostPoseTrack) {
+        fun line(track: GhostPoseTrack): String {
+            val m = track.qualityMetrics()
+            return String.format(
+                Locale.GERMANY,
+                "Morph %.1f%% · Überlang %.1f%% · Kollaps %.1f%%",
+                m.boneLengthCv * 100,
+                m.boneOverExtensionRate * 100,
+                m.scaleCv * 100,
+            )
+        }
+        Log.d("GhostPoseMetrics", "Geist vor Homographie:  ${line(before)}")
+        Log.d("GhostPoseMetrics", "Geist nach Homographie: ${line(after)}")
     }
 
     /** Ergebnis der Synchronisation (M3–M5): Zeitmapping, Modus-Vorschlag, Abbrüche. */
