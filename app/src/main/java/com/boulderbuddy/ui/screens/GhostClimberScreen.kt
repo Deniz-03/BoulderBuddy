@@ -486,6 +486,7 @@ private fun PreviewStep(
                 showSkeleton = showReference,
                 showGhost = showGhost,
                 debug = debugHud,
+                dtwDistanceFraction = state.dtwDistanceFraction,
                 modifier = Modifier
                     .fillMaxWidth()
                     // Player im Seitenverhältnis des Videos, damit Letterbox-Ränder

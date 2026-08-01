@@ -76,6 +76,9 @@ data class GhostClimberUiState(
     val routePath: List<GhostPoint> = emptyList(),
     /** DTW-Zeitmapping Referenz→Vergleich (M3-Ergebnis); steuert den Geist im Player. */
     val timeMapping: GhostTimeMapping? = null,
+    /** Normalisierte DTW-Restdistanz als Anteil der Routenlänge — dieselbe Zahl, die
+     *  über Overlay vs. Side-by-Side entscheidet (P7). Nur fürs Debug-HUD (S0). */
+    val dtwDistanceFraction: Double? = null,
     // --- Darstellungsmodus (M4, P7) ---
     /** Von der Ähnlichkeitsmetrik vorgeschlagener Modus (Vorbelegung). */
     val suggestedMode: GhostViewMode = GhostViewMode.OVERLAY,
@@ -320,10 +323,12 @@ class GhostClimberViewModel @Inject constructor(
         val suggestionReason: String,
         val refAbortTimeMs: Long?,
         val cmpAbortTimeMs: Long?,
+        val dtwDistanceFraction: Double,
     )
 
     private fun GhostClimberUiState.applySync(sync: SyncResult): GhostClimberUiState = copy(
         timeMapping = sync.mapping,
+        dtwDistanceFraction = sync.dtwDistanceFraction,
         suggestedMode = sync.suggestedMode,
         suggestionReason = sync.suggestionReason,
         viewMode = sync.suggestedMode,
@@ -365,6 +370,11 @@ class GhostClimberViewModel @Inject constructor(
                 ?.let { refTrack.frames[it].timeMs },
             cmpAbortTimeMs = detectAbortFrame(cmpTrajectory)
                 ?.let { ghostTrack.frames[it].timeMs },
+            dtwDistanceFraction = if (path.totalLength > 0.0) {
+                alignment.normalizedDistance / path.totalLength
+            } else {
+                0.0
+            },
         )
     }
 

@@ -16,7 +16,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -27,6 +30,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.analysis.PoseQualityMetrics
 import com.boulderbuddy.ghost.analysis.PoseSecondStats
 import com.boulderbuddy.ghost.analysis.perSecondStats
@@ -72,8 +76,14 @@ fun GhostSkeletonPlayer(
      * Debug-Modus (Stufe 0, Diagnose-Doc): zeichnet zusätzlich die UNgefilterten
      * Roh-Keypoints (sofern [GhostPoseTrack.rawFrames] vorhanden) und ein HUD mit
      * den Qualitäts-Kennzahlen (Jitter/Dropout/Flip) + Werten der aktuellen Sekunde.
+     *
+     * S0 (7.5d) ergänzt die SYNC-Diagnose: Warp-Kurve, lokale Warp-Steigung dCmp/dRef
+     * und die aktiven Tuning-Werte — ohne die ließe sich die Glättung aus S1 nur
+     * erraten statt messen.
      */
     debug: Boolean = false,
+    /** Normalisierte DTW-Restdistanz (Anteil der Routenlänge) fürs Debug-HUD. */
+    dtwDistanceFraction: Double? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -154,6 +164,15 @@ fun GhostSkeletonPlayer(
                         color = DebugRawColor.copy(alpha = 0.6f),
                     )
                 }
+                // Warp-Kurve (S0): macht die Treppenstufen des Alignments sichtbar.
+                if (ghostTrack != null) {
+                    drawWarpCurve(
+                        ghostTimeForPosition = ghostTimeForPosition,
+                        refDurationMs = poseTrack.durationMs,
+                        cmpDurationMs = ghostTrack.durationMs,
+                        positionMs = positionMs,
+                    )
+                }
             }
         }
         if (debug) {
@@ -161,7 +180,8 @@ fun GhostSkeletonPlayer(
                 poseTrack = poseTrack,
                 ghostTrack = ghostTrack,
                 positionMs = positionMs,
-                ghostPositionMs = ghostTrack?.let { ghostTimeForPosition(positionMs) },
+                ghostTimeForPosition = ghostTimeForPosition,
+                dtwDistanceFraction = dtwDistanceFraction,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(8.dp),
@@ -184,13 +204,15 @@ private fun DebugHud(
     poseTrack: GhostPoseTrack,
     ghostTrack: GhostPoseTrack?,
     positionMs: Long,
-    ghostPositionMs: Long?,
+    ghostTimeForPosition: (Long) -> Long,
+    dtwDistanceFraction: Double?,
     modifier: Modifier = Modifier,
 ) {
     val refMetrics = remember(poseTrack) { poseTrack.qualityMetrics() }
     val refSeconds = remember(poseTrack) { poseTrack.perSecondStats() }
     val ghostMetrics = ghostTrack?.let { track -> remember(track) { track.qualityMetrics() } }
     val ghostSeconds = ghostTrack?.let { track -> remember(track) { track.perSecondStats() } }
+    val ghostPositionMs = ghostTrack?.let { ghostTimeForPosition(positionMs) }
 
     LaunchedEffect(refMetrics, ghostMetrics) {
         Log.d("GhostPoseMetrics", "Referenz: ${refMetrics.hudLine()}")
@@ -208,6 +230,39 @@ private fun DebugHud(
             appendLine()
             append("     @${ghostPositionMs / 1000}s ")
             append(ghostSeconds[ghostPositionMs / 1000].hudLine())
+            // --- Sync-Diagnose (S0) ---
+            appendLine()
+            append(
+                String.format(
+                    Locale.GERMANY,
+                    "Sync  t %d→%d ms · Warp %.2f×",
+                    positionMs,
+                    ghostPositionMs,
+                    warpSlope(ghostTimeForPosition, positionMs),
+                ),
+            )
+            appendLine()
+            append(
+                String.format(
+                    Locale.GERMANY,
+                    "      λ %.2f · σ %.0f · Slope %.1f–%.1f",
+                    GhostTuning.WARP_LINEAR_BLEND,
+                    GhostTuning.WARP_SMOOTHING_SIGMA_FRAMES,
+                    GhostTuning.WARP_MIN_SLOPE,
+                    GhostTuning.WARP_MAX_SLOPE,
+                ),
+            )
+            if (dtwDistanceFraction != null) {
+                appendLine()
+                append(
+                    String.format(
+                        Locale.GERMANY,
+                        "      DTW-Dist %.4f (Overlay < %.2f)",
+                        dtwDistanceFraction,
+                        GhostTuning.MODE_DTW_DISTANCE_MAX_FRACTION,
+                    ),
+                )
+            }
         }
     }
     Text(
@@ -234,3 +289,90 @@ private fun PoseSecondStats?.hudLine(): String = if (this == null) {
 } else {
     String.format(Locale.GERMANY, "Drop %.0f%% · Conf %.2f", dropoutRate * 100, meanConfidence)
 }
+
+// =============================================================================
+// S0 — Sync-Diagnose: Warp-Steigung + Warp-Kurve
+// =============================================================================
+
+/** Halbes Fenster der Steigungs-Messung — kürzer wäre von der ms-Rundung dominiert. */
+private const val WARP_SLOPE_WINDOW_MS = 250L
+
+/**
+ * Lokale Steigung der Warp-Funktion dCmp/dRef per zentraler Differenz. 1,00 = beide
+ * Versuche laufen hier gleich schnell; 0,00 = der Geist steht (Plateau), > 2 = er
+ * rast (Sprung). Genau dieses Pendeln ist der "laggy"-Eindruck im Overlay.
+ */
+private fun warpSlope(
+    ghostTimeForPosition: (Long) -> Long,
+    positionMs: Long,
+    windowMs: Long = WARP_SLOPE_WINDOW_MS,
+): Double {
+    val from = (positionMs - windowMs).coerceAtLeast(0L)
+    val to = positionMs + windowMs
+    val span = to - from
+    if (span <= 0L) return 1.0
+    return (ghostTimeForPosition(to) - ghostTimeForPosition(from)).toDouble() / span
+}
+
+/** Stützstellen der gezeichneten Warp-Kurve — fein genug für Stufen, billig genug für 30 fps. */
+private const val WARP_CURVE_SAMPLES = 64
+
+/**
+ * Warp-Kurve unten rechts im Overlay: x = Referenz-Zeit, y = zugeordnete Vergleichs-Zeit
+ * (beide auf ihre Videodauer normiert), dazu die Diagonale als Soll und ein Marker an der
+ * aktuellen Position. Eine gerade, diagonalnahe Linie = ruhiger Geist; eine Treppe =
+ * das Alignment warpt Rauschen weg.
+ */
+private fun DrawScope.drawWarpCurve(
+    ghostTimeForPosition: (Long) -> Long,
+    refDurationMs: Long,
+    cmpDurationMs: Long,
+    positionMs: Long,
+) {
+    if (refDurationMs <= 0L || cmpDurationMs <= 0L) return
+    val plotSize = minOf(96.dp.toPx(), size.minDimension * 0.3f)
+    if (plotSize <= 0f) return
+    val padding = 8.dp.toPx()
+    val left = size.width - plotSize - padding
+    val top = size.height - plotSize - padding
+
+    fun plotPoint(refMs: Long, cmpMs: Long): Offset {
+        val x = (refMs.toFloat() / refDurationMs).coerceIn(0f, 1f)
+        val y = (cmpMs.toFloat() / cmpDurationMs).coerceIn(0f, 1f)
+        // y invertiert: späte Vergleichs-Zeit oben.
+        return Offset(left + x * plotSize, top + (1f - y) * plotSize)
+    }
+
+    drawRect(
+        color = Color.Black.copy(alpha = 0.55f),
+        topLeft = Offset(left, top),
+        size = Size(plotSize, plotSize),
+    )
+    // Soll-Diagonale (lineares Strecken) als Vergleichsmaß.
+    drawLine(
+        color = Color.White.copy(alpha = 0.35f),
+        start = Offset(left, top + plotSize),
+        end = Offset(left + plotSize, top),
+        strokeWidth = 1.dp.toPx(),
+    )
+    var previous = plotPoint(0L, ghostTimeForPosition(0L))
+    for (i in 1..WARP_CURVE_SAMPLES) {
+        val refMs = refDurationMs * i / WARP_CURVE_SAMPLES
+        val current = plotPoint(refMs, ghostTimeForPosition(refMs))
+        drawLine(
+            color = DebugWarpColor,
+            start = previous,
+            end = current,
+            strokeWidth = 1.5.dp.toPx(),
+        )
+        previous = current
+    }
+    drawCircle(
+        color = Color.White,
+        radius = 3.dp.toPx(),
+        center = plotPoint(positionMs, ghostTimeForPosition(positionMs)),
+    )
+}
+
+/** Farbe der Warp-Kurve — wie [DebugRawColor] bewusst eine Signalfarbe über dem Videobild. */
+private val DebugWarpColor = Color(0xFF00E5FF)

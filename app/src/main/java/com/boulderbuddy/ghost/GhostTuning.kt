@@ -172,6 +172,38 @@ object GhostTuning {
      */
     const val DTW_BAND_FRACTION: Double = 0.25
 
+    // --- Zeit-Mapping / Warp-Glättung (S1, 7.5d) -------------------------------
+    //
+    // Der DTW-Pfad ist eine Treppe: bei fast gleichem Tempo warpt das DTW nur noch
+    // das Rauschen im Fortschrittssignal weg (Singularities — ein Ref-Frame auf viele
+    // Cmp-Frames). Die daraus gebaute Warp-Funktion hat dann Plateaus (Geist steht)
+    // und Sprünge (Geist rast) — genau der "laggy" Eindruck im Overlay. Die drei
+    // Stellschrauben hier zähmen die Warp-Funktion NACH dem DTW; die Ursache im
+    // Kostenmaß selbst behandelt S2 (Dead-Band + Warp-Penalty).
+
+    /** Gauss-Sigma (in Referenz-Sample-Frames) für die Glättung der Warp-Funktion.
+     *  4 Frames ≈ 333 ms bei 12 fps — dieselbe Zeitkonstante wie die übrige Glättung,
+     *  genug um die Treppenstufen zu verschleifen, zu wenig um eine echte Pause
+     *  (typisch mehrere Sekunden) zu verwischen. */
+    const val WARP_SMOOTHING_SIGMA_FRAMES: Double = 4.0
+
+    /** Anteil der LINEAREN Zeitachse im Mapping (0 = pur DTW, 1 = pur lineares
+     *  Strecken). Konvexkombination zweier monotoner Funktionen — Monotonie bleibt
+     *  automatisch erhalten. Der eigentliche "Weichheits-Regler": höher = ruhiger,
+     *  aber ungenauer bei echten Tempo-Unterschieden. */
+    const val WARP_LINEAR_BLEND: Double = 0.35
+
+    /** Untergrenze der lokalen Warp-Steigung dCmp/dRef, als Vielfaches des GLOBALEN
+     *  Tempo-Verhältnisses beider Versuche (relativ, damit unterschiedlich lange Videos
+     *  dieselbe Grenze bekommen). > 0 heißt: der Geist bleibt NIE stehen, egal was das
+     *  DTW behauptet. */
+    const val WARP_MIN_SLOPE: Double = 0.4
+
+    /** Obergrenze der lokalen Warp-Steigung — der Geist "beamt" nicht nach vorn.
+     *  Beide Grenzen sind bewusst weit: sie sind ein Sicherheitsnetz gegen Ausreißer,
+     *  die Grundruhe liefern Glättung + Blend. */
+    const val WARP_MAX_SLOPE: Double = 2.0
+
     // --- Modus-Vorschlag Overlay vs. Side-by-Side (M4, P7) ---------------------
 
     /** Max. normalisierte DTW-Distanz (Anteil der Pfadlänge) für einen Overlay-Vorschlag. */
