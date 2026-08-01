@@ -91,6 +91,7 @@ class VideoPoseExtractor @Inject constructor(
             var frameWidth = 0
             var frameHeight = 0
             var roi: PoseRoi? = null
+            var lastRoiRejected = false
             val roiStats = IntArray(RoiOutcome.entries.size)
             var fullFrameDetections = 0
             val frames = ArrayList<GhostPoseFrame>(sampleTimes.size)
@@ -109,8 +110,14 @@ class VideoPoseExtractor @Inject constructor(
                     // Periodischer Vollbild-Reset (A1): ohne ihn bliebe eine einmal
                     // falsch eingelaufene Box bis zum Videoende bestehen. Kostet nichts —
                     // es ist dieselbe Anzahl Inferenzen, nur ohne Crop.
+                    //
+                    // S3d: zusätzlich sofort nach einer VERWORFENEN Box. Dass die Bremse
+                    // angesprochen hat, heißt ja gerade, dass die Erkennung dort unsicher
+                    // war — dann weiter mit der alten Box zu croppen hält die Analyse an
+                    // einem womöglich falschen Ausschnitt fest. Lieber neu verankern.
                     val forceFullFrame =
-                        index % GhostTuning.ROI_FULL_FRAME_INTERVAL_FRAMES == 0
+                        index % GhostTuning.ROI_FULL_FRAME_INTERVAL_FRAMES == 0 ||
+                            lastRoiRejected
                     if (forceFullFrame || roi == null) fullFrameDetections++
                     val landmarks = detectLandmarks(
                         landmarker = landmarker,
@@ -125,10 +132,12 @@ class VideoPoseExtractor @Inject constructor(
                     val step = nextRoi(roi, landmarks, frameWidth, frameHeight)
                     roiStats[step.outcome.ordinal]++
                     roi = step.roi
+                    lastRoiRejected = step.outcome == RoiOutcome.REJECTED
                 } else {
                     // Nicht dekodierbarer Frame: leerer Eintrag hält die Zeitachse äquidistant.
                     frames += GhostPoseFrame(timeMs = timeMs, landmarks = emptyList())
                     roi = null
+                    lastRoiRejected = false
                 }
                 onProgress(index + 1, sampleTimes.size)
             }
@@ -153,12 +162,12 @@ class VideoPoseExtractor @Inject constructor(
                 durationMs = durationMs,
                 sampleFps = GhostTuning.POSE_SAMPLE_FPS,
                 // Pose-Gates/L/R/Geschwindigkeit (auf roh) → Lücken offline interpolieren
-                // → One-Euro-Glättung → rigide Rekonstruktion → Sichtbarkeits-Hysterese.
-                // Die Rekonstruktion läuft NACH der Glättung, weil diese die Längen sonst
-                // wieder verzöge; sie übernimmt nur die (bereits glatten) Richtungen und
-                // korrigiert die Längen, bleibt also selbst glatt.
-                frames = applyVisibilityHysteresis(
-                    enforceRigidSkeleton(
+                // → One-Euro-Glättung → Sichtbarkeits-Hysterese → rigide Rekonstruktion.
+                // Die Rekonstruktion steht bewusst ganz am ENDE (S3b): die Hysterese
+                // blendet Landmarks wieder ein, deren Confidence sie anhebt — lief die
+                // Rekonstruktion davor, blieben genau diese ungeprüft.
+                frames = enforceRigidSkeleton(
+                    applyVisibilityHysteresis(
                         smoothPoseFrames(fillLandmarkGaps(cleanPoseFrames(frames, frameHeight))),
                     ),
                 ),

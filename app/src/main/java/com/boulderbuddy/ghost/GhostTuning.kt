@@ -117,6 +117,17 @@ object GhostTuning {
      *  bleiben darf statt auf volle Länge herausgezogen zu werden. */
     const val RIGID_MIN_FACTOR: Float = 0.35f
 
+    /** Durchläufe der rigiden Rekonstruktion. Hintergrund: die Korrektur des Ellbogens
+     *  ändert die Unterarmlänge, die Median-Sollwerte stammen aber aus dem Zustand
+     *  davor — sie veralten also während des eigenen Passes. Ein weiterer Durchlauf
+     *  rechnet sie neu.
+     *
+     *  Ehrlichkeitshalber: im JVM-Test konvergiert schon EIN Durchlauf vollständig, die
+     *  Drift war dort zu klein für echte Verstöße. Der Wert bleibt bei 3 als billige
+     *  Absicherung für echte Spuren mit acht ineinandergreifenden Knochen (offline
+     *  kostet das nichts), nicht weil ein Testfall ihn erzwingt. */
+    const val RIGID_ITERATIONS: Int = 3
+
     /** Toleranzfaktor der Knochenlängen-Konstanz (Alt-Wert, nur noch als Rückfall für
      *  Frames ohne messbare Körpergröße — dort fehlt der Bezug für [RIGID_MAX_FACTOR]). */
     const val BONE_LENGTH_TOLERANCE_FACTOR: Float = 1.5f
@@ -213,8 +224,19 @@ object GhostTuning {
     const val MAX_POSE_INTERPOLATION_FRAMES: Int = 6
 
     /** Halbe Fensterbreite (in Sample-Frames) des Zentrum-Medians fürs Positions-Gate.
-     *  2 = Fenster von 5 Frames — robust gegen einen bis zwei Ausreißer. */
+     *  2 = Fenster von 5 Frames — robust gegen einen bis zwei Ausreißer. Bewusst KURZ:
+     *  ein längeres Fenster würde eine legitime, anhaltende Aufwärtsbewegung als
+     *  Abweichung werten. Anhaltende Versätze fängt stattdessen das Ruck-Gate. */
     const val POSE_SHIFT_MEDIAN_WINDOW: Int = 2
+
+    /** Ruck-Gate (S3a, 7.5e): maximaler Vorhersagefehler des Pose-Zentrums als Anteil
+     *  der Körpergröße. Vorhergesagt wird konstant-geschwindigkeit aus den zwei
+     *  Vorframes, gemessen wird also BESCHLEUNIGUNG — und genau darin unterscheiden
+     *  sich die beiden Fälle, die das Weg-basierte Positions-Gate nicht trennen konnte:
+     *  ein echter schneller Zug ist schnell, aber GLATT (Vorhersagefehler ~0,1–0,15
+     *  Körpergrößen), ein Wegzucken ist per Definition ein Beschleunigungs-Ausschlag
+     *  (~0,5). 0.35 liegt dazwischen, mit Reserve nach beiden Seiten. */
+    const val POSE_JERK_MAX_RATIO: Double = 0.35
 
     /** Mindestanzahl abgetasteter Frames — kürzere Videos sind nicht analysierbar (P8). */
     const val MIN_POSE_FRAMES: Int = 10

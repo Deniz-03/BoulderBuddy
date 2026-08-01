@@ -115,6 +115,10 @@ fun List<GhostPoseFrame>.qualityMetrics(): PoseQualityMetrics {
 
 private class BoneStats(val cv: Double, val overExtensionRate: Double)
 
+/** Relative Messtoleranz der Überlängen-Quote (0,1 % — weit über Float-Rundung, weit
+ *  unter jeder anatomisch bedeutsamen Abweichung). */
+private const val OVER_EXTENSION_TOLERANCE = 1.001
+
 /**
  * Form-Kennzahlen (A7/S2a): je starrem Knochen die auf die Körpergröße des SELBEN
  * Frames normierte Länge sammeln. Die Normierung ist der Punkt — die absolute
@@ -138,7 +142,11 @@ private fun List<GhostPoseFrame>.boneStats(): BoneStats {
         if (ratios.size < 3) return@forEach
         cvPerBone += coefficientOfVariation(ratios)
         val median = ratios.sorted()[ratios.size / 2]
-        val limit = median * GhostTuning.RIGID_MAX_FACTOR
+        // Messtoleranz: ein geklemmter Knochen landet EXAKT auf der Grenze, und die
+        // Hälfte davon rundet in Float minimal darüber (gemessen: Faktor 1,00000025).
+        // Ohne diese Toleranz zählt die Kennzahl Rundungsrauschen als Halluzination —
+        // sie meldete deshalb 26,5 %, obwohl die Rekonstruktion sauber gearbeitet hatte.
+        val limit = median * GhostTuning.RIGID_MAX_FACTOR * OVER_EXTENSION_TOLERANCE
         measurements += ratios.size
         overExtended += ratios.count { it > limit }
     }

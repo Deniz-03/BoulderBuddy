@@ -93,6 +93,31 @@ fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
         if (hypot(c.first - mx, c.second - my) > shiftLimit) invalid[i] = true
     }
 
+    // Phase 3: Ruck-Gate (S3a). Das Positions-Gate oben misst den WEG zum Fenster-Median
+    // und vermischt damit zwei Fälle, die nichts miteinander zu tun haben: ein echter
+    // schneller Zug (großer Weg, aber glatt) und ein Wegzucken (großer Weg, ruckartig).
+    // Deshalb musste seine Schwelle so weit stehen, dass das Zucken durchfiel. Hier wird
+    // stattdessen die BESCHLEUNIGUNG gemessen: Vorhersage aus den beiden Vorframes mit
+    // konstanter Geschwindigkeit, Residuum an der Körpergröße normiert. Eine glatte
+    // Bewegung sagt sich gut vorher, ein Ruck nicht.
+    for (i in 2 until frames.size) {
+        if (invalid[i] || invalid[i - 1] || invalid[i - 2]) continue
+        val c = centroids[i] ?: continue
+        // Nur bei lückenlosen Vorgängern — sonst stimmt die Zeitbasis der Extrapolation
+        // nicht (die Sample-Zeiten sind äquidistant, ausgefallene Frames sind es nicht).
+        val p1 = centroids[i - 1] ?: continue
+        val p2 = centroids[i - 2] ?: continue
+        val reference = localScale[i]
+        if (reference <= 0.0) continue
+        val predictedX = p1.first + (p1.first - p2.first)
+        val predictedY = p1.second + (p1.second - p2.second)
+        if (hypot(c.first - predictedX, c.second - predictedY) >
+            reference * GhostTuning.POSE_JERK_MAX_RATIO
+        ) {
+            invalid[i] = true
+        }
+    }
+
     if (invalid.none { it }) return frames
     return frames.mapIndexed { i, frame ->
         if (!invalid[i]) return@mapIndexed frame

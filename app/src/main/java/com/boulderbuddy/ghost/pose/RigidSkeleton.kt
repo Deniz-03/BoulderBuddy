@@ -32,15 +32,31 @@ import com.boulderbuddy.ghost.model.distance
 /**
  * Zieht alle Gliedmaßenketten auf anatomisch konstante Proportionen (S2a).
  *
- * Läuft NACH [smoothPoseFrames]: die Glättung würde die Längen sonst wieder verziehen.
- * Da nur Längen korrigiert und Richtungen übernommen werden, bleibt das Ergebnis so
- * glatt wie die Eingabe.
+ * Läuft als LETZTER Schritt der Pipeline (S3b) — nach Glättung *und* Hysterese. Die
+ * Glättung würde die Längen sonst wieder verziehen, und die Hysterese blendet Landmarks
+ * wieder ein, deren Confidence sie anhebt: lief die Rekonstruktion davor, waren genau
+ * diese (unsicheren, also besonders oft überlangen) Glieder nie geprüft. Da nur Längen
+ * korrigiert und Richtungen übernommen werden, bleibt das Ergebnis so glatt wie die
+ * Eingabe.
+ *
+ * [iterations] > 1 (S3c), weil ein Durchlauf seinen eigenen Sollwert nicht erreicht:
+ * die Korrektur des Ellbogens ändert die Unterarmlänge, die Sollwerte stammen aber aus
+ * dem Zustand davor. Jeder Durchlauf rechnet sie neu, das konvergiert zum Fixpunkt.
  *
  * Frames ohne messbare Körpergröße (Rumpf verdeckt) fallen auf den Median der ABSOLUTEN
  * Knochenlänge mit [GhostTuning.BONE_LENGTH_TOLERANCE_FACTOR] zurück — schwächer, aber
  * besser als gar keine Schranke.
  */
-fun enforceRigidSkeleton(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
+fun enforceRigidSkeleton(
+    frames: List<GhostPoseFrame>,
+    iterations: Int = GhostTuning.RIGID_ITERATIONS,
+): List<GhostPoseFrame> {
+    var current = frames
+    repeat(iterations.coerceAtLeast(1)) { current = rigidPass(current) }
+    return current
+}
+
+private fun rigidPass(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
     if (frames.isEmpty()) return frames
     val scales = frames.map { bodyScale(it.landmarks) }
 
