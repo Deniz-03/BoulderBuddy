@@ -53,6 +53,40 @@ class RigidSkeletonInvariantTest {
         assertThat(after.boneOverExtensionRate).isLessThan(0.005)
     }
 
+    /**
+     * S4a: eine zappelnde Körpergrößen-Messung darf sich NICHT in die Knochenlängen
+     * übertragen. Ohne Glättung skaliert jede Soll-Länge mit dem Rauschen der
+     * Körpergröße — die Rekonstruktion würde Jitter erzeugen statt entfernen.
+     */
+    @Test
+    fun `zappelnde Koerpergroesse traegt sich nicht in die Knochenlaengen`() {
+        val random = Random(7)
+        // Konstante Pose, aber die Rumpfbreite rauscht um +-8 % (Messrauschen).
+        val frames = (0 until 100).map { i ->
+            val scale = 100f * (1f + (random.nextFloat() - 0.5f) * 0.16f)
+            val half = scale / 2
+            GhostPoseFrame(
+                timeMs = i * 83L,
+                landmarks = listOf(
+                    landmark(T.LEFT_SHOULDER, 200f - half, 200f),
+                    landmark(T.RIGHT_SHOULDER, 200f + half, 200f),
+                    landmark(T.LEFT_HIP, 200f - half, 200f + scale),
+                    landmark(T.RIGHT_HIP, 200f + half, 200f + scale),
+                    // Oberarm bewusst KONSTANT — er darf nicht mitzappeln.
+                    landmark(T.LEFT_ELBOW, 200f - half, 200f + 80f),
+                ),
+            )
+        }
+        val result = enforceRigidSkeleton(frames)
+        val lengths = result.map { f ->
+            val s = f.landmarks.single { it.type == T.LEFT_SHOULDER }
+            val e = f.landmarks.single { it.type == T.LEFT_ELBOW }
+            com.boulderbuddy.ghost.model.distance(s, e)
+        }
+        // Der Oberarm war konstant 80 px und muss es bleiben.
+        lengths.forEach { assertThat(it).isWithin(1.0).of(80.0) }
+    }
+
     /** Mehr Durchläufe dürfen das Ergebnis nicht verschlechtern (Konvergenz). */
     @Test
     fun `zusaetzliche Durchlaeufe verschlechtern nichts`() {

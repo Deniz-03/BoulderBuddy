@@ -117,6 +117,15 @@ object GhostTuning {
      *  bleiben darf statt auf volle Länge herausgezogen zu werden. */
     const val RIGID_MIN_FACTOR: Float = 0.35f
 
+    /** Halbe Fensterbreite (in Sample-Frames) der Glättung der Körpergröße, BEVOR sie
+     *  als Soll-Referenz dient (S4a). Die Soll-Länge eines Knochens ist
+     *  Median-Verhältnis · Körpergröße dieses Frames — wird die Körpergröße roh aus
+     *  verrauschten Landmarks gemessen (gemessene Streuung ~9 %), erbt jeder geklemmte
+     *  Knochen dieses Zappeln, und die Rekonstruktion INJIZIERT Jitter, statt zu
+     *  beruhigen. Die echte Körpergröße ändert sich nur langsam (Perspektive), ein
+     *  Median über 7 Frames (~0,6 s) kostet also nichts an Genauigkeit. */
+    const val RIGID_SCALE_SMOOTH_WINDOW: Int = 3
+
     /** Durchläufe der rigiden Rekonstruktion. Hintergrund: die Korrektur des Ellbogens
      *  ändert die Unterarmlänge, die Median-Sollwerte stammen aber aus dem Zustand
      *  davor — sie veralten also während des eigenen Passes. Ein weiterer Durchlauf
@@ -177,6 +186,17 @@ object GhostTuning {
     /** ROI-Crop: maximaler Sprung des Box-Zentrums pro Frame als Vielfaches der
      *  Körpergröße — darüber ist die Box auf etwas anderes gesprungen. */
     const val ROI_MAX_CENTER_JUMP_BODY_FRACTION: Float = 1.5f
+
+    /** ROI-Crop: so viele VERWORFENE Boxen in Folge, bevor auf dem Vollbild neu
+     *  verankert wird (S4b). Zuerst löste jede einzelne Verwerfung eine Neuverankerung
+     *  aus — gemessen 74 davon auf 365 Frames, zusammen mit dem periodischen Reset lief
+     *  damit ein Drittel aller Frames auf dem Vollbild. Dort ist die Person klein im
+     *  Modell-Eingabebild und wird ungenauer erkannt; die Roh-Spur wurde messbar
+     *  schlechter (Geist: Morph 36→43 %, Confidence 0,87→0,85, 17 Verluste statt 0),
+     *  und Präzisionsverlust je Frame IST das sichtbare Zittern. Eine einzelne
+     *  Verwerfung ist normale Rauschabwehr; erst mehrere in Folge heißen, dass die Box
+     *  wirklich festhängt. */
+    const val ROI_REANCHOR_AFTER_REJECTS: Int = 3
 
     /** ROI-Crop: alle so vielen Sample-Frames wird bewusst auf dem VOLLBILD detektiert
      *  (~1 s bei 12 fps). Ohne diesen Reset bliebe ein einmal eingelaufener Box-Fehler

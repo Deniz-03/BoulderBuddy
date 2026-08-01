@@ -80,14 +80,18 @@ fun GhostPoseTrack.landmarksAt(timeMs: Long): List<GhostLandmark> {
     val t = (timeMs - a.timeMs).toFloat() / (b.timeMs - a.timeMs).toFloat()
     val byTypeA = a.landmarks.associateBy { it.type }
     val byTypeB = b.landmarks.associateBy { it.type }
+    // Nachbarn für die weiche Interpolation (S4c); fehlen sie (Spuranfang/-ende),
+    // fällt der jeweilige Punkt unten auf lineare Interpolation zurück.
+    val byTypePrev = frames.getOrNull(after - 2)?.landmarks?.associateBy { it.type }
+    val byTypeNext = frames.getOrNull(after + 1)?.landmarks?.associateBy { it.type }
     return (byTypeA.keys + byTypeB.keys).mapNotNull { type ->
         val la = byTypeA[type]
         val lb = byTypeB[type]
         when {
             la != null && lb != null -> GhostLandmark(
                 type = type,
-                x = la.x + (lb.x - la.x) * t,
-                y = la.y + (lb.y - la.y) * t,
+                x = catmullRom(byTypePrev?.get(type)?.x, la.x, lb.x, byTypeNext?.get(type)?.x, t),
+                y = catmullRom(byTypePrev?.get(type)?.y, la.y, lb.y, byTypeNext?.get(type)?.y, t),
                 confidence = minOf(la.confidence, lb.confidence),
                 presence = minOf(la.presence, lb.presence),
             )
@@ -96,4 +100,31 @@ fun GhostPoseTrack.landmarksAt(timeMs: Long): List<GhostLandmark> {
             else -> lb
         }
     }
+}
+
+/**
+ * Catmull-Rom-Interpolation zwischen [p1] und [p2] mit den Nachbarn [p0]/[p3] (S4c).
+ *
+ * Lineare Interpolation trifft jeden Stützpunkt mit einem Knick: die Bewegungsrichtung
+ * springt alle 83 ms (12 fps), was auch bei kleinen Amplituden als Unruhe sichtbar ist.
+ * Catmull-Rom läuft stetig differenzierbar durch die Stützpunkte — es glättet die
+ * DARSTELLUNG, ohne die Daten zu verändern: bei t=0 und t=1 liegt es exakt auf den
+ * gemessenen Werten.
+ *
+ * Fehlt ein Nachbar (Spuranfang/-ende), wird er GESPIEGELT statt dupliziert. Den
+ * Randpunkt zu duplizieren ergäbe dort eine Tangente von null, also ein sichtbares
+ * Einschwingen im ersten und letzten Sample-Intervall; die Spiegelung setzt die
+ * vorhandene Steigung fort und ist für gleichförmige Bewegung exakt linear.
+ */
+private fun catmullRom(p0: Float?, p1: Float, p2: Float, p3: Float?, t: Float): Float {
+    val a = p0 ?: (2f * p1 - p2)
+    val d = p3 ?: (2f * p2 - p1)
+    val t2 = t * t
+    val t3 = t2 * t
+    return 0.5f * (
+        2f * p1 +
+            (-a + p2) * t +
+            (2f * a - 5f * p1 + 4f * p2 - d) * t2 +
+            (-a + 3f * p1 - 3f * p2 + d) * t3
+        )
 }

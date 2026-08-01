@@ -20,12 +20,31 @@ import kotlin.math.hypot
 // Spur, VOR One-Euro-Glättung und Hysterese — die Filter sollen konsistente,
 // physikalisch mögliche Eingaben bekommen.
 
+/**
+ * Wie viele Frames die einzelnen Pose-Gates ersetzt haben (S4d). Ohne diese Zahlen ist
+ * nicht zu sehen, ob ein Gate gar nicht greift oder im Gegenteil so viel ersetzt, dass
+ * die Spur überwiegend aus Interpolation besteht — beides sähe im Overlay ähnlich aus.
+ */
+data class PoseGateStats(
+    val total: Int,
+    val scaleInvalid: Int,
+    val shiftInvalid: Int,
+    val jerkInvalid: Int,
+    /** Ungültige Strecken über [GhostTuning.MAX_POSE_INTERPOLATION_FRAMES] — geleert
+     *  statt interpoliert. */
+    val dropped: Int,
+)
+
 /** Reihenfolge der Verarbeitungsschritte: Pose-Konsistenz (Skala + Position) →
  *  L/R-Konsistenz → Plausibilität. Der Pose-Gate zuerst, damit L/R und Plausibilität
  *  nicht auf einer kollabierten oder verschobenen Pose aufsetzen. */
-fun cleanPoseFrames(frames: List<GhostPoseFrame>, frameHeight: Int): List<GhostPoseFrame> =
+fun cleanPoseFrames(
+    frames: List<GhostPoseFrame>,
+    frameHeight: Int,
+    onStats: (PoseGateStats) -> Unit = {},
+): List<GhostPoseFrame> =
     applyAnatomicalPlausibility(
-        enforceLeftRightConsistency(enforcePoseConsistency(frames)),
+        enforceLeftRightConsistency(enforcePoseConsistency(frames, onStats)),
         frameHeight,
     )
 
@@ -43,7 +62,10 @@ fun cleanPoseFrames(frames: List<GhostPoseFrame>, frameHeight: Int): List<GhostP
  * Ganzkörper-Positionssprung durch die zeitliche Interpolation der nächsten gültigen
  * Nachbar-Frames. Braucht ≥3 messbare Größen für einen robusten Median, sonst unverändert.
  */
-fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
+fun enforcePoseConsistency(
+    frames: List<GhostPoseFrame>,
+    onStats: (PoseGateStats) -> Unit = {},
+): List<GhostPoseFrame> {
     if (frames.size < 3) return frames
     val scales = frames.map { bodyScale(it.landmarks) }
     val centroids = frames.map { coreCentroid(it.landmarks) }
@@ -66,6 +88,9 @@ fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
     }
     // Skalen-Urteil einfrieren — Referenz fürs Positions-Gate (kein Kaskadieren).
     val scaleInvalid = invalid.copyOf()
+    val scaleCount = invalid.count { it }
+    var shiftCount = 0
+    var jerkCount = 0
 
     // Phase 2: isolierter Positionssprung. Referenz ist der Fenster-Median der Zentroide
     // skalen-gültiger Frames — eine GLATTE schnelle Bewegung liegt nahe dem Median (wird
@@ -90,7 +115,10 @@ fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
         val mx = winX[winX.size / 2]
         val my = winY[winY.size / 2]
         val shiftLimit = reference * GhostTuning.POSE_SHIFT_MAX_RATIO
-        if (hypot(c.first - mx, c.second - my) > shiftLimit) invalid[i] = true
+        if (hypot(c.first - mx, c.second - my) > shiftLimit) {
+            invalid[i] = true
+            shiftCount++
+        }
     }
 
     // Phase 3: Ruck-Gate (S3a). Das Positions-Gate oben misst den WEG zum Fenster-Median
@@ -115,11 +143,16 @@ fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
             reference * GhostTuning.POSE_JERK_MAX_RATIO
         ) {
             invalid[i] = true
+            jerkCount++
         }
     }
 
-    if (invalid.none { it }) return frames
-    return frames.mapIndexed { i, frame ->
+    if (invalid.none { it }) {
+        onStats(PoseGateStats(frames.size, 0, 0, 0, 0))
+        return frames
+    }
+    var dropped = 0
+    val result = frames.mapIndexed { i, frame ->
         if (!invalid[i]) return@mapIndexed frame
         var lo = i - 1
         while (lo >= 0 && invalid[lo]) lo--
@@ -129,12 +162,15 @@ fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
         // erfundene Bewegung zwangsläufig linear, die echte aber nicht — sichtbar als
         // Skelett, das der Bewegung nachhinkt oder ihr vorauseilt. Lieber gar keins.
         if (hi - lo - 1 > GhostTuning.MAX_POSE_INTERPOLATION_FRAMES) {
+            dropped++
             return@mapIndexed frame.copy(landmarks = emptyList())
         }
         val prev = if (lo >= 0) frames[lo] else null
         val next = if (hi < frames.size) frames[hi] else null
         frame.copy(landmarks = interpolatePose(prev, next, frame.timeMs))
     }
+    onStats(PoseGateStats(frames.size, scaleCount, shiftCount, jerkCount, dropped))
+    return result
 }
 
 /** Median der vorhandenen Werte im Fenster ±[GhostTuning.POSE_SCALE_MEDIAN_WINDOW] um [index]. */

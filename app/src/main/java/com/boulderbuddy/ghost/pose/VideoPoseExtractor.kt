@@ -91,7 +91,7 @@ class VideoPoseExtractor @Inject constructor(
             var frameWidth = 0
             var frameHeight = 0
             var roi: PoseRoi? = null
-            var lastRoiRejected = false
+            var consecutiveRoiRejects = 0
             val roiStats = IntArray(RoiOutcome.entries.size)
             var fullFrameDetections = 0
             val frames = ArrayList<GhostPoseFrame>(sampleTimes.size)
@@ -111,13 +111,14 @@ class VideoPoseExtractor @Inject constructor(
                     // falsch eingelaufene Box bis zum Videoende bestehen. Kostet nichts —
                     // es ist dieselbe Anzahl Inferenzen, nur ohne Crop.
                     //
-                    // S3d: zusätzlich sofort nach einer VERWORFENEN Box. Dass die Bremse
-                    // angesprochen hat, heißt ja gerade, dass die Erkennung dort unsicher
-                    // war — dann weiter mit der alten Box zu croppen hält die Analyse an
-                    // einem womöglich falschen Ausschnitt fest. Lieber neu verankern.
+                    // S3d/S4b: zusätzlich nach MEHREREN verworfenen Boxen in Folge. Eine
+                    // einzelne Verwerfung ist normale Rauschabwehr — darauf jedes Mal aufs
+                    // Vollbild zu wechseln kostete mehr Präzision (kleine Person im
+                    // Eingabebild → ungenauere Landmarks → Zittern) als es an Stabilität
+                    // brachte. Erst eine Serie heißt, dass die Box wirklich festhängt.
                     val forceFullFrame =
                         index % GhostTuning.ROI_FULL_FRAME_INTERVAL_FRAMES == 0 ||
-                            lastRoiRejected
+                            consecutiveRoiRejects >= GhostTuning.ROI_REANCHOR_AFTER_REJECTS
                     if (forceFullFrame || roi == null) fullFrameDetections++
                     val landmarks = detectLandmarks(
                         landmarker = landmarker,
@@ -132,12 +133,18 @@ class VideoPoseExtractor @Inject constructor(
                     val step = nextRoi(roi, landmarks, frameWidth, frameHeight)
                     roiStats[step.outcome.ordinal]++
                     roi = step.roi
-                    lastRoiRejected = step.outcome == RoiOutcome.REJECTED
+                    consecutiveRoiRejects = when {
+                        step.outcome != RoiOutcome.REJECTED -> 0
+                        // Nach dem Neuverankern die Serie zurücksetzen, sonst löst jede
+                        // weitere Verwerfung sofort wieder ein Vollbild aus.
+                        forceFullFrame -> 0
+                        else -> consecutiveRoiRejects + 1
+                    }
                 } else {
                     // Nicht dekodierbarer Frame: leerer Eintrag hält die Zeitachse äquidistant.
                     frames += GhostPoseFrame(timeMs = timeMs, landmarks = emptyList())
                     roi = null
-                    lastRoiRejected = false
+                    consecutiveRoiRejects = 0
                 }
                 onProgress(index + 1, sampleTimes.size)
             }
@@ -168,7 +175,19 @@ class VideoPoseExtractor @Inject constructor(
                 // Rekonstruktion davor, blieben genau diese ungeprüft.
                 frames = enforceRigidSkeleton(
                     applyVisibilityHysteresis(
-                        smoothPoseFrames(fillLandmarkGaps(cleanPoseFrames(frames, frameHeight))),
+                        smoothPoseFrames(
+                            fillLandmarkGaps(
+                                cleanPoseFrames(frames, frameHeight) { stats ->
+                                    Log.d(
+                                        LOG_TAG,
+                                        "Gates $videoUri: Skala=${stats.scaleInvalid} " +
+                                            "Shift=${stats.shiftInvalid} " +
+                                            "Ruck=${stats.jerkInvalid} " +
+                                            "geleert=${stats.dropped} von ${stats.total}",
+                                    )
+                                },
+                            ),
+                        ),
                     ),
                 ),
                 rawFrames = frames,

@@ -58,7 +58,10 @@ fun enforceRigidSkeleton(
 
 private fun rigidPass(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
     if (frames.isEmpty()) return frames
-    val scales = frames.map { bodyScale(it.landmarks) }
+    // GEGLÄTTETE Körpergröße als Referenz (S4a): roh gemessen zappelt sie mit den
+    // Landmarks, und da sie die Soll-Länge JEDES Knochens skaliert, würde die
+    // Rekonstruktion dieses Zappeln in die ganze Pose tragen statt es zu entfernen.
+    val scales = smoothScales(frames.map { bodyScale(it.landmarks) })
 
     // Pass 1: Soll-Proportionen über die ganze Spur (Offline-Vorteil). Median statt
     // Mittelwert — die Ausreißer, die wir korrigieren wollen, sollen ihn nicht ziehen.
@@ -124,6 +127,25 @@ private fun rigidPass(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
         // Reihenfolge der Original-Spur halten (nachgelagerte Filter erwarten sie).
         if (changed) frame.copy(landmarks = frame.landmarks.map { adjusted.getValue(it.type) })
         else frame
+    }
+}
+
+/**
+ * Rollierender Median der Körpergrößen (S4a). Median statt Mittelwert, damit ein
+ * einzelner Fehlframe die Referenz nicht mitzieht; Lücken (null) bleiben Lücken, dort
+ * greift der Rückfall auf die absolute Knochenlänge.
+ */
+internal fun smoothScales(raw: List<Double?>): List<Double?> {
+    val half = GhostTuning.RIGID_SCALE_SMOOTH_WINDOW
+    if (half <= 0) return raw
+    return raw.indices.map { i ->
+        if (raw[i] == null) return@map null
+        val window = ArrayList<Double>(2 * half + 1)
+        for (j in (i - half)..(i + half)) {
+            if (j in raw.indices) raw[j]?.let { window += it }
+        }
+        window.sort()
+        window[window.size / 2]
     }
 }
 
