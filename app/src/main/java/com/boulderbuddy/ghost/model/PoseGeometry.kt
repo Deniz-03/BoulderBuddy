@@ -106,13 +106,23 @@ fun bodyScale(
 fun personScales(
     frames: List<GhostPoseFrame>,
     window: Int = GhostTuning.PERSON_SCALE_WINDOW,
+): List<Double?> = smoothedPersonScales(bodyScales(frames), window)
+
+/** Rohe Rumpfmessung je Frame. Getrennt abrufbar, weil die Pose-Gates BEIDES brauchen:
+ *  den rohen Wert als Prüfgröße und [smoothedPersonScales] als Referenz. */
+fun bodyScales(frames: List<GhostPoseFrame>): List<Double?> =
+    frames.map { bodyScale(it.landmarks) }
+
+/** Rollierender Median über [window] Frames je Seite — siehe [personScales] für das Warum. */
+fun smoothedPersonScales(
+    rawScales: List<Double?>,
+    window: Int = GhostTuning.PERSON_SCALE_WINDOW,
 ): List<Double?> {
-    val raw = frames.map { bodyScale(it.landmarks) }
-    if (window <= 0) return raw
-    return raw.indices.map { i ->
+    if (window <= 0) return rawScales
+    return rawScales.indices.map { i ->
         val values = ArrayList<Double>(2 * window + 1)
         for (j in (i - window)..(i + window)) {
-            if (j in raw.indices) raw[j]?.let { values += it }
+            if (j in rawScales.indices) rawScales[j]?.let { values += it }
         }
         if (values.isEmpty()) return@map null
         values.sort()

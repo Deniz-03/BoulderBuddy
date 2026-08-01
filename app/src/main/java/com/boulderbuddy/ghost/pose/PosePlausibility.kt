@@ -4,10 +4,10 @@ import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostLandmarkTypes
 import com.boulderbuddy.ghost.model.GhostPoseFrame
-import com.boulderbuddy.ghost.model.RIGID_BONES
-import com.boulderbuddy.ghost.model.bodyScale
+import com.boulderbuddy.ghost.model.bodyScales
 import com.boulderbuddy.ghost.model.coreCentroid
 import com.boulderbuddy.ghost.model.distance
+import com.boulderbuddy.ghost.model.smoothedPersonScales
 import kotlin.math.hypot
 
 // =============================================================================
@@ -67,7 +67,7 @@ fun enforcePoseConsistency(
     onStats: (PoseGateStats) -> Unit = {},
 ): List<GhostPoseFrame> {
     if (frames.size < 3) return frames
-    val scales = frames.map { bodyScale(it.landmarks) }
+    val scales = bodyScales(frames)
     val centroids = frames.map { coreCentroid(it.landmarks) }
     if (scales.count { it != null } < 3) return frames
 
@@ -76,7 +76,13 @@ fun enforcePoseConsistency(
     // entfernt sich, die Perspektive dreht). Gegen einen globalen Median musste das
     // Toleranzfenster diese Drift mit abdecken und ließ echte Kollapse durch; lokal
     // darf es eng sein. Ein einzelner Ausreißer verschiebt den Median nicht.
-    val localScale = DoubleArray(frames.size) { i -> rollingMedian(scales, i) ?: -1.0 }
+    //
+    // Dieselbe Funktion wie in Rekonstruktion und Kennzahlen: hier stand vorher eine
+    // zweite, eigene Median-Implementierung mit eigener Fensterbreite. Genau solche
+    // getrennten Referenzen waren zweimal die Ursache für Fehldiagnosen — dass Pass und
+    // Messung dasselbe meinen, ist wichtiger als der exakte Fensterwert.
+    val smoothed = smoothedPersonScales(scales)
+    val localScale = DoubleArray(frames.size) { i -> smoothed[i] ?: -1.0 }
 
     // Phase 1: Skalen-Kollaps/-Explosion.
     val invalid = BooleanArray(frames.size) { i ->
@@ -171,18 +177,6 @@ fun enforcePoseConsistency(
     }
     onStats(PoseGateStats(frames.size, scaleCount, shiftCount, jerkCount, dropped))
     return result
-}
-
-/** Median der vorhandenen Werte im Fenster ±[GhostTuning.POSE_SCALE_MEDIAN_WINDOW] um [index]. */
-private fun rollingMedian(values: List<Double?>, index: Int): Double? {
-    val half = GhostTuning.POSE_SCALE_MEDIAN_WINDOW
-    val window = ArrayList<Double>(2 * half + 1)
-    for (j in (index - half)..(index + half)) {
-        if (j in values.indices) values[j]?.let { window += it }
-    }
-    if (window.size < 3) return null
-    window.sort()
-    return window[window.size / 2]
 }
 
 /** Zeitlich interpolierte Pose zwischen [prev] und [next] (nur gemeinsame Landmark-

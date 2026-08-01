@@ -1,6 +1,7 @@
 package com.boulderbuddy.ghost.geometry
 
 import com.boulderbuddy.ghost.model.GhostPoint
+import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.GhostPoseTrack
 import com.boulderbuddy.ghost.pose.enforceRigidSkeleton
 
@@ -25,21 +26,28 @@ import com.boulderbuddy.ghost.pose.enforceRigidSkeleton
  * Nicht behoben wird damit der POSITIONS-Fehler derselben Ursache — wie weit der Geist
  * neben seiner wahren Lage sitzt, hängt davon ab, wie weit der Körper aus der Wandebene
  * ragt, und das ist aus einer Ebenen-Homographie prinzipiell nicht rekonstruierbar.
+ *
+ * Die Roh-Spur ([GhostPoseTrack.rawFrames]) wird MITtransformiert, aber ohne die
+ * Rekonstruktion — roh muss roh bleiben. Vorher blieb sie ganz unberührt und lag damit
+ * weiter im Koordinatenraum des Vergleichs-Videos, während [GhostPoseTrack.frameWidth]
+ * schon der Referenzraum war: das Debug-Overlay zeichnete die Roh-Keypoints des Geists
+ * an falscher Stelle, und die „roh"-Kennzahlen im HUD verglichen zwei verschiedene Räume.
  */
-fun GhostPoseTrack.transformedBy(homography: Homography, target: GhostPoseTrack): GhostPoseTrack =
-    copy(
+fun GhostPoseTrack.transformedBy(homography: Homography, target: GhostPoseTrack): GhostPoseTrack {
+    fun List<GhostPoseFrame>.mapped(): List<GhostPoseFrame> = map { frame ->
+        frame.copy(
+            landmarks = frame.landmarks.map { landmark ->
+                val mapped = homography.map(landmark.x, landmark.y)
+                landmark.copy(x = mapped.x.toFloat(), y = mapped.y.toFloat())
+            },
+        )
+    }
+    return copy(
         frameWidth = target.frameWidth,
         frameHeight = target.frameHeight,
-        frames = enforceRigidSkeleton(
-            frames.map { frame ->
-                frame.copy(
-                    landmarks = frame.landmarks.map { landmark ->
-                        val mapped = homography.map(landmark.x, landmark.y)
-                        landmark.copy(x = mapped.x.toFloat(), y = mapped.y.toFloat())
-                    },
-                )
-            },
-        ),
+        frames = enforceRigidSkeleton(frames.mapped()),
+        rawFrames = rawFrames?.mapped(),
     )
+}
 
 fun GhostPoint.toVec2(): Vec2 = Vec2(x.toDouble(), y.toDouble())

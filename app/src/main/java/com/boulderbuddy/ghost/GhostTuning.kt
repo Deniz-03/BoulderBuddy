@@ -218,13 +218,10 @@ object GhostTuning {
      *  ruhige Box hilft dem internen MediaPipe-Tracking auf dem Crop-Strom. */
     const val ROI_BOX_SMOOTHING: Float = 0.5f
 
-    /** Halbe Fensterbreite (in Sample-Frames) des ROLLIERENDEN Median der Körpergröße
-     *  (S2b, 7.5e). 15 → Fenster von ~2,5 s bei 12 fps. Vorher war die Referenz der
-     *  Median der GANZEN Spur — über 30 s ändert sich die scheinbare Körpergröße aber
-     *  legitim (der Kletterer entfernt sich, die Perspektive dreht). Das Budget ging
-     *  für diese Drift drauf, echte Kollapse rutschten durch. Mit lokaler Referenz
-     *  dürfen die Grenzen unten deutlich enger sein. */
-    const val POSE_SCALE_MEDIAN_WINDOW: Int = 15
+    // Die Referenzgröße der Pose-Gates ist [PERSON_SCALE_WINDOW] — dieselbe wie in
+    // Rekonstruktion und Kennzahlen. Hier stand bis 7.5e eine zweite Fensterbreite (15)
+    // mit eigener Median-Implementierung; getrennte Referenzen für dieselbe Größe waren
+    // zweimal die Ursache für Fehldiagnosen.
 
     /** Pose-Skalen-Gate: untere Grenze der Körpergröße als Anteil des ROLLIERENDEN
      *  Median. 0.8 statt vorher 0.7 gegen den globalen Median — gemessen streute die
@@ -253,7 +250,10 @@ object GhostTuning {
     /** Halbe Fensterbreite (in Sample-Frames) des Zentrum-Medians fürs Positions-Gate.
      *  2 = Fenster von 5 Frames — robust gegen einen bis zwei Ausreißer. Bewusst KURZ:
      *  ein längeres Fenster würde eine legitime, anhaltende Aufwärtsbewegung als
-     *  Abweichung werten. Anhaltende Versätze fängt stattdessen das Ruck-Gate. */
+     *  Abweichung werten. Anhaltende Versätze fängt stattdessen das Ruck-Gate.
+     *
+     *  Nicht zu verwechseln mit [PERSON_SCALE_WINDOW]: hier geht es um das Zentrum der
+     *  Pose (bewegt sich ständig), dort um ihre Größe (ändert sich nur langsam). */
     const val POSE_SHIFT_MEDIAN_WINDOW: Int = 2
 
     /** Ruck-Gate (S3a, 7.5e): maximaler Vorhersagefehler des Pose-Zentrums als Anteil
