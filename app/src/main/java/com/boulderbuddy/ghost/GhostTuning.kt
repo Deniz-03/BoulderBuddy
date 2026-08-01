@@ -109,8 +109,46 @@ object GhostTuning {
      *  bei nahezu symmetrischen Posen. */
     const val LR_SWAP_MARGIN: Float = 0.8f
 
-    /** ROI-Crop: Erweiterung der letzten Personen-Bounding-Box je Seite. */
-    const val ROI_EXPAND_FRACTION: Float = 0.2f
+    // --- ROI-Crop (A1, 7.5e) ---------------------------------------------------
+    //
+    // Die Box für den nächsten Frame entsteht aus den Landmarks, die IM VORIGEN CROP
+    // erkannt wurden — ein Regelkreis. Ohne Gegenmaßnahmen ist er positiv rückgekoppelt:
+    // eine zu kleine Box schneidet Gliedmaßen ab, die nächste Box wird davon noch
+    // kleiner, das Skelett kollabiert. Die Konstanten hier sind genau die Bremsen dagegen:
+    // Mindestgröße an der KÖRPERGRÖSSE (nicht an der Box), Schrumpf-/Sprung-Limit und
+    // ein periodischer Vollbild-Reset als Ausstieg aus einem eingelaufenen Fehler.
+
+    /** ROI-Crop: Erweiterung je Seite als Anteil der Körpergröße (NICHT der Box —
+     *  eine geschrumpfte Box würde sich sonst selbst immer weiter einschnüren). */
+    const val ROI_EXPAND_BODY_FRACTION: Float = 0.6f
+
+    /** ROI-Crop: die LANGE Boxseite misst mindestens so viele Körpergrößen. Die
+     *  Körpergröße ist etwa eine Schulterbreite, eine ganze Person also grob 4 davon —
+     *  5 deckt sie mit Reserve ab, selbst wenn nur der Rumpf erkannt wurde. Das ist
+     *  die eigentliche Garantie gegen den Kollaps. */
+    const val ROI_MIN_BODY_MULTIPLE: Float = 5.0f
+
+    /** ROI-Crop: … und mindestens dieser Anteil der kurzen Frame-Seite — zweite,
+     *  körpergrößen-unabhängige Untergrenze für den Fall einer Fehlmessung. */
+    const val ROI_MIN_FRAME_FRACTION: Float = 0.3f
+
+    /** ROI-Crop: minimale Präsenz eines Landmarks, damit es die Box aufspannen darf.
+     *  visibility allein reicht nicht — MediaPipe meldet auch für erfundene Positionen
+     *  hohe visibility, presence trennt "verdeckt" von "halluziniert". */
+    const val ROI_MIN_PRESENCE: Float = 0.5f
+
+    /** ROI-Crop: so viel darf die Boxfläche gegenüber dem Vorframe höchstens schrumpfen,
+     *  sonst wird die neue Box verworfen und die alte behalten (Kollaps-Bremse). */
+    const val ROI_MAX_SHRINK_PER_FRAME: Float = 0.75f
+
+    /** ROI-Crop: maximaler Sprung des Box-Zentrums pro Frame als Vielfaches der
+     *  Körpergröße — darüber ist die Box auf etwas anderes gesprungen. */
+    const val ROI_MAX_CENTER_JUMP_BODY_FRACTION: Float = 1.5f
+
+    /** ROI-Crop: alle so vielen Sample-Frames wird bewusst auf dem VOLLBILD detektiert
+     *  (~1 s bei 12 fps). Ohne diesen Reset bliebe ein einmal eingelaufener Box-Fehler
+     *  bis zum Videoende bestehen; die Zahl der Inferenzen ändert sich dadurch nicht. */
+    const val ROI_FULL_FRAME_INTERVAL_FRAMES: Int = 12
 
     /** ROI-Crop: so viele sichere Landmarks braucht die Box, sonst nächster Frame
      *  wieder als Vollbild (Person verloren → neu suchen). */

@@ -1,9 +1,15 @@
 package com.boulderbuddy.ghost.analysis
 
 import com.boulderbuddy.ghost.GhostTuning
+import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostLandmarkTypes
+import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.GhostPoseTrack
+import com.boulderbuddy.ghost.model.RIGID_BONES
+import com.boulderbuddy.ghost.model.bodyScale
+import com.boulderbuddy.ghost.model.distance
 import kotlin.math.hypot
+import kotlin.math.sqrt
 
 // =============================================================================
 // Stufe 0 — Qualitäts-Kennzahlen der Pose-Erkennung (Diagnose-Doc §2, Stufe 0)
@@ -24,6 +30,14 @@ data class PoseQualityMetrics(
     val dropoutRate: Double,
     val flipRate: Double,
     val meanConfidence: Double,
+    /** **Morph-Metrik** (A7): mittlerer Variationskoeffizient der auf die Körpergröße
+     *  normierten Knochenlängen. Anatomisch ist dieses Verhältnis konstant — jede
+     *  Streuung darin IST das sichtbare "Morphen". 0 = starre Proportionen. */
+    val boneLengthCv: Double,
+    /** **Kollaps-Metrik** (A7): Variationskoeffizient der Körpergröße über die Spur.
+     *  Bei fixer Kamera schwankt sie nur perspektivisch (langsam); ein Ausschlag ist
+     *  das "Schrumpfen" der ganzen Pose. */
+    val scaleCv: Double,
 )
 
 /** Dropout + mittlere Confidence innerhalb einer Wiedergabe-Sekunde (Debug-HUD). */
@@ -33,7 +47,12 @@ data class PoseSecondStats(
 )
 
 /** Kennzahlen über die gesamte Spur — einmal pro Track berechnen (remember/cache). */
-fun GhostPoseTrack.qualityMetrics(): PoseQualityMetrics {
+fun GhostPoseTrack.qualityMetrics(): PoseQualityMetrics = frames.qualityMetrics()
+
+/** Dieselben Kennzahlen für eine beliebige Frame-Liste — erlaubt den direkten
+ *  Vergleich gefilterte Spur vs. [GhostPoseTrack.rawFrames] im Debug-HUD. */
+fun List<GhostPoseFrame>.qualityMetrics(): PoseQualityMetrics {
+    val frames = this
     var slots = 0L
     var confident = 0L
     var confidenceSum = 0.0
@@ -80,8 +99,45 @@ fun GhostPoseTrack.qualityMetrics(): PoseQualityMetrics {
         dropoutRate = if (slots == 0L) 0.0 else 1.0 - confident.toDouble() / slots,
         flipRate = if (flipTransitions == 0) 0.0 else flipHits.toDouble() / flipTransitions,
         meanConfidence = if (confidenceCount == 0L) 0.0 else confidenceSum / confidenceCount,
+        boneLengthCv = frames.boneLengthCv(),
+        scaleCv = coefficientOfVariation(frames.mapNotNull { bodyScale(it.landmarks) }),
     )
 }
+
+/**
+ * Morph-Metrik (A7): je starrem Knochen die auf die Körpergröße des SELBEN Frames
+ * normierte Länge sammeln, davon den Variationskoeffizienten, und über alle Knochen
+ * mitteln. Die Normierung ist der Punkt — die absolute Pixellänge schwankt legitim
+ * mit Perspektive und Abstand, das Verhältnis zur Körpergröße nicht.
+ */
+private fun List<GhostPoseFrame>.boneLengthCv(): Double {
+    val perBone = RIGID_BONES.mapNotNull { (fromType, toType) ->
+        val ratios = mapNotNull { frame ->
+            val scale = bodyScale(frame.landmarks) ?: return@mapNotNull null
+            if (scale <= 0.0) return@mapNotNull null
+            val from = frame.shown(fromType) ?: return@mapNotNull null
+            val to = frame.shown(toType) ?: return@mapNotNull null
+            distance(from, to) / scale
+        }
+        // Unter drei Messungen ist ein Variationskoeffizient nicht aussagekräftig.
+        if (ratios.size < 3) null else coefficientOfVariation(ratios)
+    }
+    return if (perBone.isEmpty()) 0.0 else perBone.average()
+}
+
+/** σ/μ — dimensionslos, dadurch über verschiedene Videos und Zoomstufen vergleichbar. */
+private fun coefficientOfVariation(values: List<Double>): Double {
+    if (values.size < 3) return 0.0
+    val mean = values.average()
+    if (mean <= 0.0) return 0.0
+    val variance = values.sumOf { (it - mean) * (it - mean) } / values.size
+    return sqrt(variance) / mean
+}
+
+private fun GhostPoseFrame.shown(type: Int): GhostLandmark? =
+    landmarks.firstOrNull {
+        it.type == type && it.confidence >= GhostTuning.VISIBILITY_SHOW_THRESHOLD
+    }
 
 /** Kennzahlen je Wiedergabe-Sekunde, Schlüssel = Sekunde (timeMs/1000). */
 fun GhostPoseTrack.perSecondStats(): Map<Long, PoseSecondStats> =

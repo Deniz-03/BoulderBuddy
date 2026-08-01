@@ -2,8 +2,8 @@ package com.boulderbuddy.ghost.pose
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.RectF
 import android.media.MediaMetadataRetriever
+import android.util.Log
 import androidx.core.net.toUri
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostLandmark
@@ -90,7 +90,9 @@ class VideoPoseExtractor @Inject constructor(
 
             var frameWidth = 0
             var frameHeight = 0
-            var roi: RectF? = null
+            var roi: PoseRoi? = null
+            val roiStats = IntArray(RoiOutcome.entries.size)
+            var fullFrameDetections = 0
             val frames = ArrayList<GhostPoseFrame>(sampleTimes.size)
             sampleTimes.forEachIndexed { index, timeMs ->
                 coroutineContext.ensureActive()
@@ -104,17 +106,25 @@ class VideoPoseExtractor @Inject constructor(
                         frameWidth = (full.width * scale).roundToInt()
                         frameHeight = (full.height * scale).roundToInt()
                     }
+                    // Periodischer Vollbild-Reset (A1): ohne ihn bliebe eine einmal
+                    // falsch eingelaufene Box bis zum Videoende bestehen. Kostet nichts —
+                    // es ist dieselbe Anzahl Inferenzen, nur ohne Crop.
+                    val forceFullFrame =
+                        index % GhostTuning.ROI_FULL_FRAME_INTERVAL_FRAMES == 0
+                    if (forceFullFrame || roi == null) fullFrameDetections++
                     val landmarks = detectLandmarks(
                         landmarker = landmarker,
                         full = full,
                         timeMs = timeMs,
                         analysisWidth = frameWidth,
                         analysisHeight = frameHeight,
-                        roi = roi,
+                        roi = if (forceFullFrame) null else roi,
                     )
                     full.recycle()
                     frames += GhostPoseFrame(timeMs = timeMs, landmarks = landmarks)
-                    roi = nextRoi(roi, landmarks, frameWidth, frameHeight)
+                    val step = nextRoi(roi, landmarks, frameWidth, frameHeight)
+                    roiStats[step.outcome.ordinal]++
+                    roi = step.roi
                 } else {
                     // Nicht dekodierbarer Frame: leerer Eintrag hält die Zeitachse äquidistant.
                     frames += GhostPoseFrame(timeMs = timeMs, landmarks = emptyList())
@@ -123,6 +133,18 @@ class VideoPoseExtractor @Inject constructor(
                 onProgress(index + 1, sampleTimes.size)
             }
             require(frameWidth > 0) { "Video konnte nicht dekodiert werden" }
+
+            // Extraktions-Diagnose (A7): der ROI-Regelkreis ist im fertigen Track nicht
+            // mehr sichtbar — viele REJECTED/LOST heißen, dass die Box laufend gegen die
+            // Bremsen läuft und die Roh-Erkennung das eigentliche Problem ist.
+            Log.d(
+                LOG_TAG,
+                "ROI $videoUri: frisch=${roiStats[RoiOutcome.FRESH.ordinal]} " +
+                    "geglättet=${roiStats[RoiOutcome.SMOOTHED.ordinal]} " +
+                    "verworfen=${roiStats[RoiOutcome.REJECTED.ordinal]} " +
+                    "verloren=${roiStats[RoiOutcome.LOST.ordinal]} " +
+                    "Vollbild=$fullFrameDetections/${sampleTimes.size}",
+            )
 
             GhostPoseTrack(
                 videoUri = videoUri,
@@ -155,16 +177,16 @@ class VideoPoseExtractor @Inject constructor(
         timeMs: Long,
         analysisWidth: Int,
         analysisHeight: Int,
-        roi: RectF?,
+        roi: PoseRoi?,
     ): List<GhostLandmark> {
         val scaleX = full.width.toFloat() / analysisWidth
         val scaleY = full.height.toFloat() / analysisHeight
         if (roi != null) {
             val left = (roi.left * scaleX).roundToInt().coerceIn(0, full.width - 1)
             val top = (roi.top * scaleY).roundToInt().coerceIn(0, full.height - 1)
-            val width = (roi.width() * scaleX).roundToInt()
+            val width = (roi.width * scaleX).roundToInt()
                 .coerceIn(1, full.width - left)
-            val height = (roi.height() * scaleY).roundToInt()
+            val height = (roi.height * scaleY).roundToInt()
                 .coerceIn(1, full.height - top)
             if (width >= MIN_CROP_PX && height >= MIN_CROP_PX) {
                 val crop = Bitmap.createBitmap(full, left, top, width, height).asArgb8888()
@@ -204,49 +226,7 @@ class VideoPoseExtractor @Inject constructor(
                 )
             }
 
-    /**
-     * Personen-Box für den nächsten Frame: Bounding-Box der sicheren Landmarks,
-     * je Seite um [GhostTuning.ROI_EXPAND_FRACTION] erweitert, zeitlich geglättet
-     * (ruhige Box → stabileres internes Tracking auf dem Crop-Strom). Zu wenige
-     * sichere Landmarks ⇒ null (Person verloren, Vollbild-Suche).
-     */
-    private fun nextRoi(
-        previous: RectF?,
-        landmarks: List<GhostLandmark>,
-        analysisWidth: Int,
-        analysisHeight: Int,
-    ): RectF? {
-        val confident = landmarks.filter {
-            it.confidence >= GhostTuning.MIN_LANDMARK_CONFIDENCE
-        }
-        if (confident.size < GhostTuning.ROI_MIN_CONFIDENT_LANDMARKS) return null
-        var minX = Float.MAX_VALUE
-        var minY = Float.MAX_VALUE
-        var maxX = -Float.MAX_VALUE
-        var maxY = -Float.MAX_VALUE
-        confident.forEach {
-            if (it.x < minX) minX = it.x
-            if (it.y < minY) minY = it.y
-            if (it.x > maxX) maxX = it.x
-            if (it.y > maxY) maxY = it.y
-        }
-        val expandX = (maxX - minX) * GhostTuning.ROI_EXPAND_FRACTION
-        val expandY = (maxY - minY) * GhostTuning.ROI_EXPAND_FRACTION
-        val box = RectF(
-            (minX - expandX).coerceAtLeast(0f),
-            (minY - expandY).coerceAtLeast(0f),
-            (maxX + expandX).coerceAtMost(analysisWidth.toFloat()),
-            (maxY + expandY).coerceAtMost(analysisHeight.toFloat()),
-        )
-        if (previous == null) return box
-        val t = GhostTuning.ROI_BOX_SMOOTHING
-        return RectF(
-            previous.left + (box.left - previous.left) * t,
-            previous.top + (box.top - previous.top) * t,
-            previous.right + (box.right - previous.right) * t,
-            previous.bottom + (box.bottom - previous.bottom) * t,
-        )
-    }
+    // Die Box-Logik selbst lebt Android-frei in RoiTracking.kt (JVM-testbar).
 
     companion object {
         /**
@@ -261,6 +241,9 @@ class VideoPoseExtractor @Inject constructor(
 
         /** Kleinere Crops als das Modell-Eingabemaß bringen nichts mehr — Vollbild-Fallback. */
         private const val MIN_CROP_PX = 64
+
+        /** Logcat-Tag der Extraktions-Diagnose (A7). */
+        private const val LOG_TAG = "GhostPoseExtract"
     }
 }
 

@@ -213,20 +213,28 @@ private fun DebugHud(
     val ghostMetrics = ghostTrack?.let { track -> remember(track) { track.qualityMetrics() } }
     val ghostSeconds = ghostTrack?.let { track -> remember(track) { track.perSecondStats() } }
     val ghostPositionMs = ghostTrack?.let { ghostTimeForPosition(positionMs) }
+    val refShape = remember(poseTrack) { poseTrack.shapeLine() }
+    val ghostShape = ghostTrack?.let { track -> remember(track) { track.shapeLine() } }
 
-    LaunchedEffect(refMetrics, ghostMetrics) {
-        Log.d("GhostPoseMetrics", "Referenz: ${refMetrics.hudLine()}")
-        ghostMetrics?.let { Log.d("GhostPoseMetrics", "Geist: ${it.hudLine()}") }
+    LaunchedEffect(refShape, ghostShape) {
+        Log.d("GhostPoseMetrics", "Referenz: ${refMetrics.hudLine()} · $refShape")
+        ghostMetrics?.let {
+            Log.d("GhostPoseMetrics", "Geist: ${it.hudLine()} · ${ghostShape.orEmpty()}")
+        }
     }
 
     val text = buildString {
         append("Ref  ").append(refMetrics.hudLine())
+        appendLine()
+        append("     ").append(refShape)
         appendLine()
         append("     @${positionMs / 1000}s ")
         append(refSeconds[positionMs / 1000].hudLine())
         if (ghostMetrics != null && ghostSeconds != null && ghostPositionMs != null) {
             appendLine()
             append("Geist ").append(ghostMetrics.hudLine())
+            appendLine()
+            append("     ").append(ghostShape.orEmpty())
             appendLine()
             append("     @${ghostPositionMs / 1000}s ")
             append(ghostSeconds[ghostPositionMs / 1000].hudLine())
@@ -288,6 +296,35 @@ private fun PoseSecondStats?.hudLine(): String = if (this == null) {
     "—"
 } else {
     String.format(Locale.GERMANY, "Drop %.0f%% · Conf %.2f", dropoutRate * 100, meanConfidence)
+}
+
+/**
+ * Form-Kennzahlen (A7): Morph und Kollaps der gefilterten Spur, in Klammern dieselben
+ * Werte der ROHEN Spur. Genau diese Gegenüberstellung beantwortet die Frage, die sich
+ * mit bloßem Hinsehen nicht beantworten lässt: arbeitet die Filterkette überhaupt, und
+ * wie viel Rest bleibt? Sinkt "Morph" gegenüber roh kaum, liegt es an der Erkennung,
+ * nicht an den Filtern.
+ */
+private fun GhostPoseTrack.shapeLine(): String {
+    val filtered = qualityMetrics()
+    val raw = rawFrames?.qualityMetrics()
+    return if (raw == null) {
+        String.format(
+            Locale.GERMANY,
+            "Morph %.1f%% · Kollaps %.1f%%",
+            filtered.boneLengthCv * 100,
+            filtered.scaleCv * 100,
+        )
+    } else {
+        String.format(
+            Locale.GERMANY,
+            "Morph %.1f%% (roh %.1f) · Kollaps %.1f%% (roh %.1f)",
+            filtered.boneLengthCv * 100,
+            raw.boneLengthCv * 100,
+            filtered.scaleCv * 100,
+            raw.scaleCv * 100,
+        )
+    }
 }
 
 // =============================================================================
