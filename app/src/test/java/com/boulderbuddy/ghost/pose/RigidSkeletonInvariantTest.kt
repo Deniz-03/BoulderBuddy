@@ -87,6 +87,44 @@ class RigidSkeletonInvariantTest {
         lengths.forEach { assertThat(it).isWithin(1.0).of(80.0) }
     }
 
+    /**
+     * S6a: die Rekonstruktion darf die FORM ändern, niemals die LAGE. Sie läuft als
+     * letzte Stufe, ihre Korrekturen werden also von keiner Glättung mehr aufgefangen —
+     * verschiebt sie das Rumpfzentrum, wandert das ganze Skelett pro Frame ein Stück
+     * neben den Körper. Genau das war nach S5a sichtbar geworden, als die Rumpfkanten
+     * dazukamen und die Rekonstruktion erstmals Schultern und Hüften bewegte.
+     */
+    @Test
+    fun `die Rekonstruktion verschiebt die Pose nicht`() {
+        val random = Random(23)
+        fun noisy() = 100f * (1f + (random.nextFloat() - 0.5f) * 0.4f)
+        val frames = (0 until 100).map { i ->
+            val shoulders = noisy()
+            val hips = noisy()
+            val height = noisy()
+            // Das Rumpfzentrum bewegt sich gleichmäßig nach oben (echte Kletterbewegung).
+            val cy = 400f - i * 2f
+            GhostPoseFrame(
+                timeMs = i * 83L,
+                landmarks = listOf(
+                    landmark(T.LEFT_SHOULDER, 200f - shoulders / 2, cy - height / 2),
+                    landmark(T.RIGHT_SHOULDER, 200f + shoulders / 2, cy - height / 2),
+                    landmark(T.LEFT_HIP, 200f - hips / 2, cy + height / 2),
+                    landmark(T.RIGHT_HIP, 200f + hips / 2, cy + height / 2),
+                    landmark(T.LEFT_ELBOW, 200f - shoulders / 2, cy),
+                ),
+            )
+        }
+        val result = enforceRigidSkeleton(frames)
+
+        frames.indices.forEach { i ->
+            val before = checkNotNull(com.boulderbuddy.ghost.model.coreCentroid(frames[i].landmarks))
+            val after = checkNotNull(com.boulderbuddy.ghost.model.coreCentroid(result[i].landmarks))
+            assertThat(after.first).isWithin(0.01).of(before.first)
+            assertThat(after.second).isWithin(0.01).of(before.second)
+        }
+    }
+
     /** Mehr Durchläufe dürfen das Ergebnis nicht verschlechtern (Konvergenz). */
     @Test
     fun `zusaetzliche Durchlaeufe verschlechtern nichts`() {

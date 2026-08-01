@@ -86,10 +86,60 @@ class PoseShapeMetricsTest {
             .isGreaterThan(stable.qualityMetrics().scaleCv)
     }
 
+    // --- Unruhe-Metrik (S6b) ---------------------------------------------------
+
+    /** Pose mit Rumpfzentrum bei ([cx], [cy]), Körpergröße 100. */
+    private fun poseAt(timeMs: Long, cx: Float, cy: Float) = GhostPoseFrame(
+        timeMs = timeMs,
+        landmarks = listOf(
+            landmark(GhostLandmarkTypes.LEFT_SHOULDER, cx - 50f, cy - 50f),
+            landmark(GhostLandmarkTypes.RIGHT_SHOULDER, cx + 50f, cy - 50f),
+            landmark(GhostLandmarkTypes.LEFT_HIP, cx - 50f, cy + 50f),
+            landmark(GhostLandmarkTypes.RIGHT_HIP, cx + 50f, cy + 50f),
+        ),
+    )
+
+    /**
+     * Der Kern der Unruhe-Metrik: eine gleichmäßige, schnelle Bewegung ist KEINE
+     * Unruhe. Genau diese Trennung fehlte allen bisherigen Kennzahlen.
+     */
+    @Test
+    fun `gleichmaessige Bewegung erzeugt keine Unruhe`() {
+        val frames = (0 until 60).map { poseAt(it * 83L, 300f, 800f - it * 12f) }
+        assertThat(frames.qualityMetrics().centroidWobble).isLessThan(0.005)
+    }
+
+    @Test
+    fun `hin und her wackelndes Skelett schlaegt aus`() {
+        val smooth = (0 until 60).map { poseAt(it * 83L, 300f, 800f - it * 12f) }
+        val wobbly = (0 until 60).map { i ->
+            // Dieselbe Bahn, aber jeder zweite Frame um 15 px zur Seite versetzt —
+            // 15 % einer Körpergröße, also gut sichtbares Wackeln.
+            val offset = if (i % 2 == 0) 0f else 15f
+            poseAt(i * 83L, 300f + offset, 800f - i * 12f)
+        }
+        val wobble = wobbly.qualityMetrics().centroidWobble
+        assertThat(wobble).isGreaterThan(0.03)
+        // Und vor allem: um Größenordnungen über der glatten Bahn.
+        assertThat(wobble).isGreaterThan(smooth.qualityMetrics().centroidWobble * 10)
+    }
+
+    /** Ein einzelner grober Aussetzer soll die Zahl nicht dominieren — dafür sind die
+     *  Gates zuständig; die Metrik beschreibt die DAUERHAFTE Unruhe. */
+    @Test
+    fun `ein einzelner Ausreisser dominiert die Zahl nicht`() {
+        val frames = (0 until 60).map { i ->
+            val offset = if (i == 30) 200f else 0f
+            poseAt(i * 83L, 300f + offset, 800f - i * 12f)
+        }
+        assertThat(frames.qualityMetrics().centroidWobble).isLessThan(0.005)
+    }
+
     @Test
     fun `Leere Spur liefert neutrale Kennzahlen statt NaN`() {
         val metrics = List(5) { GhostPoseFrame(it * 83L, emptyList()) }.qualityMetrics()
         assertThat(metrics.boneLengthCv).isEqualTo(0.0)
         assertThat(metrics.scaleCv).isEqualTo(0.0)
+        assertThat(metrics.centroidWobble).isEqualTo(0.0)
     }
 }

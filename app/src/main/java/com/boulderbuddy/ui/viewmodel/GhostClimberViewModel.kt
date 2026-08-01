@@ -337,7 +337,8 @@ class GhostClimberViewModel @Inject constructor(
             val m = track.qualityMetrics()
             return String.format(
                 Locale.GERMANY,
-                "Morph %.1f%% · Überlang %.1f%% · Kollaps %.1f%%",
+                "Unruhe %.2f%% · Morph %.1f%% · Überlang %.1f%% · Kollaps %.1f%%",
+                m.centroidWobble * 100,
                 m.boneLengthCv * 100,
                 m.boneOverExtensionRate * 100,
                 m.scaleCv * 100,

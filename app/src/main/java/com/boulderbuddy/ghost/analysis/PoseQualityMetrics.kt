@@ -7,6 +7,7 @@ import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.GhostPoseTrack
 import com.boulderbuddy.ghost.model.RIGID_BONES
 import com.boulderbuddy.ghost.model.bodyScale
+import com.boulderbuddy.ghost.model.coreCentroid
 import com.boulderbuddy.ghost.model.distance
 import com.boulderbuddy.ghost.model.personScales
 import kotlin.math.hypot
@@ -46,6 +47,20 @@ data class PoseQualityMetrics(
      *  Überlänge ist erfunden. Das ist der Anteil, den die rigide Rekonstruktion
      *  entfernt; die legitime Verkürzung bleibt in [boneLengthCv] stehen. */
     val boneOverExtensionRate: Double,
+    /**
+     * **Unruhe-Metrik** (S6b): hochfrequenter Versatz des Rumpfzentrums gegenüber
+     * seiner eigenen geglätteten Bahn, als Anteil der Körpergröße.
+     *
+     * Die Lücke, die alle bisherigen Kennzahlen offen ließen: [boneLengthCv] misst
+     * Längenverhältnisse, [scaleCv] die Körpergröße, [jitterPx] wird von echter
+     * Bewegung dominiert — gegen ein Skelett, das als GANZES pro Frame ein Stück neben
+     * dem Körper landet, sind alle drei blind. Genau das ist aber das sichtbare
+     * "wackelt hin und her und bleibt nicht sauber über dem Körper".
+     *
+     * Gemessen wird gegen einen kurzen Fenster-Median: eine echte Bewegung ist über
+     * fünf Frames nahezu geradlinig und hinterlässt kaum Rest, ein Zucken schon.
+     */
+    val centroidWobble: Double,
 )
 
 /** Dropout + mittlere Confidence innerhalb einer Wiedergabe-Sekunde (Debug-HUD). */
@@ -111,7 +126,48 @@ fun List<GhostPoseFrame>.qualityMetrics(): PoseQualityMetrics {
         boneLengthCv = boneStats.cv,
         scaleCv = coefficientOfVariation(frames.mapNotNull { bodyScale(it.landmarks) }),
         boneOverExtensionRate = boneStats.overExtensionRate,
+        centroidWobble = frames.centroidWobble(),
     )
+}
+
+/** Halbe Fensterbreite des Median, gegen den die Unruhe gemessen wird. 2 → 5 Frames
+ *  (~0,4 s): kurz genug, dass echte Bewegung darin geradlinig ist und keinen Rest
+ *  hinterlässt, lang genug, um ein einzelnes Zucken sichtbar zu machen. */
+private const val WOBBLE_MEDIAN_WINDOW = 2
+
+/**
+ * Unruhe-Metrik (S6b): Median des Abstands zwischen Rumpfzentrum und dem gleitenden
+ * MITTEL seiner Nachbarschaft, normiert auf die Körpergröße.
+ *
+ * Bewusst ein Mittelwert und kein Median als Referenz: ein Fenster-Median folgt einer
+ * Frame-zu-Frame-Alternation perfekt (im Fenster gewinnt die Mehrheit, also der eigene
+ * Wert) und sähe damit ausgerechnet das Hin-und-Her nicht, um das es hier geht. Ein
+ * gleitendes Mittel liegt dagegen zwischen den beiden Auslenkungen. Die Robustheit
+ * gegen einen einzelnen groben Aussetzer kommt vom Median ÜBER die Frames: der
+ * beschreibt die DAUERHAFTE Unruhe, Einzelfälle sind Sache der Gates.
+ */
+private fun List<GhostPoseFrame>.centroidWobble(): Double {
+    if (size < 2 * WOBBLE_MEDIAN_WINDOW + 1) return 0.0
+    val centroids = map { coreCentroid(it.landmarks) }
+    val scales = personScales(this)
+    val residuals = ArrayList<Double>(size)
+    for (i in indices) {
+        val c = centroids[i] ?: continue
+        val scale = scales[i] ?: continue
+        if (scale <= 0.0) continue
+        var sumX = 0.0
+        var sumY = 0.0
+        var count = 0
+        for (j in (i - WOBBLE_MEDIAN_WINDOW)..(i + WOBBLE_MEDIAN_WINDOW)) {
+            if (j !in indices) continue
+            centroids[j]?.let { sumX += it.first; sumY += it.second; count++ }
+        }
+        if (count < 3) continue
+        residuals += hypot(c.first - sumX / count, c.second - sumY / count) / scale
+    }
+    if (residuals.isEmpty()) return 0.0
+    residuals.sort()
+    return residuals[residuals.size / 2]
 }
 
 private class BoneStats(val cv: Double, val overExtensionRate: Double)

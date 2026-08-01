@@ -5,6 +5,7 @@ import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.RIGID_BONES
 import com.boulderbuddy.ghost.model.TORSO_EDGES
+import com.boulderbuddy.ghost.model.coreCentroid
 import com.boulderbuddy.ghost.model.distance
 import com.boulderbuddy.ghost.model.personScales
 
@@ -165,9 +166,23 @@ private fun rigidPass(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
             changed = true
         }
 
-        // Reihenfolge der Original-Spur halten (nachgelagerte Filter erwarten sie).
-        if (changed) frame.copy(landmarks = frame.landmarks.map { adjusted.getValue(it.type) })
-        else frame
+        if (!changed) return@mapIndexed frame
+
+        // Positions-Neutralität (S6a): die Rekonstruktion darf die FORM ändern, niemals
+        // die LAGE. Die Rumpfkanten skalieren zwar symmetrisch um ihre jeweilige Mitte,
+        // aber die beiden Seitenkanten verschieben Schultern UND Hüften — und damit das
+        // Rumpfzentrum. Da dieser Pass als letzter läuft, wird diese Verschiebung von
+        // keiner Glättung mehr aufgefangen: das ganze Skelett wandert pro Frame ein
+        // Stück, sichtbar als "bleibt nicht sauber über dem Körper". Deshalb wird die
+        // Pose am Ende um genau den entstandenen Versatz zurückgeschoben.
+        val corrected = frame.landmarks.map { adjusted.getValue(it.type) }
+        val before = coreCentroid(frame.landmarks)
+        val after = coreCentroid(corrected)
+        if (before == null || after == null) return@mapIndexed frame.copy(landmarks = corrected)
+        val dx = (before.first - after.first).toFloat()
+        val dy = (before.second - after.second).toFloat()
+        if (dx == 0f && dy == 0f) return@mapIndexed frame.copy(landmarks = corrected)
+        frame.copy(landmarks = corrected.map { it.copy(x = it.x + dx, y = it.y + dy) })
     }
 }
 
