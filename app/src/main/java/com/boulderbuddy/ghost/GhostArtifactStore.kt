@@ -50,6 +50,10 @@ class GhostArtifactStore @Inject constructor(
     // Abtastrate UND Pipeline-Marker stecken im Cache-Schlüssel: ändert sich
     // GhostTuning.POSE_SAMPLE_FPS oder die Pose-Pipeline (Modell/Filter-Semantik),
     // veralten alte Spuren automatisch statt mit falschen Werten weiterzuleben.
+    // "mp-heavy-20" (S8a/b) = die Fußknochen sind Teil der rigiden Rekonstruktion (sie
+    // wurden gezeichnet, waren aber als einzige unbeschränkt: Morph 1,4-1,8 % gegen
+    // 0,43 %), und die Box-Prüfung greift nur noch bei echter Abweichung ein statt in
+    // jedem Prüftakt (Rest-Periodik Faktor 1,8).
     // "mp-heavy-19" (S7b) = die Spur entsteht ausnahmslos auf dem ROI-Crop; die
     // periodische Box-Prüfung läuft mit einem eigenen Landmarker auf einem geweiteten
     // Ausschnitt und geht nicht mehr in die Spur ein. Vorher wechselte jeder 12. Frame
@@ -80,7 +84,7 @@ class GhostArtifactStore @Inject constructor(
     // Körpergröße + Positions-Gate gegen verschobene Skelette — neue Spur-Semantik,
     // alte Spuren veralten, erneute Analyse extrahiert neu.
     private fun poseTrackFile(videoUri: String): File =
-        File(dir, "pose_${sha1("$videoUri@${GhostTuning.POSE_SAMPLE_FPS}@mp-heavy-19")}.json")
+        File(dir, "pose_${sha1("$videoUri@${GhostTuning.POSE_SAMPLE_FPS}@mp-heavy-20")}.json")
 
     private fun sha1(value: String): String =
         MessageDigest.getInstance("SHA-1")

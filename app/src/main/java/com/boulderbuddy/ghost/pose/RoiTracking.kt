@@ -158,6 +158,28 @@ fun PoseRoi.widened(factor: Float, frameWidth: Int, frameHeight: Int): PoseRoi =
     )
 
 /**
+ * Weicht die geprüfte Box [checked] so weit von der laufenden [current] ab, dass neu
+ * verankert werden muss (S8b)?
+ *
+ * Das Totband ist der Kern: eine Prüfung, die ihr Ergebnis immer übernimmt, ist keine
+ * Prüfung, sondern eine zweite Box-Quelle — und weil sie nur im Prüftakt läuft, eine
+ * periodisch eingreifende. Genau das blieb nach S7b als Rest übrig (Faktor 1,8 an der
+ * Prüf-Phase). Stimmen beide Boxen im Rahmen des Messrauschens überein, war die laufende
+ * in Ordnung und wird nicht angefasst; nur eine echte Abweichung löst aus.
+ */
+fun needsReanchor(current: PoseRoi, checked: PoseRoi): Boolean {
+    val drift = hypot(
+        (checked.centerX - current.centerX).toDouble(),
+        (checked.centerY - current.centerY).toDouble(),
+    )
+    if (drift > checked.width * GhostTuning.ROI_CHECK_MAX_CENTER_DRIFT) return true
+    if (checked.width <= 0f || current.width <= 0f) return true
+    val ratio = current.width / checked.width
+    val limit = GhostTuning.ROI_CHECK_MAX_SIZE_RATIO
+    return ratio > limit || ratio < 1f / limit
+}
+
+/**
  * Box der Größe [width]×[height] um ([centerX], [centerY]), vollständig im Frame:
  * verschoben statt beschnitten, damit das erzwungene Seitenverhältnis erhalten bleibt.
  * Passt sie gar nicht hinein, wird sie auf Frame-Größe reduziert.

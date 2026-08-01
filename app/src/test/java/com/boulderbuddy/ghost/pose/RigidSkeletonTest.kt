@@ -56,6 +56,40 @@ class RigidSkeletonTest {
         assertThat(upperArmLength(result[4])).isWithin(0.5).of(80.0)
     }
 
+    /**
+     * S8a: die Füße werden gezeichnet und müssen deshalb genauso beschränkt sein wie
+     * jeder andere Knochen. Dass die Liste am Knöchel endete, während das Overlay bis zur
+     * Fußspitze weiterzeichnet, machte ausgerechnet den sichtbaren Teil des Skeletts zum
+     * einzigen unbeschränkten — gemessen mit drei- bis vierfachem Morph.
+     */
+    @Test
+    fun `ueberlanger Fussknochen wird geklemmt`() {
+        // Fuß normal 30 px bei Körpergröße 100 (Verhältnis 0,3), in einem Frame 90.
+        fun footFrame(timeMs: Long, foot: Float) = GhostPoseFrame(
+            timeMs = timeMs,
+            landmarks = listOf(
+                landmark(T.LEFT_SHOULDER, 50f, 100f),
+                landmark(T.RIGHT_SHOULDER, 150f, 100f),
+                landmark(T.LEFT_HIP, 50f, 200f),
+                landmark(T.RIGHT_HIP, 150f, 200f),
+                landmark(T.LEFT_ANKLE, 50f, 400f),
+                landmark(T.LEFT_HEEL, 50f, 400f + foot),
+            ),
+        )
+        val frames = (0 until 10).map { i ->
+            footFrame(i * 83L, foot = if (i == 5) 90f else 30f)
+        }
+        val result = enforceRigidSkeleton(frames)
+
+        fun heelDistance(frame: GhostPoseFrame) = distance(
+            frame.landmarks.single { it.type == T.LEFT_ANKLE },
+            frame.landmarks.single { it.type == T.LEFT_HEEL },
+        )
+        // Soll 0,3 · 100 = 30, Obergrenze 33.
+        assertThat(heelDistance(result[5])).isWithin(0.5).of(33.0)
+        assertThat(heelDistance(result[4])).isWithin(0.5).of(30.0)
+    }
+
     /** Verkürzung ist echte Perspektive — sie darf NICHT herausgezogen werden. */
     @Test
     fun `verkuerzter Knochen bleibt verkuerzt`() {

@@ -109,6 +109,54 @@ class RoiTrackingTest {
         assertThat(wide.bottom).isAtMost(frameHeight.toFloat())
     }
 
+    // --- Totband der Box-Prüfung (S8b) ------------------------------------------
+
+    /**
+     * Der Kern des Totbands: eine Prüfung, die ihr Ergebnis IMMER übernimmt, ist keine
+     * Prüfung, sondern eine zweite Box-Quelle — und weil sie nur im Prüftakt läuft, eine
+     * periodisch eingreifende. Genau das blieb nach S7b als Reststörung übrig.
+     */
+    @Test
+    fun `bestaetigte Box loest keine Neuverankerung aus`() {
+        val current = checkNotNull(
+            nextRoi(null, torsoOnly(360f, 640f, 60f), frameWidth, frameHeight).roi,
+        )
+        // Die Prüfung sieht die Person ein paar Pixel weiter — normales Messrauschen.
+        val checked = checkNotNull(
+            nextRoi(null, torsoOnly(364f, 646f, 61f), frameWidth, frameHeight).roi,
+        )
+
+        assertThat(needsReanchor(current, checked)).isFalse()
+    }
+
+    @Test
+    fun `weggelaufene Box loest eine Neuverankerung aus`() {
+        val current = checkNotNull(
+            nextRoi(null, torsoOnly(200f, 300f, 60f), frameWidth, frameHeight).roi,
+        )
+        // Die Person steht in Wahrheit eine halbe Boxbreite weiter — dafür ist die
+        // Prüfung da.
+        val checked = checkNotNull(
+            nextRoi(null, torsoOnly(200f + current.width / 2f, 300f, 60f), frameWidth, frameHeight).roi,
+        )
+
+        assertThat(needsReanchor(current, checked)).isTrue()
+    }
+
+    @Test
+    fun `deutlich andere Boxgroesse loest eine Neuverankerung aus`() {
+        val current = checkNotNull(
+            nextRoi(null, torsoOnly(360f, 640f, 40f), frameWidth, frameHeight).roi,
+        )
+        // Gleiche Stelle, aber die Person ist in Wahrheit doppelt so groß im Bild —
+        // die laufende Box schneidet sie also an.
+        val checked = checkNotNull(
+            nextRoi(null, torsoOnly(360f, 640f, 100f), frameWidth, frameHeight).roi,
+        )
+
+        assertThat(needsReanchor(current, checked)).isTrue()
+    }
+
     /** Die Kollaps-Bremse: eine plötzlich einbrechende Box wird verworfen. */
     @Test
     fun `Einbrechende Box wird verworfen und die alte behalten`() {

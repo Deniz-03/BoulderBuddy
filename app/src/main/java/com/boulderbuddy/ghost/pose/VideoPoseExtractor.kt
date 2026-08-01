@@ -98,6 +98,7 @@ class VideoPoseExtractor @Inject constructor(
             val roiStats = IntArray(RoiOutcome.entries.size)
             var fullFrameDetections = 0
             var boxChecks = 0
+            var boxReanchors = 0
             val frames = ArrayList<GhostPoseFrame>(sampleTimes.size)
             sampleTimes.forEachIndexed { index, timeMs ->
                 coroutineContext.ensureActive()
@@ -150,8 +151,9 @@ class VideoPoseExtractor @Inject constructor(
                         null
                     }
                     full.recycle()
-                    // Die Prüfung darf nur helfen, nie schaden: findet sie niemanden,
-                    // entscheidet der normale Weg über die Box.
+                    if (checked != null) boxReanchors++
+                    // Die Prüfung darf nur helfen, nie schaden: findet sie niemanden oder
+                    // stimmt die Box ohnehin (S8b), entscheidet der normale Weg.
                     val step = checked ?: nextRoi(roi, landmarks, frameWidth, frameHeight)
                     roiStats[step.outcome.ordinal]++
                     roi = step.roi
@@ -186,7 +188,11 @@ class VideoPoseExtractor @Inject constructor(
                     "geglättet=${roiStats[RoiOutcome.SMOOTHED.ordinal]} " +
                     "verworfen=${roiStats[RoiOutcome.REJECTED.ordinal]} " +
                     "verloren=${roiStats[RoiOutcome.LOST.ordinal]} " +
-                    "Box-Prüfungen=$boxChecks " +
+                    // Prüfungen/Neuverankerungen (S8b): greift die Prüfung fast immer,
+                    // steht das Totband zu eng und die Box springt im Prüftakt — genau
+                    // die periodische Störung, die sie beseitigen soll. Greift sie nie,
+                    // ist es zu weit und ein verlaufener Kasten bleibt unbemerkt.
+                    "Box-Prüfungen=$boxChecks davon eingegriffen=$boxReanchors " +
                     "Vollbild=$fullFrameDetections/${sampleTimes.size}",
             )
 
@@ -248,7 +254,8 @@ class VideoPoseExtractor @Inject constructor(
     /**
      * Prüft auf einem geweiteten Ausschnitt nach, wo die Person wirklich steht, und gibt
      * die daraus frisch aufgespannte Box zurück (S7b) — oder null, wenn dort niemand zu
-     * finden war und die Box deshalb nicht angetastet werden soll.
+     * finden war ODER die laufende Box ohnehin stimmt (S8b). In beiden Fällen soll die
+     * Box nicht angetastet werden, und das ist der Normalfall.
      *
      * Bewusst [nextRoi] ohne Vorgängerin: die Plausibilitätsbremsen (Schrumpf-/Sprung-
      * Limit) sind dafür da, das laufende Tracking gegen Rauschen zu schützen — hier
@@ -273,7 +280,9 @@ class VideoPoseExtractor @Inject constructor(
             analysisHeight = analysisHeight,
             roi = wide,
         ) { image -> checkLandmarker.detect(image) }
-        return nextRoi(null, landmarks, analysisWidth, analysisHeight).takeIf { it.roi != null }
+        val step = nextRoi(null, landmarks, analysisWidth, analysisHeight)
+        val checked = step.roi ?: return null
+        return step.takeIf { needsReanchor(roi, checked) }
     }
 
     /**

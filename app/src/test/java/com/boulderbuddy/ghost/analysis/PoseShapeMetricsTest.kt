@@ -124,6 +124,22 @@ class PoseShapeMetricsTest {
         assertThat(wobble).isGreaterThan(smooth.qualityMetrics().centroidWobble * 10)
     }
 
+    /**
+     * S8c: eine gleichmäßig BESCHLEUNIGTE Bahn ist genauso wenig Unruhe wie eine
+     * gleichförmige — ein Kletterer, der antritt oder abbremst, bewegt sich nicht
+     * unruhig. Der frühere Nachbar-Mittelwert als Referenz zählte genau das mit und
+     * machte zwei Drittel der gemeldeten Zahl aus; gegen so eine Zahl zu optimieren hieße,
+     * die Bewegung wegzufiltern statt das Zittern.
+     */
+    @Test
+    fun `gleichmaessig beschleunigte Bewegung erzeugt keine Unruhe`() {
+        val frames = (0 until 60).map { i ->
+            // Freier Fall in Reinform: rein quadratisch, ohne jedes Rauschen.
+            poseAt(i * 83L, 300f, 200f + 0.5f * i * i)
+        }
+        assertThat(frames.qualityMetrics().centroidWobble).isLessThan(0.005)
+    }
+
     /** Ein einzelner grober Aussetzer soll die Zahl nicht dominieren — dafür sind die
      *  Gates zuständig; die Metrik beschreibt die DAUERHAFTE Unruhe. */
     @Test

@@ -85,6 +85,11 @@ data class PoseQualityMetrics(
      * im Fenster-Mittel mit und dämpfte seine eigene Abweichung um ein Fünftel — die
      * Kennzahl maß die Störung also gegen sich selbst.
      *
+     * Die Nachbarn werden durch eine PARABEL beschrieben statt gemittelt (S8c, Begründung
+     * in [quadraticReference]): der Mittelwert zählte die echte Beschleunigung des
+     * Kletterers als Unruhe mit, mit rund zwei Dritteln des gemeldeten Werts. Zahlen von
+     * vor S8c sind deshalb nicht mit den heutigen vergleichbar.
+     *
      * Der MEDIAN beschreibt die dauerhafte Unruhe; für seltene, dafür heftige Ereignisse
      * ist er blind (ein Ausschlag in jedem zwölften Frame verschiebt ihn nicht um einen
      * Zähler). Dafür ist [centroidPulse] da — beide Zahlen gehören zusammen gelesen.
@@ -181,11 +186,38 @@ fun List<GhostPoseFrame>.qualityMetrics(): PoseQualityMetrics {
     )
 }
 
-/** Halbe Fensterbreite der Nachbarschaft, gegen die die Unruhe gemessen wird. 2 → die
- *  je zwei Nachbarn links und rechts (~0,4 s): kurz genug, dass echte Bewegung darin
- *  geradlinig ist und keinen Rest hinterlässt, lang genug, um ein einzelnes Zucken
- *  sichtbar zu machen. */
+/** Halbe Fensterbreite der Nachbarschaft, gegen die die Unruhe gemessen wird: die je
+ *  zwei Nachbarn links und rechts (~0,4 s). */
 private const val WOBBLE_MEDIAN_WINDOW = 2
+
+/**
+ * Erwartungswert an der Stelle [i], geschätzt allein aus den vier Nachbarn i±1 und i±2,
+ * über eine dort durchgelegte PARABEL (S8c). Null, wenn ein Nachbar fehlt.
+ *
+ * Das ersetzt den bisherigen Mittelwert der vier Nachbarn, und der Unterschied ist
+ * gemessen groß: der Mittelwert liegt bei einer gekrümmten Bahn systematisch neben dem
+ * mittleren Punkt, zählt also echte Beschleunigung als Unruhe mit. Bei einem Kletterer
+ * ist das kein Randeffekt — zwei Drittel der so gemeldeten Unruhe waren schlicht seine
+ * Bewegung (1,22–1,46 % gegen 0,38–0,49 % nach der Korrektur). Gegen eine solche Zahl zu
+ * optimieren hieße, die Bewegung wegzufiltern statt das Zittern.
+ *
+ * Eine Parabel ist die kleinste Kurve, die gleichförmige Beschleunigung darstellen kann,
+ * und mehr soll sie auch nicht können: alles darüber wäre in 0,4 s keine Bewegung mehr,
+ * sondern genau der Fehler, den die Kennzahl sehen soll.
+ *
+ * Die Gewichte folgen direkt aus der Ausgleichsrechnung über t ∈ {−2,−1,1,2} (die
+ * Stützstellen liegen symmetrisch, deshalb entkoppelt der lineare Anteil und es bleibt
+ * eine geschlossene Form). Sie summieren sich zu 1, eine ruhende Bahn ergibt also
+ * exakt 0. Preis der Verzerrungsfreiheit ist etwas mehr Rauschempfindlichkeit als beim
+ * Mittelwert — deshalb sind Werte vor und nach S8c nicht direkt vergleichbar.
+ */
+private inline fun quadraticReference(i: Int, at: (Int) -> Double?): Double? {
+    val m2 = at(i - 2) ?: return null
+    val m1 = at(i - 1) ?: return null
+    val p1 = at(i + 1) ?: return null
+    val p2 = at(i + 2) ?: return null
+    return (4.0 * (m1 + p1) - (m2 + p2)) / 6.0
+}
 
 /** Unruhe-Median über die Spur plus die Periodizität derselben Residuen. */
 private class WobbleStats(val median: Double, val pulse: Double)
@@ -217,15 +249,9 @@ private fun List<GhostPoseFrame>.centroidWobble(): WobbleStats {
         val c = centroids[i] ?: continue
         val scale = scales[i] ?: continue
         if (scale <= 0.0) continue
-        var sumX = 0.0
-        var sumY = 0.0
-        var count = 0
-        for (j in (i - WOBBLE_MEDIAN_WINDOW)..(i + WOBBLE_MEDIAN_WINDOW)) {
-            if (j == i || j !in indices) continue
-            centroids[j]?.let { sumX += it.first; sumY += it.second; count++ }
-        }
-        if (count < 2) continue
-        val residual = hypot(c.first - sumX / count, c.second - sumY / count) / scale
+        val refX = quadraticReference(i) { j -> centroids.getOrNull(j)?.first } ?: continue
+        val refY = quadraticReference(i) { j -> centroids.getOrNull(j)?.second } ?: continue
+        val residual = hypot(c.first - refX, c.second - refY) / scale
         residuals += residual
         byPhase[i % byPhase.size] += residual
     }
@@ -314,15 +340,19 @@ private fun List<GhostPoseFrame>.boneStats(): BoneStats {
         measurements += ratios.size
         overExtended += ratios.count { it > limit }
 
-        // Zeitlicher Morph (S7a): Rest gegen das Mittel der beiden Nachbarn. Eine echte
-        // Verkürzung läuft über mehrere Frames und ist lokal nahezu linear — sie fällt
-        // hier heraus. Übrig bleibt, was ein einzelner Frame aus der Reihe tanzt.
+        // Zeitlicher Morph (S7a): Rest gegen das, was die Nachbarn erwarten lassen. Eine
+        // echte Verkürzung läuft über mehrere Frames und wird von der Referenz mitgetragen
+        // — übrig bleibt, was ein einzelner Frame aus der Reihe tanzt.
+        //
+        // Dieselbe Referenz wie bei der Unruhe (S8c), obwohl sie hier kaum etwas ändert
+        // (gemessen 0,43 → 0,40 %; Knochenlängen krümmen sich weit weniger als eine
+        // Flugbahn). Zwei verschiedene Schätzer für dieselbe Frage nebeneinander laufen
+        // zu lassen war in dieser Pipeline schon zweimal die Ursache für Fehldiagnosen.
         if (median <= 0.0) return@forEach
-        for (i in 1 until perFrame.size - 1) {
-            val previous = perFrame[i - 1] ?: continue
+        for (i in perFrame.indices) {
             val current = perFrame[i] ?: continue
-            val next = perFrame[i + 1] ?: continue
-            wobbles += abs(current - (previous + next) / 2.0) / median
+            val reference = quadraticReference(i) { j -> perFrame.getOrNull(j) } ?: continue
+            wobbles += abs(current - reference) / median
         }
     }
     wobbles.sort()

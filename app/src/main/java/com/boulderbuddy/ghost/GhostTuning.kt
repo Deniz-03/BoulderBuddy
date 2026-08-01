@@ -230,6 +230,28 @@ object GhostTuning {
      */
     const val ROI_CHECK_WIDEN_FACTOR: Float = 2.0f
 
+    // --- Totband der Box-Prüfung (S8b) -----------------------------------------
+    //
+    // Die Prüfung hat ihre Box anfangs IMMER übernommen, auch wenn sie mit der laufenden
+    // praktisch übereinstimmte. Damit blieb ein Rest der alten Störung übrig: die Box
+    // sprang im Prüftakt auf einen leicht anderen Ausschnitt, und der FOLGEframe wurde
+    // dort erkannt — gemessen als Faktor 1,8 gegenüber dem Grundrauschen, an genau
+    // dieser Phase. Eine Prüfung, die immer eingreift, ist keine Prüfung mehr.
+    //
+    // Beide Grenzen beziehen sich auf die GEPRÜFTE Box, nicht auf die laufende: die
+    // geprüfte stammt aus dem weiten Blick und ist hier die verlässlichere Referenz —
+    // eine verrutschte Box würde sich sonst selbst zum Maßstab machen.
+
+    /** Box-Prüfung: bis zu diesem Anteil der Boxbreite gilt ein Versatz des Zentrums als
+     *  normales Rauschen und die laufende Box bleibt. Die Box ist mit
+     *  [ROI_MIN_BODY_MULTIPLE] deutlich größer als die Person — 15 % davon sind noch
+     *  weit davon entfernt, jemanden aus dem Bild zu schieben. */
+    const val ROI_CHECK_MAX_CENTER_DRIFT: Float = 0.15f
+
+    /** Box-Prüfung: so weit darf die laufende Boxbreite von der geprüften abweichen
+     *  (nach oben wie nach unten), bevor neu verankert wird. */
+    const val ROI_CHECK_MAX_SIZE_RATIO: Float = 1.25f
+
     /** ROI-Crop: so viele sichere Landmarks braucht die Box, sonst nächster Frame
      *  wieder als Vollbild (Person verloren → neu suchen). */
     const val ROI_MIN_CONFIDENT_LANDMARKS: Int = 6

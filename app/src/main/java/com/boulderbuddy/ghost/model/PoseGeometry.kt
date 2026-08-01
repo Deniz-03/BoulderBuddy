@@ -16,6 +16,15 @@ import kotlin.math.hypot
  * Knochen (proximal → distal), deren Länge im Verhältnis zur Körpergröße anatomisch
  * konstant ist. Reihenfolge proximal zuerst: wer den Ellbogen korrigiert, korrigiert
  * den davon abhängigen Unterarm gleich mit.
+ *
+ * S8a: die FÜSSE gehören dazu, und dass sie gefehlt haben, war eine reine Lücke — die
+ * Liste endete am Knöchel, [com.boulderbuddy.ghost.model.GhostSkeleton.BONES] zeichnet
+ * aber bis zur Fußspitze weiter. Damit war ausgerechnet der sichtbare Teil des Skeletts
+ * der einzige völlig unbeschränkte: gemessen morphten die Fußknochen mit 1,4–1,8 %
+ * gegen 0,43 % bei allen beschränkten Knochen, also drei- bis viermal so stark.
+ *
+ * Fußlänge und Fersenabstand sind anatomisch genauso konstant wie ein Unterarm; dass die
+ * Landmarks dort unsicherer sind, ist ein Argument FÜR die Beschränkung, nicht dagegen.
  */
 val RIGID_BONES: List<Pair<Int, Int>> = listOf(
     GhostLandmarkTypes.LEFT_SHOULDER to GhostLandmarkTypes.LEFT_ELBOW,
@@ -26,6 +35,12 @@ val RIGID_BONES: List<Pair<Int, Int>> = listOf(
     GhostLandmarkTypes.LEFT_KNEE to GhostLandmarkTypes.LEFT_ANKLE,
     GhostLandmarkTypes.RIGHT_HIP to GhostLandmarkTypes.RIGHT_KNEE,
     GhostLandmarkTypes.RIGHT_KNEE to GhostLandmarkTypes.RIGHT_ANKLE,
+    // Füße ans Ende der jeweiligen Kette — der Knöchel muss korrigiert sein, bevor die
+    // Ferse an ihm hängt, und die Ferse, bevor die Fußspitze an ihr hängt.
+    GhostLandmarkTypes.LEFT_ANKLE to GhostLandmarkTypes.LEFT_HEEL,
+    GhostLandmarkTypes.LEFT_HEEL to GhostLandmarkTypes.LEFT_FOOT_INDEX,
+    GhostLandmarkTypes.RIGHT_ANKLE to GhostLandmarkTypes.RIGHT_HEEL,
+    GhostLandmarkTypes.RIGHT_HEEL to GhostLandmarkTypes.RIGHT_FOOT_INDEX,
 )
 
 /**
