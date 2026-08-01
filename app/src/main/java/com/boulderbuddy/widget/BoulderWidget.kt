@@ -2,6 +2,8 @@ package com.boulderbuddy.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +32,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import kotlinx.coroutines.flow.first
 
 // Marken-Farben (an Color.kt angelehnt). Bewusst fest: ein Widget hat keinen App-Theme-Context.
 private val WidgetBg = Color(0xFFF9F4E3)
@@ -47,13 +50,23 @@ private val WidgetAccent = Color(0xFFC9A89A)
  * dann nur die App, damit ein Fehlgriff nicht im Anlege-Formular landet). Der Timer ist in
  * beiden Fällen über den zweiten Knopf erreichbar.
  *
- * Daten kommen als einmaliger Room-Snapshot ([loadWidgetData]); ein Refresh-Knopf lädt neu,
- * Session-Start/-Ende stoßen zusätzlich [refreshBoulderWidget] an.
+ * Daten kommen live aus Room ([observeWidgetData]) und werden IN der Composition gesammelt —
+ * siehe [provideGlance].
  */
 class BoulderWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val data = loadWidgetData(context)
-        provideContent { WidgetContent(context, data) }
+        val dataFlow = observeWidgetData(context)
+        // Erster Wert noch vor der Composition: sonst zeigt der erste Frame kurz den
+        // Leerzustand ("Keine aktive Session").
+        val initial = dataFlow.first()
+        provideContent {
+            // Wichtig: die Sammlung gehört INNERHALB von provideContent. Alles davor läuft nur
+            // einmal je Glance-Session; update()/updateAll() rekomponiert eine noch laufende
+            // Session nur, ohne die Repositories erneut zu lesen. Ein vor provideContent
+            // geladener Snapshot blieb deshalb stehen (z. B. nach dem Beenden einer Session).
+            val data by dataFlow.collectAsState(initial)
+            WidgetContent(context, data)
+        }
     }
 }
 
