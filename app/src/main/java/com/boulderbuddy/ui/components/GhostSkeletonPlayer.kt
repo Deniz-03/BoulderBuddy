@@ -311,16 +311,19 @@ private fun GhostPoseTrack.shapeLine(): String {
     return if (raw == null) {
         String.format(
             Locale.GERMANY,
-            "Morph %.1f%% · Kollaps %.1f%%",
+            "Morph %.1f%% · Überlang %.1f%% · Kollaps %.1f%%",
             filtered.boneLengthCv * 100,
+            filtered.boneOverExtensionRate * 100,
             filtered.scaleCv * 100,
         )
     } else {
         String.format(
             Locale.GERMANY,
-            "Morph %.1f%% (roh %.1f) · Kollaps %.1f%% (roh %.1f)",
+            "Morph %.1f%% (roh %.1f) · Überlang %.1f%% (roh %.1f) · Kollaps %.1f%% (roh %.1f)",
             filtered.boneLengthCv * 100,
             raw.boneLengthCv * 100,
+            filtered.boneOverExtensionRate * 100,
+            raw.boneOverExtensionRate * 100,
             filtered.scaleCv * 100,
             raw.scaleCv * 100,
         )

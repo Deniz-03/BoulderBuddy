@@ -57,10 +57,10 @@ class PosePlausibilityTest {
     // --- Anatomische Plausibilität --------------------------------------------
 
     @Test
-    fun `knochenlaengen-ausreisser wird auf plausible laenge geklemmt`() {
-        // Oberarm (Schulter→Ellbogen) ist in 9 Frames ~100 px lang, in einem 300 px —
-        // der Ellbogen bleibt erhalten, wird aber auf die Toleranzgrenze (Median 100 ·
-        // Faktor 1,5 = 150 px) unter der Schulter gezogen → y = 100 + 150 = 250.
+    fun `knochenlaengen-ausreisser ohne messbaren rumpf faellt auf die alt-toleranz zurueck`() {
+        // Ohne Rumpf-Landmarks ist keine Körpergröße messbar — enforceRigidSkeleton
+        // fällt dann auf den Median der ABSOLUTEN Länge mit
+        // BONE_LENGTH_TOLERANCE_FACTOR zurück: Median 100 px · 1,5 = 150 → y = 250.
         val frames = (0 until 10).map { i ->
             val elbowY = if (i == 5) 400f else 200f
             GhostPoseFrame(
@@ -71,7 +71,7 @@ class PosePlausibilityTest {
                 ),
             )
         }
-        val result = applyAnatomicalPlausibility(frames, frameHeight = 720)
+        val result = enforceRigidSkeleton(frames)
         assertThat(result[5].landmarks).hasSize(2)
         val elbow = result[5].landmarks.single { it.type == T.LEFT_ELBOW }
         assertThat(elbow.y).isWithin(0.5f).of(250f)

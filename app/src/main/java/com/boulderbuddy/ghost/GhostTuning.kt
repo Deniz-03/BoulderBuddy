@@ -87,16 +87,38 @@ object GhostTuning {
     const val VISIBILITY_HIDE_FRAMES: Int = 3
 
     /** Maximale Länge (in Sample-Frames) einer zeitlichen Landmark-Lücke, die offline
-     *  per Interpolation zwischen den umgebenden sicheren Vorkommen gefüllt wird
-     *  (~0,67 s bei 12 fps). Längere Ausfälle bleiben leer (echte Verdeckung), statt
-     *  eine Pose zu erfinden. Behebt fehlende Glieder und ganz fehlende Skelette. */
-    const val MAX_GAP_FILL_FRAMES: Int = 8
+     *  per Interpolation zwischen den umgebenden sicheren Vorkommen gefüllt wird.
+     *  S2c: 8 → 4 (~0,33 s). Über eine längere Lücke ist die erfundene Bewegung
+     *  zwangsläufig linear, die echte aber nicht — sichtbar als Glied, das der
+     *  Bewegung vorauseilt oder nachhinkt. Längere Ausfälle bleiben leer. */
+    const val MAX_GAP_FILL_FRAMES: Int = 4
 
     // --- Detektionsqualität (Stufe 2, 7.5b) ------------------------------------
 
-    /** Toleranzfaktor der Knochenlängen-Konstanz: weicht eine Knochenlänge um mehr
-     *  als [1/f, f] vom Track-Median ab, wird das distale Gelenk verworfen
-     *  (halluzinierte Position, Root Cause C/D). */
+    // --- Rigide Rekonstruktion (S2a, 7.5e) -------------------------------------
+    //
+    // Gemessen: Morph (Streuung der auf die Körpergröße normierten Knochenlängen) lag
+    // bei 21–23 %, die alte Filterkette senkte sie um ganze 13 %. Ursache: der alte
+    // Knochen-Check maß ABSOLUTE Pixellängen gegen einen Track-Median — die schwanken
+    // aber legitim mit Perspektive und Abstand, weshalb die Toleranz auf 1,5 stehen
+    // musste und praktisch nichts mehr fing.
+    //
+    // Die Grenzen sind bewusst ASYMMETRISCH, und das ist der geometrische Kern: die
+    // Projektion eines Knochens kann durch Verkürzung nur KÜRZER werden als der echte
+    // Knochen, niemals länger. Ein zu langer Knochen ist deshalb immer Halluzination
+    // (hart klemmen), ein zu kurzer meist echte Verkürzung (großzügig lassen).
+
+    /** Obergrenze der Knochenlänge als Vielfaches der Soll-Länge (Soll = Median-
+     *  Verhältnis zur Körpergröße · Körpergröße dieses Frames). Eng, weil eine
+     *  Überlänge geometrisch nicht vorkommen kann. */
+    const val RIGID_MAX_FACTOR: Float = 1.1f
+
+    /** Untergrenze — weit, damit ein zur Kamera zeigendes Glied natürlich verkürzt
+     *  bleiben darf statt auf volle Länge herausgezogen zu werden. */
+    const val RIGID_MIN_FACTOR: Float = 0.35f
+
+    /** Toleranzfaktor der Knochenlängen-Konstanz (Alt-Wert, nur noch als Rückfall für
+     *  Frames ohne messbare Körpergröße — dort fehlt der Bezug für [RIGID_MAX_FACTOR]). */
     const val BONE_LENGTH_TOLERANCE_FACTOR: Float = 1.5f
 
     /** Geschwindigkeitslimit pro Gelenk in Frame-Höhen pro Sekunde — schnellere
@@ -158,21 +180,37 @@ object GhostTuning {
      *  ruhige Box hilft dem internen MediaPipe-Tracking auf dem Crop-Strom. */
     const val ROI_BOX_SMOOTHING: Float = 0.5f
 
-    /** Pose-Skalen-Gate (7.5c): untere Grenze der Rumpfgröße als Anteil der Median-
-     *  Rumpfgröße des Videos. Frames darunter sind ein Ganzkörper-Kollaps ("Schrumpfen")
-     *  und werden per Interpolation ersetzt. 0.7 = 70 % (empirisch kalibriert) — fängt
-     *  auch leichtere Kollapse, noch über der normalen perspektivischen Schwankung. */
-    const val POSE_SCALE_MIN_RATIO: Double = 0.7
+    /** Halbe Fensterbreite (in Sample-Frames) des ROLLIERENDEN Median der Körpergröße
+     *  (S2b, 7.5e). 15 → Fenster von ~2,5 s bei 12 fps. Vorher war die Referenz der
+     *  Median der GANZEN Spur — über 30 s ändert sich die scheinbare Körpergröße aber
+     *  legitim (der Kletterer entfernt sich, die Perspektive dreht). Das Budget ging
+     *  für diese Drift drauf, echte Kollapse rutschten durch. Mit lokaler Referenz
+     *  dürfen die Grenzen unten deutlich enger sein. */
+    const val POSE_SCALE_MEDIAN_WINDOW: Int = 15
 
-    /** Pose-Skalen-Gate: obere Grenze der Rumpfgröße (aufgeblähte Fehl-Pose). */
-    const val POSE_SCALE_MAX_RATIO: Double = 1.7
+    /** Pose-Skalen-Gate: untere Grenze der Körpergröße als Anteil des ROLLIERENDEN
+     *  Median. 0.8 statt vorher 0.7 gegen den globalen Median — gemessen streute die
+     *  Körpergröße um ~10 %, ein Fenster von −30 %/+70 % ließ praktisch alles durch. */
+    const val POSE_SCALE_MIN_RATIO: Double = 0.8
 
-    /** Pose-Positions-Gate (7.5c): max. Abweichung des Pose-Zentrums vom Fenster-Median
-     *  als Anteil der Median-Körpergröße, bevor der Frame als „verschobenes Skelett"
-     *  (isolierter Ganzkörper-Sprung) gilt und interpoliert wird. 1.0 (empirisch
-     *  kalibriert) = eine ganze Körpergröße — bewusst hoch, damit glatte schnelle
-     *  Bewegungen/Dynos NICHT fälschlich markiert werden, nur grobe Aussetzer. */
-    const val POSE_SHIFT_MAX_RATIO: Double = 1.0
+    /** Pose-Skalen-Gate: obere Grenze der Körpergröße (aufgeblähte Fehl-Pose). */
+    const val POSE_SCALE_MAX_RATIO: Double = 1.25
+
+    /** Pose-Positions-Gate: max. Abweichung des Pose-Zentrums vom Fenster-Median als
+     *  Anteil der Median-Körpergröße, bevor der Frame als „verschobenes Skelett" gilt.
+     *  0.6 statt 1.0: eine ganze Körpergröße Versatz ist genau das sichtbare „Skelett
+     *  zuckt vom Körper weg" — das darf nicht erst DANACH auffallen. Glatte schnelle
+     *  Bewegungen bleiben verschont, weil die Referenz der Fenster-Median ist und eine
+     *  glatte Bewegung nahe an ihm liegt. */
+    const val POSE_SHIFT_MAX_RATIO: Double = 0.6
+
+    /** Maximale Länge (in Sample-Frames) einer ungültigen Strecke, die noch per
+     *  Interpolation überbrückt wird (S2c, ~0,5 s bei 12 fps). Vorher unbegrenzt: ein
+     *  zwei Sekunden langer Aussetzer wurde zu einer zwei Sekunden langen linearen
+     *  Rampe — sichtbar als Skelett, das der Bewegung hinterherhinkt oder ihr
+     *  vorauseilt. Längere Strecken bleiben jetzt leer; ein fehlendes Skelett ist
+     *  ehrlicher als ein erfundenes. */
+    const val MAX_POSE_INTERPOLATION_FRAMES: Int = 6
 
     /** Halbe Fensterbreite (in Sample-Frames) des Zentrum-Medians fürs Positions-Gate.
      *  2 = Fenster von 5 Frames — robust gegen einen bis zwei Ausreißer. */

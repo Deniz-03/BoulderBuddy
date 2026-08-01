@@ -38,6 +38,13 @@ data class PoseQualityMetrics(
      *  Bei fixer Kamera schwankt sie nur perspektivisch (langsam); ein Ausschlag ist
      *  das "Schrumpfen" der ganzen Pose. */
     val scaleCv: Double,
+    /** **Halluzinations-Metrik** (S2a): Anteil der Knochen-Messungen, deren Länge den
+     *  Median um mehr als [GhostTuning.RIGID_MAX_FACTOR] übersteigt. Anders als
+     *  [boneLengthCv] ist das ein EINSEITIGES Maß, und genau deshalb aussagekräftiger:
+     *  eine Projektion kann durch Verkürzung nur kürzer werden, nie länger — jede
+     *  Überlänge ist erfunden. Das ist der Anteil, den die rigide Rekonstruktion
+     *  entfernt; die legitime Verkürzung bleibt in [boneLengthCv] stehen. */
+    val boneOverExtensionRate: Double,
 )
 
 /** Dropout + mittlere Confidence innerhalb einer Wiedergabe-Sekunde (Debug-HUD). */
@@ -94,24 +101,32 @@ fun List<GhostPoseFrame>.qualityMetrics(): PoseQualityMetrics {
     }
 
     displacements.sort()
+    val boneStats = frames.boneStats()
     return PoseQualityMetrics(
         jitterPx = if (displacements.isEmpty()) 0.0 else displacements[displacements.size / 2],
         dropoutRate = if (slots == 0L) 0.0 else 1.0 - confident.toDouble() / slots,
         flipRate = if (flipTransitions == 0) 0.0 else flipHits.toDouble() / flipTransitions,
         meanConfidence = if (confidenceCount == 0L) 0.0 else confidenceSum / confidenceCount,
-        boneLengthCv = frames.boneLengthCv(),
+        boneLengthCv = boneStats.cv,
         scaleCv = coefficientOfVariation(frames.mapNotNull { bodyScale(it.landmarks) }),
+        boneOverExtensionRate = boneStats.overExtensionRate,
     )
 }
 
+private class BoneStats(val cv: Double, val overExtensionRate: Double)
+
 /**
- * Morph-Metrik (A7): je starrem Knochen die auf die Körpergröße des SELBEN Frames
- * normierte Länge sammeln, davon den Variationskoeffizienten, und über alle Knochen
- * mitteln. Die Normierung ist der Punkt — die absolute Pixellänge schwankt legitim
- * mit Perspektive und Abstand, das Verhältnis zur Körpergröße nicht.
+ * Form-Kennzahlen (A7/S2a): je starrem Knochen die auf die Körpergröße des SELBEN
+ * Frames normierte Länge sammeln. Die Normierung ist der Punkt — die absolute
+ * Pixellänge schwankt legitim mit Perspektive und Abstand, das Verhältnis zur
+ * Körpergröße nicht. Daraus zwei Zahlen: der Variationskoeffizient (Gesamt-Formfehler)
+ * und der Anteil der ÜBERLÄNGEN gegenüber dem Median (rein erfundener Anteil).
  */
-private fun List<GhostPoseFrame>.boneLengthCv(): Double {
-    val perBone = RIGID_BONES.mapNotNull { (fromType, toType) ->
+private fun List<GhostPoseFrame>.boneStats(): BoneStats {
+    val cvPerBone = ArrayList<Double>(RIGID_BONES.size)
+    var measurements = 0
+    var overExtended = 0
+    RIGID_BONES.forEach { (fromType, toType) ->
         val ratios = mapNotNull { frame ->
             val scale = bodyScale(frame.landmarks) ?: return@mapNotNull null
             if (scale <= 0.0) return@mapNotNull null
@@ -119,10 +134,20 @@ private fun List<GhostPoseFrame>.boneLengthCv(): Double {
             val to = frame.shown(toType) ?: return@mapNotNull null
             distance(from, to) / scale
         }
-        // Unter drei Messungen ist ein Variationskoeffizient nicht aussagekräftig.
-        if (ratios.size < 3) null else coefficientOfVariation(ratios)
+        // Unter drei Messungen sind beide Kennzahlen nicht aussagekräftig.
+        if (ratios.size < 3) return@forEach
+        cvPerBone += coefficientOfVariation(ratios)
+        val median = ratios.sorted()[ratios.size / 2]
+        val limit = median * GhostTuning.RIGID_MAX_FACTOR
+        measurements += ratios.size
+        overExtended += ratios.count { it > limit }
     }
-    return if (perBone.isEmpty()) 0.0 else perBone.average()
+    return BoneStats(
+        cv = if (cvPerBone.isEmpty()) 0.0 else cvPerBone.average(),
+        overExtensionRate = if (measurements == 0) 0.0 else {
+            overExtended.toDouble() / measurements
+        },
+    )
 }
 
 /** σ/μ — dimensionslos, dadurch über verschiedene Videos und Zoomstufen vergleichbar. */

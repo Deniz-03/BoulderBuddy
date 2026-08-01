@@ -152,11 +152,15 @@ class VideoPoseExtractor @Inject constructor(
                 frameHeight = frameHeight,
                 durationMs = durationMs,
                 sampleFps = GhostTuning.POSE_SAMPLE_FPS,
-                // Stufe 2+1: Skalen-Gate/L/R/Plausibilität (auf roh) → Lücken offline
-                // interpolieren → One-Euro-Glättung → Sichtbarkeits-Hysterese bilden die
-                // Arbeits-Spur; die Roh-Spur bleibt fürs Debug-Overlay erhalten.
+                // Pose-Gates/L/R/Geschwindigkeit (auf roh) → Lücken offline interpolieren
+                // → One-Euro-Glättung → rigide Rekonstruktion → Sichtbarkeits-Hysterese.
+                // Die Rekonstruktion läuft NACH der Glättung, weil diese die Längen sonst
+                // wieder verzöge; sie übernimmt nur die (bereits glatten) Richtungen und
+                // korrigiert die Längen, bleibt also selbst glatt.
                 frames = applyVisibilityHysteresis(
-                    smoothPoseFrames(fillLandmarkGaps(cleanPoseFrames(frames, frameHeight))),
+                    enforceRigidSkeleton(
+                        smoothPoseFrames(fillLandmarkGaps(cleanPoseFrames(frames, frameHeight))),
+                    ),
                 ),
                 rawFrames = frames,
             )

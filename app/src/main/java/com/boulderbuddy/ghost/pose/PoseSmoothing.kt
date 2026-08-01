@@ -167,21 +167,25 @@ fun fillLandmarkGaps(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
  *
  * Läuft NACH [smoothPoseFrames] auf der geglätteten Spur; die Roh-Spur bleibt
  * unangetastet (Debug-Vergleich).
+ *
+ * **S2c (7.5e):** die Entprellung gilt nur noch für Landmarks, die im Frame VORHANDEN,
+ * aber schwach sind — deren Position ist echt, nur die Confidence wackelt. Das frühere
+ * Überbrücken GANZ fehlender Landmarks mit ihrer letzten Position ist entfernt: es hielt
+ * ein Glied bis zu 250 ms an einer veralteten Stelle fest, während der Körper weiterlief
+ * (sichtbar als „das Skelett braucht zu lange, um zu folgen"). Kurze echte Lücken füllt
+ * ohnehin [fillLandmarkGaps] sauber per Interpolation zwischen zwei Ankern — eine
+ * Position zu halten war der dritte, schlechteste von drei Überbrückungs-Mechanismen.
  */
 fun applyVisibilityHysteresis(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
     class LandmarkState {
         var visible = false
         var framesBelowHide = 0
-        /** Letzte gezeichnete Position — zum Überbrücken ganz fehlender Frames. */
-        var last: GhostLandmark? = null
     }
 
     val states = HashMap<Int, LandmarkState>()
     return frames.map { frame ->
-        val seen = HashSet<Int>()
         val kept = ArrayList<GhostLandmark>(frame.landmarks.size)
         frame.landmarks.forEach { lm ->
-            seen += lm.type
             val state = states.getOrPut(lm.type) { LandmarkState() }
             val emitted: GhostLandmark? = when {
                 !state.visible ->
@@ -205,24 +209,7 @@ fun applyVisibilityHysteresis(frames: List<GhostPoseFrame>): List<GhostPoseFrame
                 // Noch im Entprell-Fenster: halten, Position kommt vom Filter.
                 else -> lm.copy(confidence = GhostTuning.MIN_LANDMARK_CONFIDENCE)
             }
-            if (emitted != null) {
-                state.last = emitted
-                kept += emitted
-            }
-        }
-        // Ganz fehlende Landmarks (leerer Frame/Decode-Lücke): solange noch im Halte-
-        // fenster, die letzte bekannte Position weiterzeichnen statt eine Lücke zu
-        // lassen — überbrückt kurze Aussetzer und reduziert so das Flackern (7.5c).
-        states.forEach { (type, state) ->
-            if (state.visible && type !in seen) {
-                if (++state.framesBelowHide >= GhostTuning.VISIBILITY_HIDE_FRAMES) {
-                    state.visible = false
-                } else {
-                    state.last?.let {
-                        kept += it.copy(confidence = GhostTuning.MIN_LANDMARK_CONFIDENCE)
-                    }
-                }
-            }
+            if (emitted != null) kept += emitted
         }
         frame.copy(landmarks = kept)
     }
