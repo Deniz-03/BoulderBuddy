@@ -117,24 +117,31 @@ object GhostTuning {
      *  bleiben darf statt auf volle Länge herausgezogen zu werden. */
     const val RIGID_MIN_FACTOR: Float = 0.35f
 
-    /** Halbe Fensterbreite (in Sample-Frames) der Glättung der Körpergröße, BEVOR sie
-     *  als Soll-Referenz dient (S4a). Die Soll-Länge eines Knochens ist
-     *  Median-Verhältnis · Körpergröße dieses Frames — wird die Körpergröße roh aus
-     *  verrauschten Landmarks gemessen (gemessene Streuung ~9 %), erbt jeder geklemmte
-     *  Knochen dieses Zappeln, und die Rekonstruktion INJIZIERT Jitter, statt zu
-     *  beruhigen. Die echte Körpergröße ändert sich nur langsam (Perspektive), ein
-     *  Median über 7 Frames (~0,6 s) kostet also nichts an Genauigkeit. */
-    const val RIGID_SCALE_SMOOTH_WINDOW: Int = 3
-
-    /** Durchläufe der rigiden Rekonstruktion. Hintergrund: die Korrektur des Ellbogens
-     *  ändert die Unterarmlänge, die Median-Sollwerte stammen aber aus dem Zustand
-     *  davor — sie veralten also während des eigenen Passes. Ein weiterer Durchlauf
-     *  rechnet sie neu.
+    /** Halbe Fensterbreite (in Sample-Frames) des rollierenden Medians, der aus der
+     *  rohen Rumpfmessung die KÖRPERGRÖSSE macht (S5b, [com.boulderbuddy.ghost.model.personScales]).
      *
-     *  Ehrlichkeitshalber: im JVM-Test konvergiert schon EIN Durchlauf vollständig, die
-     *  Drift war dort zu klein für echte Verstöße. Der Wert bleibt bei 3 als billige
-     *  Absicherung für echte Spuren mit acht ineinandergreifenden Knochen (offline
-     *  kostet das nichts), nicht weil ein Testfall ihn erzwingt. */
+     *  12 → Fenster von 25 Frames (~2 s). Breit genug, dass eine Drehung des Kletterers
+     *  (typisch unter einer Sekunde, verkürzt alle Rumpfkanten projiziert) die Referenz
+     *  nicht mitzieht; schmal genug, dass die echte, langsame Größenänderung durch
+     *  Abstand zur Kamera weiter mitläuft.
+     *
+     *  Diese Konstante gilt für Rekonstruktion UND Kennzahlen — dass beide dieselbe
+     *  Referenz benutzen, ist wichtiger als ihr genauer Wert.
+     *
+     *  Das Restrisiko ist einseitig, und zwar in die harmlose Richtung: ändert sich die
+     *  Größe schneller, als das Fenster folgt, lag die Referenz. Bei einer SCHRUMPFENDEN
+     *  Person liegt sie dann zu hoch, die Soll-Längen werden zu großzügig und es wird
+     *  einfach nicht geklemmt. Nur eine schnell WACHSENDE Person (Annäherung an die
+     *  Kamera) würde fälschlich gekürzt — und bei fester Kamera und einem Kletterer,
+     *  der die Wand hochgeht, ist das der seltene Fall. */
+    const val PERSON_SCALE_WINDOW: Int = 12
+
+    /** Durchläufe der rigiden Rekonstruktion. Seit die Rumpfkanten mitkorrigiert werden
+     *  (S5a) ist das ein echtes Fixpunkt-Verfahren und kein einmaliges Klemmen mehr:
+     *  die vier Rumpfkanten teilen sich Endpunkte (eine Korrektur der Schulterbreite
+     *  verändert beide Rumpfseiten), und die Körpergröße — der Maßstab ALLER Sollwerte —
+     *  wird ihrerseits aus dem Rumpf gemessen. Jeder Durchlauf rechnet Sollwerte und
+     *  Maßstab neu; das konvergiert, und offline kostet es nichts. */
     const val RIGID_ITERATIONS: Int = 3
 
     /** Toleranzfaktor der Knochenlängen-Konstanz (Alt-Wert, nur noch als Rückfall für

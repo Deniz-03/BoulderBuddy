@@ -28,6 +28,24 @@ val RIGID_BONES: List<Pair<Int, Int>> = listOf(
     GhostLandmarkTypes.RIGHT_KNEE to GhostLandmarkTypes.RIGHT_ANKLE,
 )
 
+/**
+ * Kanten des Rumpf-Vierecks. Anatomisch ebenso konstant wie die Gliedmaßen-Knochen —
+ * und weil die Körpergröße genau aus ihnen gemessen wird, ist der Rumpf die REFERENZ
+ * für alle übrigen Längen. Bleibt er unbeschränkt, zappelt die Referenz, und die
+ * Gliedmaßen erben das Zappeln entweder in der Zeit (Zittern) oder in der Form
+ * (Morphen) — je nachdem, ob roh oder geglättet gemessen wird. Deshalb gehört er in
+ * dieselbe Rekonstruktion.
+ *
+ * Vier Kanten ohne Diagonalen: das Viereck bleibt bewusst scherbar, damit sich der
+ * Rumpf weiter drehen und neigen kann.
+ */
+val TORSO_EDGES: List<Pair<Int, Int>> = listOf(
+    GhostLandmarkTypes.LEFT_SHOULDER to GhostLandmarkTypes.RIGHT_SHOULDER,
+    GhostLandmarkTypes.LEFT_HIP to GhostLandmarkTypes.RIGHT_HIP,
+    GhostLandmarkTypes.LEFT_SHOULDER to GhostLandmarkTypes.LEFT_HIP,
+    GhostLandmarkTypes.RIGHT_SHOULDER to GhostLandmarkTypes.RIGHT_HIP,
+)
+
 /** Die vier Rumpfpunkte — die stabilsten Landmarks einer Kletterpose. */
 private val CORE_TYPES = listOf(
     GhostLandmarkTypes.LEFT_SHOULDER,
@@ -65,6 +83,41 @@ fun bodyScale(
     if (cues.isEmpty()) return null
     cues.sort()
     return cues[cues.size / 2]
+}
+
+/**
+ * **Körpergröße der Person** je Frame (S5b) — die EINE Referenz, gegen die alle
+ * Längenprüfungen normieren, im Rekonstruktions-Pass wie in den Kennzahlen.
+ *
+ * [bodyScale] allein taugt dafür nicht: es ist der Median von vier Rumpfkanten, und die
+ * verkürzen sich projiziert alle, wenn sich der Kletterer bloß DREHT. Eine Größe, die
+ * sich ändert, wenn sich die Person nur dreht, misst nicht ihre Größe. Wer Knochen
+ * dagegen normiert, prüft „Knochenlänge relativ dazu, wie breit die Schultern gerade
+ * zufällig projizieren" — kein anatomischer Invariant.
+ *
+ * Die tatsächliche Größe ändert sich nur langsam (Abstand zur Kamera). Genau diese
+ * langsame Komponente greift der rollierende Median ab, während er Drehungen (typisch
+ * unter einer Sekunde) und Messrauschen verwirft.
+ *
+ * Wichtig ist weniger der genaue Fensterwert als dass **alle** Stellen dieselbe
+ * Referenz benutzen: Pass und Kennzahl gegeneinander laufen zu lassen war die Ursache
+ * dafür, dass Korrekturen an einer Stelle als Verschlechterung an der anderen auftauchten.
+ */
+fun personScales(
+    frames: List<GhostPoseFrame>,
+    window: Int = GhostTuning.PERSON_SCALE_WINDOW,
+): List<Double?> {
+    val raw = frames.map { bodyScale(it.landmarks) }
+    if (window <= 0) return raw
+    return raw.indices.map { i ->
+        val values = ArrayList<Double>(2 * window + 1)
+        for (j in (i - window)..(i + window)) {
+            if (j in raw.indices) raw[j]?.let { values += it }
+        }
+        if (values.isEmpty()) return@map null
+        values.sort()
+        values[values.size / 2]
+    }
 }
 
 /** Zentrum der Rumpfpunkte, oder null bei weniger als drei brauchbaren Punkten. */

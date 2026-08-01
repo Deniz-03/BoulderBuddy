@@ -81,11 +81,16 @@ class RigidSkeletonTest {
      * Der Kern der Normierung: schrumpft die ganze Person (Abstand zur Kamera), müssen
      * die Knochen MITschrumpfen dürfen. Gegen eine absolute Median-Länge wäre das ein
      * Verstoß gewesen — genau der Grund, warum die alte Prüfung nichts fing.
+     *
+     * Die Rate ist bewusst physikalisch gewählt (−15 % über ~8 s): die Körpergrößen-
+     * Referenz ist ein rollierender Median über ~2 s, damit eine DREHUNG des Kletterers
+     * sie nicht mitzieht. Eine Größenänderung, die schneller wäre als das, gibt es bei
+     * fester Kamera nicht — siehe GhostTuning.PERSON_SCALE_WINDOW.
      */
     @Test
     fun `global kleinere Pose wird nicht als Verstoss behandelt`() {
-        val frames = (0 until 20).map { i ->
-            val scale = 100f - i * 2f
+        val frames = (0 until 100).map { i ->
+            val scale = 100f - i * 0.15f
             frame(i * 83L, scale = scale, upperArm = scale * 0.8f)
         }
         val result = enforceRigidSkeleton(frames)

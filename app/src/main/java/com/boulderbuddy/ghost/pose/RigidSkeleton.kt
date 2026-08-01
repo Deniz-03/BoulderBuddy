@@ -4,8 +4,9 @@ import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.RIGID_BONES
-import com.boulderbuddy.ghost.model.bodyScale
+import com.boulderbuddy.ghost.model.TORSO_EDGES
 import com.boulderbuddy.ghost.model.distance
+import com.boulderbuddy.ghost.model.personScales
 
 // =============================================================================
 // S2a (7.5e) — Rigide Rekonstruktion der Gliedmaßenketten
@@ -18,10 +19,17 @@ import com.boulderbuddy.ghost.model.distance
 // Track-Median. Ein Verfahren, das jeden Punkt einzeln behandelt, kann Form nicht
 // erhalten; "Morphen" ist aber genau eine Form-Aussage.
 //
-// Dieser Pass erzwingt Form direkt: pro Knochen das Median-VERHÄLTNIS zur Körpergröße
+// Dieser Pass erzwingt Form direkt: pro Kante das Median-VERHÄLTNIS zur Körpergröße
 // (anatomisch konstant, anders als die Pixellänge), pro Frame daraus die Soll-Länge,
 // und die Kette wird proximal→distal darauf gezogen. Richtung kommt vom Modell, Länge
 // vom Soll.
+//
+// S5a: der RUMPF gehört mit dazu, und das war anfangs übersehen. Die Körpergröße wird
+// aus den Rumpfkanten gemessen, sie ist also der Maßstab aller übrigen Sollwerte —
+// blieb der Rumpf unbeschränkt, zappelte der Maßstab, und die Gliedmaßen erbten dieses
+// Zappeln zwangsläufig: gegen die ROHE Körpergröße gemessen zeitlich (Zittern), gegen
+// die GEGLÄTTETE als Widerspruch zum roh gezeichneten Rumpf im selben Frame (Morphen).
+// Erst mit korrigiertem Rumpf ist beides gleichzeitig lösbar.
 //
 // Die Grenzen sind asymmetrisch, und das ist der geometrische Kern: die Projektion
 // eines Knochens kann durch Verkürzung nur KÜRZER erscheinen als der echte Knochen,
@@ -58,16 +66,19 @@ fun enforceRigidSkeleton(
 
 private fun rigidPass(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
     if (frames.isEmpty()) return frames
-    // GEGLÄTTETE Körpergröße als Referenz (S4a): roh gemessen zappelt sie mit den
-    // Landmarks, und da sie die Soll-Länge JEDES Knochens skaliert, würde die
-    // Rekonstruktion dieses Zappeln in die ganze Pose tragen statt es zu entfernen.
-    val scales = smoothScales(frames.map { bodyScale(it.landmarks) })
+    // Die gemeinsame Körpergrößen-Referenz (S5b) — dieselbe Funktion, die auch die
+    // Kennzahlen benutzen. Roh gemessen zappelt die Rumpfgröße mit den Landmarks UND
+    // mit jeder Drehung des Kletterers; da sie die Soll-Länge jeder Kante skaliert,
+    // trüge die Rekonstruktion das sonst in die ganze Pose.
+    val scales = personScales(frames)
 
     // Pass 1: Soll-Proportionen über die ganze Spur (Offline-Vorteil). Median statt
     // Mittelwert — die Ausreißer, die wir korrigieren wollen, sollen ihn nicht ziehen.
+    // Rumpfkanten und Gliedmaßen gleichermaßen (S5a): der Rumpf IST die Referenz, aus
+    // der die Körpergröße stammt — bleibt er unbeschränkt, zappelt die Referenz.
     val targetRatio = HashMap<Pair<Int, Int>, Double>()
     val targetAbsolute = HashMap<Pair<Int, Int>, Double>()
-    RIGID_BONES.forEach { bone ->
+    (TORSO_EDGES + RIGID_BONES).forEach { bone ->
         val ratios = ArrayList<Double>(frames.size)
         val absolutes = ArrayList<Double>(frames.size)
         frames.forEachIndexed { i, frame ->
@@ -89,31 +100,61 @@ private fun rigidPass(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
         }
     }
 
-    // Pass 2: Ketten aufbauen. Reihenfolge proximal→distal ist wesentlich — der
-    // korrigierte Ellbogen ist der Ansatzpunkt des Unterarms.
+    // Pass 2: erst den Rumpf, dann die Ketten. Die Reihenfolge ist wesentlich — die
+    // Gliedmaßen hängen an den korrigierten Schultern und Hüften, und innerhalb einer
+    // Kette ist der korrigierte Ellbogen der Ansatzpunkt des Unterarms.
     return frames.mapIndexed { i, frame ->
         val scale = scales[i]
         val adjusted = HashMap<Int, GhostLandmark>(frame.landmarks.size)
         frame.landmarks.forEach { adjusted[it.type] = it }
         var changed = false
 
+        /** Grenzen einer Kante; null, wenn kein Sollwert ermittelbar war. */
+        fun limitsOf(edge: Pair<Int, Int>): Pair<Double, Double>? {
+            val ratio = targetRatio[edge]
+            return if (scale != null && scale > 0.0 && ratio != null) {
+                val target = ratio * scale
+                target * GhostTuning.RIGID_MIN_FACTOR to target * GhostTuning.RIGID_MAX_FACTOR
+            } else {
+                // Rückfall ohne messbare Körpergröße: symmetrische Alt-Toleranz.
+                val target = targetAbsolute[edge] ?: return null
+                val f = GhostTuning.BONE_LENGTH_TOLERANCE_FACTOR
+                target / f to target * f
+            }
+        }
+
+        // Rumpfkanten: SYMMETRISCH um ihre Mitte skalieren. Bei einer Rumpfkante gibt es
+        // kein proximal/distal — einen der beiden Punkte zu bevorzugen würde den Rumpf
+        // einseitig verziehen und sein Zentrum verschieben.
+        TORSO_EDGES.forEach { edge ->
+            val a = adjusted[edge.first]?.takeIf { it.isShown() } ?: return@forEach
+            val b = adjusted[edge.second]?.takeIf { it.isShown() } ?: return@forEach
+            val length = distance(a, b)
+            if (length <= 0.0) return@forEach
+            val (minLength, maxLength) = limitsOf(edge) ?: return@forEach
+            val clamped = length.coerceIn(minLength, maxLength)
+            if (clamped == length) return@forEach
+            val f = (clamped / length).toFloat()
+            val midX = (a.x + b.x) / 2f
+            val midY = (a.y + b.y) / 2f
+            adjusted[edge.first] = a.copy(
+                x = midX + (a.x - midX) * f,
+                y = midY + (a.y - midY) * f,
+            )
+            adjusted[edge.second] = b.copy(
+                x = midX + (b.x - midX) * f,
+                y = midY + (b.y - midY) * f,
+            )
+            changed = true
+        }
+
+        // Gliedmaßen: das DISTALE Gelenk entlang der Knochenrichtung nachziehen.
         RIGID_BONES.forEach { bone ->
             val from = adjusted[bone.first]?.takeIf { it.isShown() } ?: return@forEach
             val to = adjusted[bone.second]?.takeIf { it.isShown() } ?: return@forEach
             val length = distance(from, to)
             if (length <= 0.0) return@forEach
-
-            val ratio = targetRatio[bone]
-            val (minLength, maxLength) = if (scale != null && scale > 0.0 && ratio != null) {
-                val target = ratio * scale
-                target * GhostTuning.RIGID_MIN_FACTOR to target * GhostTuning.RIGID_MAX_FACTOR
-            } else {
-                // Rückfall ohne messbare Körpergröße: symmetrische Alt-Toleranz.
-                val target = targetAbsolute[bone] ?: return@forEach
-                val f = GhostTuning.BONE_LENGTH_TOLERANCE_FACTOR
-                target / f to target * f
-            }
-
+            val (minLength, maxLength) = limitsOf(bone) ?: return@forEach
             val clamped = length.coerceIn(minLength, maxLength)
             if (clamped == length) return@forEach
             val f = (clamped / length).toFloat()
@@ -127,25 +168,6 @@ private fun rigidPass(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
         // Reihenfolge der Original-Spur halten (nachgelagerte Filter erwarten sie).
         if (changed) frame.copy(landmarks = frame.landmarks.map { adjusted.getValue(it.type) })
         else frame
-    }
-}
-
-/**
- * Rollierender Median der Körpergrößen (S4a). Median statt Mittelwert, damit ein
- * einzelner Fehlframe die Referenz nicht mitzieht; Lücken (null) bleiben Lücken, dort
- * greift der Rückfall auf die absolute Knochenlänge.
- */
-internal fun smoothScales(raw: List<Double?>): List<Double?> {
-    val half = GhostTuning.RIGID_SCALE_SMOOTH_WINDOW
-    if (half <= 0) return raw
-    return raw.indices.map { i ->
-        if (raw[i] == null) return@map null
-        val window = ArrayList<Double>(2 * half + 1)
-        for (j in (i - half)..(i + half)) {
-            if (j in raw.indices) raw[j]?.let { window += it }
-        }
-        window.sort()
-        window[window.size / 2]
     }
 }
 

@@ -96,4 +96,90 @@ class RigidSkeletonInvariantTest {
         assertThat(converged.boneOverExtensionRate)
             .isAtMost(single.boneOverExtensionRate)
     }
+
+    /**
+     * S5a: der Rumpf ist die Referenz, aus der die Körpergröße stammt — rauscht er,
+     * muss die Rekonstruktion ihn mit beruhigen. Vorher blieb er unangetastet, und die
+     * gegen die GEGLÄTTETE Körpergröße korrigierten Gliedmaßen passten dann nicht mehr
+     * zum roh gezeichneten Rumpf desselben Frames (auf dem Gerät: Überlang 0,0 % → 13,8 %).
+     */
+    /** Anteil der Rumpfkanten-Messungen über dem Median-Verhältnis · Faktor. Normiert
+     *  gegen dieselbe Körpergrößen-Referenz wie Pass und Kennzahlen (S5b). */
+    private fun torsoOverExtension(frames: List<GhostPoseFrame>): Double {
+        var measurements = 0
+        var over = 0
+        val scales = com.boulderbuddy.ghost.model.personScales(frames)
+        com.boulderbuddy.ghost.model.TORSO_EDGES.forEach { edge ->
+            val ratios = frames.mapIndexedNotNull { i, f ->
+                val scale = scales[i] ?: return@mapIndexedNotNull null
+                val a = f.landmarks.firstOrNull { it.type == edge.first } ?: return@mapIndexedNotNull null
+                val b = f.landmarks.firstOrNull { it.type == edge.second } ?: return@mapIndexedNotNull null
+                com.boulderbuddy.ghost.model.distance(a, b) / scale
+            }
+            if (ratios.size < 3) return@forEach
+            val median = ratios.sorted()[ratios.size / 2]
+            measurements += ratios.size
+            over += ratios.count { it > median * 1.1 * 1.001 }
+        }
+        return if (measurements == 0) 0.0 else over.toDouble() / measurements
+    }
+
+    @Test
+    fun `rauschender Rumpf wird mit beruhigt`() {
+        val random = Random(11)
+        // Wichtig: die Kanten rauschen UNABHÄNGIG voneinander. Ein gleichförmig
+        // skalierter Rumpf wäre der legitime Fall "Person bewegt sich zur Kamera" und
+        // dürfte gerade nicht korrigiert werden.
+        fun noisy() = 100f * (1f + (random.nextFloat() - 0.5f) * 0.4f)
+        val frames = (0 until 100).map { i ->
+            val shoulders = noisy()
+            val hips = noisy()
+            val height = noisy()
+            GhostPoseFrame(
+                timeMs = i * 83L,
+                landmarks = listOf(
+                    landmark(T.LEFT_SHOULDER, 200f - shoulders / 2, 200f),
+                    landmark(T.RIGHT_SHOULDER, 200f + shoulders / 2, 200f),
+                    landmark(T.LEFT_HIP, 200f - hips / 2, 200f + height),
+                    landmark(T.RIGHT_HIP, 200f + hips / 2, 200f + height),
+                ),
+            )
+        }
+        val before = torsoOverExtension(frames)
+        val after = torsoOverExtension(enforceRigidSkeleton(frames))
+
+        // Vorher blieb der Rumpf unangetastet — er war in keiner Kantenliste. (Der Wert
+        // liegt unter dem Rohrauschen, weil die Körpergröße der MEDIAN der vier Kanten
+        // ist und damit selbst mitrauscht.)
+        assertThat(before).isGreaterThan(0.05)
+        assertThat(after).isLessThan(0.02)
+    }
+
+    /**
+     * Gegenprobe: eine sich drehende Person wird projiziert schmaler — das ist echte
+     * Perspektive und darf NICHT auseinandergezogen werden (asymmetrische Grenzen).
+     */
+    @Test
+    fun `perspektivisch schmalerer Rumpf bleibt schmal`() {
+        val frames = (0 until 40).map { i ->
+            // Schulterbreite geht auf die Hälfte zurück (Drehung zur Kamera).
+            val shoulders = if (i >= 20) 50f else 100f
+            GhostPoseFrame(
+                timeMs = i * 83L,
+                landmarks = listOf(
+                    landmark(T.LEFT_SHOULDER, 200f - shoulders / 2, 200f),
+                    landmark(T.RIGHT_SHOULDER, 200f + shoulders / 2, 200f),
+                    landmark(T.LEFT_HIP, 200f - 50f, 300f),
+                    landmark(T.RIGHT_HIP, 200f + 50f, 300f),
+                ),
+            )
+        }
+        val result = enforceRigidSkeleton(frames)
+        val last = result.last()
+        val width = com.boulderbuddy.ghost.model.distance(
+            last.landmarks.single { it.type == T.LEFT_SHOULDER },
+            last.landmarks.single { it.type == T.RIGHT_SHOULDER },
+        )
+        assertThat(width).isLessThan(60.0)
+    }
 }

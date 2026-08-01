@@ -48,12 +48,16 @@ class PoseShapeMetricsTest {
      */
     @Test
     fun `Global skalierte Pose zaehlt nicht als Morphen`() {
-        val frames = (0 until 20).map { i ->
-            rigidPose(cx = 360f, cy = 640f, scale = 100f - i * 2f).copy(timeMs = i * 83L)
+        // Rate physikalisch gewählt (−20 % über ~17 s): die Körpergrößen-Referenz ist
+        // ein rollierender Median über ~2 s, damit eine Drehung sie nicht mitzieht.
+        val frames = (0 until 200).map { i ->
+            rigidPose(cx = 360f, cy = 640f, scale = 100f - i * 0.1f).copy(timeMs = i * 83L)
         }
         val metrics = frames.qualityMetrics()
 
-        assertThat(metrics.boneLengthCv).isLessThan(0.01)
+        // Nicht exakt 0: an den Spurenden ist das Median-Fenster einseitig abgeschnitten,
+        // die Referenz dort also leicht verzerrt. Weit unter jedem echten Formfehler.
+        assertThat(metrics.boneLengthCv).isLessThan(0.02)
         // Die Körpergröße selbst schwankt hier real — das misst scaleCv, und genau
         // diese Trennung ist der Zweck der beiden Kennzahlen.
         assertThat(metrics.scaleCv).isGreaterThan(0.05)

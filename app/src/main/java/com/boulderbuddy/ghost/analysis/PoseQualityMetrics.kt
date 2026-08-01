@@ -8,6 +8,7 @@ import com.boulderbuddy.ghost.model.GhostPoseTrack
 import com.boulderbuddy.ghost.model.RIGID_BONES
 import com.boulderbuddy.ghost.model.bodyScale
 import com.boulderbuddy.ghost.model.distance
+import com.boulderbuddy.ghost.model.personScales
 import kotlin.math.hypot
 import kotlin.math.sqrt
 
@@ -120,22 +121,28 @@ private class BoneStats(val cv: Double, val overExtensionRate: Double)
 private const val OVER_EXTENSION_TOLERANCE = 1.001
 
 /**
- * Form-Kennzahlen (A7/S2a): je starrem Knochen die auf die Körpergröße des SELBEN
- * Frames normierte Länge sammeln. Die Normierung ist der Punkt — die absolute
- * Pixellänge schwankt legitim mit Perspektive und Abstand, das Verhältnis zur
- * Körpergröße nicht. Daraus zwei Zahlen: der Variationskoeffizient (Gesamt-Formfehler)
- * und der Anteil der ÜBERLÄNGEN gegenüber dem Median (rein erfundener Anteil).
+ * Form-Kennzahlen (A7/S2a): je starrem Knochen die auf die Körpergröße normierte Länge
+ * sammeln. Die Normierung ist der Punkt — die absolute Pixellänge schwankt legitim mit
+ * Perspektive und Abstand, das Verhältnis zur Körpergröße nicht. Daraus zwei Zahlen:
+ * der Variationskoeffizient (Gesamt-Formfehler) und der Anteil der ÜBERLÄNGEN gegenüber
+ * dem Median (rein erfundener Anteil).
+ *
+ * S5b: normiert wird gegen [personScales], dieselbe Referenz wie im Rekonstruktions-Pass.
+ * Vorher stand hier die ROHE Rumpfmessung pro Frame — die schrumpft aber schon, wenn
+ * sich der Kletterer nur dreht, und zählte damit legitime Drehung als Morphen. Dass Pass
+ * und Kennzahl gegen verschiedene Referenzen liefen, hat mich zweimal in die Irre geführt.
  */
 private fun List<GhostPoseFrame>.boneStats(): BoneStats {
     val cvPerBone = ArrayList<Double>(RIGID_BONES.size)
     var measurements = 0
     var overExtended = 0
+    val scales = personScales(this)
     RIGID_BONES.forEach { (fromType, toType) ->
-        val ratios = mapNotNull { frame ->
-            val scale = bodyScale(frame.landmarks) ?: return@mapNotNull null
-            if (scale <= 0.0) return@mapNotNull null
-            val from = frame.shown(fromType) ?: return@mapNotNull null
-            val to = frame.shown(toType) ?: return@mapNotNull null
+        val ratios = mapIndexedNotNull { i, frame ->
+            val scale = scales[i] ?: return@mapIndexedNotNull null
+            if (scale <= 0.0) return@mapIndexedNotNull null
+            val from = frame.shown(fromType) ?: return@mapIndexedNotNull null
+            val to = frame.shown(toType) ?: return@mapIndexedNotNull null
             distance(from, to) / scale
         }
         // Unter drei Messungen sind beide Kennzahlen nicht aussagekräftig.
