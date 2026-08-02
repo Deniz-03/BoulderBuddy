@@ -57,10 +57,10 @@ class PosePlausibilityTest {
     // --- Anatomische Plausibilität --------------------------------------------
 
     @Test
-    fun `knochenlaengen-ausreisser wird auf plausible laenge geklemmt`() {
-        // Oberarm (Schulter→Ellbogen) ist in 9 Frames ~100 px lang, in einem 300 px —
-        // der Ellbogen bleibt erhalten, wird aber auf die Toleranzgrenze (Median 100 ·
-        // Faktor 1,5 = 150 px) unter der Schulter gezogen → y = 100 + 150 = 250.
+    fun `knochenlaengen-ausreisser ohne messbaren rumpf faellt auf die alt-toleranz zurueck`() {
+        // Ohne Rumpf-Landmarks ist keine Körpergröße messbar — enforceRigidSkeleton
+        // fällt dann auf den Median der ABSOLUTEN Länge mit
+        // BONE_LENGTH_TOLERANCE_FACTOR zurück: Median 100 px · 1,5 = 150 → y = 250.
         val frames = (0 until 10).map { i ->
             val elbowY = if (i == 5) 400f else 200f
             GhostPoseFrame(
@@ -71,7 +71,7 @@ class PosePlausibilityTest {
                 ),
             )
         }
-        val result = applyAnatomicalPlausibility(frames, frameHeight = 720)
+        val result = enforceRigidSkeleton(frames)
         assertThat(result[5].landmarks).hasSize(2)
         val elbow = result[5].landmarks.single { it.type == T.LEFT_ELBOW }
         assertThat(elbow.y).isWithin(0.5f).of(250f)
@@ -170,6 +170,51 @@ class PosePlausibilityTest {
             .isWithin(1f).of(100f)
         // Unverschobene Nachbarn bleiben unangetastet.
         assertThat(result[1].landmarks.single { it.type == T.LEFT_SHOULDER }.x).isEqualTo(90f)
+    }
+
+    // --- Ruck-Gate (S3a) -------------------------------------------------------
+
+    /** Rumpf-Frame mit Zentrum ([cx], [cy]) und Körpergröße 100. */
+    private fun torsoAt(timeMs: Long, cx: Float, cy: Float) = GhostPoseFrame(
+        timeMs = timeMs,
+        landmarks = listOf(
+            landmark(T.LEFT_SHOULDER, cx - 50f, cy - 50f),
+            landmark(T.RIGHT_SHOULDER, cx + 50f, cy - 50f),
+            landmark(T.LEFT_HIP, cx - 50f, cy + 50f),
+            landmark(T.RIGHT_HIP, cx + 50f, cy + 50f),
+        ),
+    )
+
+    private fun centerY(frame: GhostPoseFrame): Float =
+        frame.landmarks.first { it.type == T.LEFT_SHOULDER }.y + 50f
+
+    /**
+     * Der Kern von S3a: ein schneller, aber GLATTER Zug darf nicht anschlagen — sonst
+     * wäre das Gate für Dynos unbrauchbar und müsste wieder weit gestellt werden.
+     */
+    @Test
+    fun `schnelle glatte bewegung schlaegt nicht an`() {
+        // 40 px pro Frame konstant = 0,4 Körpergrößen pro Frame, sehr schnell — aber
+        // ohne Beschleunigung, also perfekt vorhersagbar.
+        val frames = (0 until 20).map { torsoAt(it * 83L, 400f, 100f + it * 40f) }
+        val result = enforcePoseConsistency(frames)
+        result.forEachIndexed { i, f ->
+            assertThat(centerY(f)).isWithin(0.5f).of(centerY(frames[i]))
+        }
+    }
+
+    @Test
+    fun `ruckartiges wegzucken wird korrigiert`() {
+        // Gleichmäßige Bewegung, aber Frame 10 springt um eine halbe Körpergröße zur
+        // Seite und kehrt sofort zurück — ein Beschleunigungs-Ausschlag.
+        val frames = (0 until 20).map { i ->
+            val x = if (i == 10) 450f else 400f
+            torsoAt(i * 83L, x, 100f + i * 10f)
+        }
+        val result = enforcePoseConsistency(frames)
+        val centerX = result[10].landmarks.first { it.type == T.LEFT_SHOULDER }.x + 50f
+        // Auf die interpolierte Position zwischen den Nachbarn zurückgeholt.
+        assertThat(centerX).isWithin(1f).of(400f)
     }
 
     @Test

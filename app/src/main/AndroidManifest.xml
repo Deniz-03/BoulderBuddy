@@ -47,6 +47,14 @@
                     android:host="*"
                     android:pathPrefix="/boulderbuddy/hangboard_completed" />
             </intent-filter>
+            <!-- Sensor-Log-Export der Uhr (B.5.1): kommt als DataItem mit Asset. -->
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/boulderbuddy/sensor_log" />
+            </intent-filter>
         </service>
     </application>
 

@@ -61,5 +61,12 @@ dependencies {
     // Wear Data Layer API (Uhr → Phone: fertiger Hangboard-Durchlauf).
     implementation(libs.play.services.wearable)
 
+    // Lokale Persistenz der Timer-Konfiguration (§0 Säule 4: kein Reset auf 6/7/3).
+    implementation(libs.androidx.datastore.preferences)
+
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // JVM-Unit-Tests der Android-freien Detektions-State-Machine (B.2/B.5.4).
+    testImplementation(libs.junit)
+    testImplementation(libs.truth)
 }

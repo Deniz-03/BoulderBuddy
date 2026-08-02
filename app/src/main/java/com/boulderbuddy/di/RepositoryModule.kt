@@ -10,8 +10,8 @@ import com.boulderbuddy.data.repository.HangboardRepository
 import com.boulderbuddy.data.repository.HangboardRepositoryImpl
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.RouteRepositoryImpl
-import com.boulderbuddy.data.repository.HangboardSessionRepository
-import com.boulderbuddy.data.repository.HangboardSessionRepositoryImpl
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
+import com.boulderbuddy.data.repository.HangboardWorkoutRepositoryImpl
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.repository.SessionRepositoryImpl
 import com.boulderbuddy.data.settings.SettingsRepository
@@ -52,9 +52,9 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindHangboardSessionRepository(
-        impl: HangboardSessionRepositoryImpl,
-    ): HangboardSessionRepository
+    abstract fun bindHangboardWorkoutRepository(
+        impl: HangboardWorkoutRepositoryImpl,
+    ): HangboardWorkoutRepository
 
     @Binds
     @Singleton

@@ -62,6 +62,30 @@ fun TimerScreen(viewModel: TimerViewModel = viewModel()) {
                         onMinus = { viewModel.changeRest(-1) },
                         onPlus = { viewModel.changeRest(1) })
                 }
+                // Vom Phone synchronisierte Presets (§0 Säule 4): ein Tap übernimmt die Werte.
+                if (state.presets.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Presets",
+                            style = MaterialTheme.typography.caption2,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        )
+                    }
+                    state.presets.forEach { preset ->
+                        item {
+                            Chip(
+                                onClick = { viewModel.applyPreset(preset) },
+                                label = { Text(preset.name) },
+                                secondaryLabel = {
+                                    Text("${preset.sets}×${preset.hangSec}s/${preset.restSec}s")
+                                },
+                                colors = ChipDefaults.secondaryChipColors(),
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
     }

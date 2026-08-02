@@ -8,8 +8,8 @@ import com.boulderbuddy.data.db.dao.GhostAnalysisDao
 import com.boulderbuddy.data.db.dao.GradeDao
 import com.boulderbuddy.data.db.dao.GradeSystemDao
 import com.boulderbuddy.data.db.dao.GymDao
-import com.boulderbuddy.data.db.dao.HangboardSessionDao
 import com.boulderbuddy.data.db.dao.HangboardTemplateDao
+import com.boulderbuddy.data.db.dao.HangboardWorkoutDao
 import com.boulderbuddy.data.db.dao.RouteDao
 import com.boulderbuddy.data.db.dao.SessionDao
 import dagger.Module
@@ -63,8 +63,8 @@ object DatabaseModule {
         db.hangboardTemplateDao()
 
     @Provides
-    fun provideHangboardSessionDao(db: BoulderBuddyDatabase): HangboardSessionDao =
-        db.hangboardSessionDao()
+    fun provideHangboardWorkoutDao(db: BoulderBuddyDatabase): HangboardWorkoutDao =
+        db.hangboardWorkoutDao()
 
     @Provides
     fun provideGhostAnalysisDao(db: BoulderBuddyDatabase): GhostAnalysisDao =

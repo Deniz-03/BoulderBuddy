@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
@@ -10,6 +11,7 @@ import com.boulderbuddy.ghost.GhostArtifactStore
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.analysis.GhostTimeMapping
 import com.boulderbuddy.ghost.analysis.detectAbortFrame
+import com.boulderbuddy.ghost.analysis.qualityMetrics
 import com.boulderbuddy.ghost.analysis.RoutePolyline
 import com.boulderbuddy.ghost.analysis.buildTimeMapping
 import com.boulderbuddy.ghost.analysis.dtw
@@ -76,6 +78,9 @@ data class GhostClimberUiState(
     val routePath: List<GhostPoint> = emptyList(),
     /** DTW-Zeitmapping Referenz→Vergleich (M3-Ergebnis); steuert den Geist im Player. */
     val timeMapping: GhostTimeMapping? = null,
+    /** Normalisierte DTW-Restdistanz als Anteil der Routenlänge — dieselbe Zahl, die
+     *  über Overlay vs. Side-by-Side entscheidet (P7). Nur fürs Debug-HUD (S0). */
+    val dtwDistanceFraction: Double? = null,
     // --- Darstellungsmodus (M4, P7) ---
     /** Von der Ähnlichkeitsmetrik vorgeschlagener Modus (Vorbelegung). */
     val suggestedMode: GhostViewMode = GhostViewMode.OVERLAY,
@@ -245,9 +250,17 @@ class GhostClimberViewModel @Inject constructor(
                         ?: throw IllegalStateException(
                             "Im Referenz-Video wurde keine Person sicher erkannt",
                         )
+                    val ghost = cmpTrack.transformedBy(homography, refTrack)
+                    // Die Homographie ist die einzige Pipeline-Stufe ohne eigene
+                    // Messung — dabei ist sie aus WAND-Ankern geschätzt und wird auf
+                    // den KÖRPER angewendet, verzieht die Pose also zwangsläufig. Hier
+                    // steht schwarz auf weiß, was sie kostet: dieselben Kennzahlen vor
+                    // und nach dem Raumwechsel, beide skalen-normiert und damit direkt
+                    // vergleichbar.
+                    logHomographyCost(cmpTrack, ghost)
                     AlignmentResult(
                         homography = homography,
-                        ghost = cmpTrack.transformedBy(homography, refTrack),
+                        ghost = ghost,
                         trajectory = trajectory,
                         suggestion = suggestRoutePath(refTrack).orEmpty(),
                     )
@@ -313,6 +326,29 @@ class GhostClimberViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Formkennzahlen des Vergleichs-Versuchs vor und nach dem Wechsel in den
+     * Referenzraum (Logcat-Tag "GhostPoseMetrics"). Steigt "Morph" hier deutlich, ist
+     * die Unruhe des Geists eine Folge der Homographie und nicht der Pose-Erkennung —
+     * das ließ sich bisher an keiner Stelle unterscheiden.
+     */
+    private fun logHomographyCost(before: GhostPoseTrack, after: GhostPoseTrack) {
+        fun line(track: GhostPoseTrack): String {
+            val m = track.qualityMetrics()
+            return String.format(
+                Locale.GERMANY,
+                "Puls %.1f× · Unruhe %.2f%% · Morph %.2f%% · Verkürzung %.1f%% · Kollaps %.1f%%",
+                m.centroidPulse,
+                m.centroidWobble * 100,
+                m.boneLengthWobble * 100,
+                m.boneLengthCv * 100,
+                m.scaleCv * 100,
+            )
+        }
+        Log.d("GhostPoseMetrics", "Geist vor Homographie:  ${line(before)}")
+        Log.d("GhostPoseMetrics", "Geist nach Homographie: ${line(after)}")
+    }
+
     /** Ergebnis der Synchronisation (M3–M5): Zeitmapping, Modus-Vorschlag, Abbrüche. */
     private data class SyncResult(
         val mapping: GhostTimeMapping,
@@ -320,10 +356,12 @@ class GhostClimberViewModel @Inject constructor(
         val suggestionReason: String,
         val refAbortTimeMs: Long?,
         val cmpAbortTimeMs: Long?,
+        val dtwDistanceFraction: Double,
     )
 
     private fun GhostClimberUiState.applySync(sync: SyncResult): GhostClimberUiState = copy(
         timeMapping = sync.mapping,
+        dtwDistanceFraction = sync.dtwDistanceFraction,
         suggestedMode = sync.suggestedMode,
         suggestionReason = sync.suggestionReason,
         viewMode = sync.suggestedMode,
@@ -365,6 +403,11 @@ class GhostClimberViewModel @Inject constructor(
                 ?.let { refTrack.frames[it].timeMs },
             cmpAbortTimeMs = detectAbortFrame(cmpTrajectory)
                 ?.let { ghostTrack.frames[it].timeMs },
+            dtwDistanceFraction = if (path.totalLength > 0.0) {
+                alignment.normalizedDistance / path.totalLength
+            } else {
+                0.0
+            },
         )
     }
 

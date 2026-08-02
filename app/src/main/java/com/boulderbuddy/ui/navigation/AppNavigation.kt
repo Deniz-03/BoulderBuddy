@@ -29,6 +29,7 @@ import com.boulderbuddy.ui.screens.BoulderDetailScreen
 import com.boulderbuddy.ui.screens.BoulderUebersichtScreen
 import com.boulderbuddy.ui.screens.EinstellungenScreen
 import com.boulderbuddy.ui.screens.GhostClimberScreen
+import com.boulderbuddy.ui.screens.HangboardHistorieScreen
 import com.boulderbuddy.ui.screens.HangboardTimerScreen
 import com.boulderbuddy.ui.screens.HomeScreen
 import com.boulderbuddy.ui.screens.RouteHinzufuegenScreen
@@ -40,6 +41,7 @@ import com.boulderbuddy.ui.viewmodel.BoulderDetailViewModel
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtViewModel
 import com.boulderbuddy.ui.viewmodel.EinstellungenViewModel
 import com.boulderbuddy.ui.viewmodel.GhostClimberViewModel
+import com.boulderbuddy.ui.viewmodel.HangboardHistorieViewModel
 import com.boulderbuddy.ui.viewmodel.HangboardTimerViewModel
 import com.boulderbuddy.ui.viewmodel.HomeViewModel
 import com.boulderbuddy.ui.viewmodel.RouteHinzufuegenViewModel
@@ -179,6 +181,7 @@ fun AppNavigation(
                     // Auf breiten Layouts (Tablet) mehrspaltiges Dashboard.
                     wide = isWideLayout,
                     onOpenSettings = { navController.navigate(Einstellungen) },
+                    onOpenHangboardHistorie = { navController.navigate(HangboardHistorie) },
                 )
             }
             composable<Timer> {
@@ -235,6 +238,14 @@ fun AppNavigation(
                     onBackToSelection = viewModel::backToSelection,
                     onBackToAnchors = viewModel::backToAnchors,
                     onBackToPath = viewModel::backToPath,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<HangboardHistorie> {
+                val viewModel: HangboardHistorieViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                HangboardHistorieScreen(
+                    state = state,
                     onBack = { navController.popBackStack() },
                 )
             }

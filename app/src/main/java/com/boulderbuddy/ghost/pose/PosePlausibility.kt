@@ -4,6 +4,10 @@ import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostLandmarkTypes
 import com.boulderbuddy.ghost.model.GhostPoseFrame
+import com.boulderbuddy.ghost.model.bodyScales
+import com.boulderbuddy.ghost.model.coreCentroid
+import com.boulderbuddy.ghost.model.distance
+import com.boulderbuddy.ghost.model.smoothedPersonScales
 import kotlin.math.hypot
 
 // =============================================================================
@@ -16,12 +20,31 @@ import kotlin.math.hypot
 // Spur, VOR One-Euro-Glättung und Hysterese — die Filter sollen konsistente,
 // physikalisch mögliche Eingaben bekommen.
 
+/**
+ * Wie viele Frames die einzelnen Pose-Gates ersetzt haben (S4d). Ohne diese Zahlen ist
+ * nicht zu sehen, ob ein Gate gar nicht greift oder im Gegenteil so viel ersetzt, dass
+ * die Spur überwiegend aus Interpolation besteht — beides sähe im Overlay ähnlich aus.
+ */
+data class PoseGateStats(
+    val total: Int,
+    val scaleInvalid: Int,
+    val shiftInvalid: Int,
+    val jerkInvalid: Int,
+    /** Ungültige Strecken über [GhostTuning.MAX_POSE_INTERPOLATION_FRAMES] — geleert
+     *  statt interpoliert. */
+    val dropped: Int,
+)
+
 /** Reihenfolge der Verarbeitungsschritte: Pose-Konsistenz (Skala + Position) →
  *  L/R-Konsistenz → Plausibilität. Der Pose-Gate zuerst, damit L/R und Plausibilität
  *  nicht auf einer kollabierten oder verschobenen Pose aufsetzen. */
-fun cleanPoseFrames(frames: List<GhostPoseFrame>, frameHeight: Int): List<GhostPoseFrame> =
+fun cleanPoseFrames(
+    frames: List<GhostPoseFrame>,
+    frameHeight: Int,
+    onStats: (PoseGateStats) -> Unit = {},
+): List<GhostPoseFrame> =
     applyAnatomicalPlausibility(
-        enforceLeftRightConsistency(enforcePoseConsistency(frames)),
+        enforceLeftRightConsistency(enforcePoseConsistency(frames, onStats)),
         frameHeight,
     )
 
@@ -39,32 +62,51 @@ fun cleanPoseFrames(frames: List<GhostPoseFrame>, frameHeight: Int): List<GhostP
  * Ganzkörper-Positionssprung durch die zeitliche Interpolation der nächsten gültigen
  * Nachbar-Frames. Braucht ≥3 messbare Größen für einen robusten Median, sonst unverändert.
  */
-fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
+fun enforcePoseConsistency(
+    frames: List<GhostPoseFrame>,
+    onStats: (PoseGateStats) -> Unit = {},
+): List<GhostPoseFrame> {
     if (frames.size < 3) return frames
-    val scales = frames.map { poseScale(it) }
-    val centroids = frames.map { coreCentroid(it) }
-    val known = scales.filterNotNull().sorted()
-    if (known.size < 3) return frames
-    val median = known[known.size / 2]
-    val minScale = median * GhostTuning.POSE_SCALE_MIN_RATIO
-    val maxScale = median * GhostTuning.POSE_SCALE_MAX_RATIO
+    val scales = bodyScales(frames)
+    val centroids = frames.map { coreCentroid(it.landmarks) }
+    if (scales.count { it != null } < 3) return frames
+
+    // Referenzgröße je Frame aus einem ROLLIERENDEN Fenster (S2b) statt aus der ganzen
+    // Spur: über 30 s ändert sich die scheinbare Körpergröße legitim (der Kletterer
+    // entfernt sich, die Perspektive dreht). Gegen einen globalen Median musste das
+    // Toleranzfenster diese Drift mit abdecken und ließ echte Kollapse durch; lokal
+    // darf es eng sein. Ein einzelner Ausreißer verschiebt den Median nicht.
+    //
+    // Dieselbe Funktion wie in Rekonstruktion und Kennzahlen: hier stand vorher eine
+    // zweite, eigene Median-Implementierung mit eigener Fensterbreite. Genau solche
+    // getrennten Referenzen waren zweimal die Ursache für Fehldiagnosen — dass Pass und
+    // Messung dasselbe meinen, ist wichtiger als der exakte Fensterwert.
+    val smoothed = smoothedPersonScales(scales)
+    val localScale = DoubleArray(frames.size) { i -> smoothed[i] ?: -1.0 }
 
     // Phase 1: Skalen-Kollaps/-Explosion.
     val invalid = BooleanArray(frames.size) { i ->
         val s = scales[i]
-        s != null && (s < minScale || s > maxScale)
+        val reference = localScale[i]
+        s != null && reference > 0.0 &&
+            (s < reference * GhostTuning.POSE_SCALE_MIN_RATIO ||
+                s > reference * GhostTuning.POSE_SCALE_MAX_RATIO)
     }
     // Skalen-Urteil einfrieren — Referenz fürs Positions-Gate (kein Kaskadieren).
     val scaleInvalid = invalid.copyOf()
+    val scaleCount = invalid.count { it }
+    var shiftCount = 0
+    var jerkCount = 0
 
     // Phase 2: isolierter Positionssprung. Referenz ist der Fenster-Median der Zentroide
     // skalen-gültiger Frames — eine GLATTE schnelle Bewegung liegt nahe dem Median (wird
     // NICHT markiert), nur ein Ausreißer, der wegspringt und zurückkehrt, weicht stark ab.
-    val shiftLimit = median * GhostTuning.POSE_SHIFT_MAX_RATIO
     val half = GhostTuning.POSE_SHIFT_MEDIAN_WINDOW
     for (i in frames.indices) {
         if (invalid[i]) continue
         val c = centroids[i] ?: continue
+        val reference = localScale[i]
+        if (reference <= 0.0) continue
         val winX = ArrayList<Double>(2 * half + 1)
         val winY = ArrayList<Double>(2 * half + 1)
         for (j in (i - half)..(i + half)) {
@@ -78,60 +120,64 @@ fun enforcePoseConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
         winY.sort()
         val mx = winX[winX.size / 2]
         val my = winY[winY.size / 2]
-        if (hypot(c.first - mx, c.second - my) > shiftLimit) invalid[i] = true
+        val shiftLimit = reference * GhostTuning.POSE_SHIFT_MAX_RATIO
+        if (hypot(c.first - mx, c.second - my) > shiftLimit) {
+            invalid[i] = true
+            shiftCount++
+        }
     }
 
-    if (invalid.none { it }) return frames
-    return frames.mapIndexed { i, frame ->
+    // Phase 3: Ruck-Gate (S3a). Das Positions-Gate oben misst den WEG zum Fenster-Median
+    // und vermischt damit zwei Fälle, die nichts miteinander zu tun haben: ein echter
+    // schneller Zug (großer Weg, aber glatt) und ein Wegzucken (großer Weg, ruckartig).
+    // Deshalb musste seine Schwelle so weit stehen, dass das Zucken durchfiel. Hier wird
+    // stattdessen die BESCHLEUNIGUNG gemessen: Vorhersage aus den beiden Vorframes mit
+    // konstanter Geschwindigkeit, Residuum an der Körpergröße normiert. Eine glatte
+    // Bewegung sagt sich gut vorher, ein Ruck nicht.
+    for (i in 2 until frames.size) {
+        if (invalid[i] || invalid[i - 1] || invalid[i - 2]) continue
+        val c = centroids[i] ?: continue
+        // Nur bei lückenlosen Vorgängern — sonst stimmt die Zeitbasis der Extrapolation
+        // nicht (die Sample-Zeiten sind äquidistant, ausgefallene Frames sind es nicht).
+        val p1 = centroids[i - 1] ?: continue
+        val p2 = centroids[i - 2] ?: continue
+        val reference = localScale[i]
+        if (reference <= 0.0) continue
+        val predictedX = p1.first + (p1.first - p2.first)
+        val predictedY = p1.second + (p1.second - p2.second)
+        if (hypot(c.first - predictedX, c.second - predictedY) >
+            reference * GhostTuning.POSE_JERK_MAX_RATIO
+        ) {
+            invalid[i] = true
+            jerkCount++
+        }
+    }
+
+    if (invalid.none { it }) {
+        onStats(PoseGateStats(frames.size, 0, 0, 0, 0))
+        return frames
+    }
+    var dropped = 0
+    val result = frames.mapIndexed { i, frame ->
         if (!invalid[i]) return@mapIndexed frame
         var lo = i - 1
         while (lo >= 0 && invalid[lo]) lo--
         var hi = i + 1
         while (hi < frames.size && invalid[hi]) hi++
+        // Interpolationslänge begrenzen (S2c): über eine lange ungültige Strecke ist die
+        // erfundene Bewegung zwangsläufig linear, die echte aber nicht — sichtbar als
+        // Skelett, das der Bewegung nachhinkt oder ihr vorauseilt. Lieber gar keins.
+        if (hi - lo - 1 > GhostTuning.MAX_POSE_INTERPOLATION_FRAMES) {
+            dropped++
+            return@mapIndexed frame.copy(landmarks = emptyList())
+        }
         val prev = if (lo >= 0) frames[lo] else null
         val next = if (hi < frames.size) frames[hi] else null
         frame.copy(landmarks = interpolatePose(prev, next, frame.timeMs))
     }
+    onStats(PoseGateStats(frames.size, scaleCount, shiftCount, jerkCount, dropped))
+    return result
 }
-
-/**
- * Robuste Körpergröße in Pixeln: Median mehrerer struktureller Maße (Schulter-/Hüft-
- * breite + Rumpfseiten) über die vorhandenen sicheren Punkte (ab Zeichen-Schwelle, damit
- * auch Kollapse mit gesunkener Confidence noch gemessen werden). Robust gegen einzelne
- * Fehlpunkte UND gegen perspektivische Rumpfverkürzung (die Breiten bleiben dabei stabil).
- */
-private fun poseScale(frame: GhostPoseFrame): Double? {
-    val ls = frame.shown(GhostLandmarkTypes.LEFT_SHOULDER)
-    val rs = frame.shown(GhostLandmarkTypes.RIGHT_SHOULDER)
-    val lh = frame.shown(GhostLandmarkTypes.LEFT_HIP)
-    val rh = frame.shown(GhostLandmarkTypes.RIGHT_HIP)
-    val cues = ArrayList<Double>(4)
-    if (ls != null && rs != null) cues += dist(ls, rs)
-    if (lh != null && rh != null) cues += dist(lh, rh)
-    if (ls != null && lh != null) cues += dist(ls, lh)
-    if (rs != null && rh != null) cues += dist(rs, rh)
-    if (cues.isEmpty()) return null
-    cues.sort()
-    return cues[cues.size / 2]
-}
-
-/** Zentrum der Rumpfpunkte (Mittel der vorhandenen Schulter-/Hüftpunkte), oder null bei
- *  zu wenigen sicheren Punkten. */
-private fun coreCentroid(frame: GhostPoseFrame): Pair<Double, Double>? {
-    val core = listOf(
-        GhostLandmarkTypes.LEFT_SHOULDER, GhostLandmarkTypes.RIGHT_SHOULDER,
-        GhostLandmarkTypes.LEFT_HIP, GhostLandmarkTypes.RIGHT_HIP,
-    ).mapNotNull { frame.shown(it) }
-    if (core.size < 3) return null
-    return core.sumOf { it.x.toDouble() } / core.size to
-        core.sumOf { it.y.toDouble() } / core.size
-}
-
-/** Landmark eines Typs, sofern ≥ Zeichen-Schwelle (großzügiger als [confident]). */
-private fun GhostPoseFrame.shown(type: Int): GhostLandmark? =
-    landmarks.firstOrNull {
-        it.type == type && it.confidence >= GhostTuning.VISIBILITY_SHOW_THRESHOLD
-    }
 
 /** Zeitlich interpolierte Pose zwischen [prev] und [next] (nur gemeinsame Landmark-
  *  Typen); fehlt ein Nachbar, wird der vorhandene gehalten. */
@@ -192,8 +238,8 @@ fun enforceLeftRightConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFra
                 val pr = reference[rightType] ?: return@forEach
                 val cl = confident[leftType] ?: return@forEach
                 val cr = confident[rightType] ?: return@forEach
-                straight += dist(pl, cl) + dist(pr, cr)
-                crossed += dist(pl, cr) + dist(pr, cl)
+                straight += distance(pl, cl) + distance(pr, cr)
+                crossed += distance(pl, cr) + distance(pr, cl)
                 comparable++
             }
             if (comparable > 0 && crossed < straight * GhostTuning.LR_SWAP_MARGIN) {
@@ -218,37 +264,21 @@ fun enforceLeftRightConsistency(frames: List<GhostPoseFrame>): List<GhostPoseFra
 
 // --- Anatomische Plausibilität (Punkt 7) --------------------------------------
 
-/** Knochen (proximal → distal), deren Länge über die Zeit konstant bleiben muss.
- *  Bei Verletzung wird das DISTALE Gelenk verworfen (Extremitäten halluzinieren
- *  eher als Rumpfpunkte). Reihenfolge proximal zuerst: ein verworfener Ellbogen
- *  nimmt den abhängigen Unterarm-Check gleich mit. */
-private val RIGID_BONES: List<Pair<Int, Int>> = listOf(
-    GhostLandmarkTypes.LEFT_SHOULDER to GhostLandmarkTypes.LEFT_ELBOW,
-    GhostLandmarkTypes.LEFT_ELBOW to GhostLandmarkTypes.LEFT_WRIST,
-    GhostLandmarkTypes.RIGHT_SHOULDER to GhostLandmarkTypes.RIGHT_ELBOW,
-    GhostLandmarkTypes.RIGHT_ELBOW to GhostLandmarkTypes.RIGHT_WRIST,
-    GhostLandmarkTypes.LEFT_HIP to GhostLandmarkTypes.LEFT_KNEE,
-    GhostLandmarkTypes.LEFT_KNEE to GhostLandmarkTypes.LEFT_ANKLE,
-    GhostLandmarkTypes.RIGHT_HIP to GhostLandmarkTypes.RIGHT_KNEE,
-    GhostLandmarkTypes.RIGHT_KNEE to GhostLandmarkTypes.RIGHT_ANKLE,
-)
-
 /**
- * Zieht physisch unmögliche Landmarks auf die plausible Grenze zurück, statt sie zu
- * verwerfen (zwei Pässe über die Offline-Spur):
- *
- * 1. **Geschwindigkeitslimit:** springt ein Gelenk schneller als
- *    [GhostTuning.MAX_LANDMARK_SPEED_FRAME_HEIGHTS_PER_S], wird es entlang der
- *    Bewegungsrichtung auf die maximal mögliche Distanz zur letzten akzeptierten
- *    Position geklemmt (kein Teleport, aber das Gelenk bleibt am Körper).
- * 2. **Knochenlängen-Konstanz:** Median jeder Knochenlänge über den ganzen Track
- *    (robust gegen die Ausreißer selbst); weicht die Länge um mehr als
- *    [GhostTuning.BONE_LENGTH_TOLERANCE_FACTOR] ab, wird das DISTALE Gelenk entlang
- *    der Knochenrichtung auf die Toleranzgrenze der Median-Länge gezogen.
+ * **Geschwindigkeitslimit:** springt ein Gelenk schneller als
+ * [GhostTuning.MAX_LANDMARK_SPEED_FRAME_HEIGHTS_PER_S], wird es entlang der
+ * Bewegungsrichtung auf die maximal mögliche Distanz zur letzten akzeptierten Position
+ * geklemmt (kein Teleport, aber das Gelenk bleibt am Körper).
  *
  * 7.5c: früher wurden Verstöße VERWORFEN — das ließ Glieder verschwinden und wieder
  * auftauchen (sichtbares "Morphen"). Klemmen hält die Kette geschlossen und dämpft
  * nur den unplausiblen Anteil; die nachgelagerte One-Euro-Glättung glättet den Rest.
+ *
+ * S2a (7.5e): die frühere Knochenlängen-Prüfung ist hier RAUS. Sie maß absolute
+ * Pixellängen gegen einen Track-Median — die schwanken aber legitim mit Perspektive
+ * und Abstand, weshalb ihre Toleranz auf 1,5 stehen musste und praktisch nichts mehr
+ * fing (gemessen: Formfehler 21–23 %). Zuständig ist jetzt [enforceRigidSkeleton] mit
+ * dem auf die Körpergröße normierten Verhältnis. Ein Mechanismus je Fehlerbild.
  */
 fun applyAnatomicalPlausibility(
     frames: List<GhostPoseFrame>,
@@ -256,20 +286,8 @@ fun applyAnatomicalPlausibility(
 ): List<GhostPoseFrame> {
     if (frames.isEmpty()) return frames
 
-    // Pass 1: Median-Länge je Knochen über den Track (nur sichere Endpunkte).
-    val medianLength = RIGID_BONES.associateWith { (fromType, toType) ->
-        val lengths = frames.mapNotNull { frame ->
-            val from = frame.confident(fromType) ?: return@mapNotNull null
-            val to = frame.confident(toType) ?: return@mapNotNull null
-            dist(from, to)
-        }.sorted()
-        if (lengths.isEmpty()) null else lengths[lengths.size / 2]
-    }
-
-    // Pass 2: Verstöße klemmen. Geschwindigkeit gegen die letzte AKZEPTIERTE
-    // Position des Gelenks (mit ihrem Zeitstempel) prüfen.
+    // Geschwindigkeit gegen die letzte AKZEPTIERTE Position des Gelenks (mit Zeitstempel).
     val lastAccepted = HashMap<Int, Pair<GhostLandmark, Long>>()
-    val tolerance = GhostTuning.BONE_LENGTH_TOLERANCE_FACTOR
     return frames.map { frame ->
         val kept = HashMap<Int, GhostLandmark>(frame.landmarks.size)
         frame.landmarks.forEach { lm -> kept[lm.type] = lm }
@@ -281,33 +299,12 @@ fun applyAnatomicalPlausibility(
             if (dtS <= 0) return@forEach
             val speedLimit = GhostTuning.MAX_LANDMARK_SPEED_FRAME_HEIGHTS_PER_S *
                 frameHeight * dtS
-            val moved = dist(prev, lm)
+            val moved = distance(prev, lm)
             if (moved > speedLimit && moved > 0.0) {
                 val f = (speedLimit / moved).toFloat()
                 kept[lm.type] = lm.copy(
                     x = prev.x + (lm.x - prev.x) * f,
                     y = prev.y + (lm.y - prev.y) * f,
-                )
-            }
-        }
-
-        // Knochenlängen-Konstanz (proximal → distal): distales Gelenk auf die
-        // Toleranzgrenze der Median-Länge ziehen, Richtung beibehalten.
-        RIGID_BONES.forEach { bone ->
-            val median = medianLength[bone] ?: return@forEach
-            val from = kept[bone.first] ?: return@forEach
-            val to = kept[bone.second] ?: return@forEach
-            val length = dist(from, to)
-            val limit = when {
-                length > median * tolerance -> median * tolerance
-                length < median / tolerance -> median / tolerance
-                else -> return@forEach
-            }
-            if (length > 0.0) {
-                val f = (limit / length).toFloat()
-                kept[bone.second] = to.copy(
-                    x = from.x + (to.x - from.x) * f,
-                    y = from.y + (to.y - from.y) * f,
                 )
             }
         }
@@ -326,6 +323,3 @@ private fun GhostPoseFrame.confident(type: Int): GhostLandmark? =
     landmarks.firstOrNull {
         it.type == type && it.confidence >= GhostTuning.MIN_LANDMARK_CONFIDENCE
     }
-
-private fun dist(a: GhostLandmark, b: GhostLandmark): Double =
-    hypot((a.x - b.x).toDouble(), (a.y - b.y).toDouble())

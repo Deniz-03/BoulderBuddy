@@ -73,6 +73,10 @@ data class HangboardTimerUiState(
     val hangSec: Int,
     val restSec: Int,
     val isRunning: Boolean,
+    // Kurz-Zusammenfassung nach DONE (z.B. "6 Sätze · 00:42 Hängezeit"); null solange läuft.
+    val doneSummary: String? = null,
+    // Wohin das Workout gespeichert wurde (Session vs. eigenständig); null bis gespeichert.
+    val savedTo: String? = null,
     val presets: List<TimerPreset> = emptyList(),
 )
 
@@ -149,6 +153,23 @@ fun HangboardTimerScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textTertiary,
                 )
+
+                // Nach dem Ende: Kurz-Zusammenfassung + wohin gespeichert wurde (§0 Säule 3).
+                if (state.doneSummary != null) {
+                    Spacer(Modifier.height(Dimens.paddingM))
+                    Text(
+                        text = state.doneSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (state.savedTo != null) {
+                        Text(
+                            text = state.savedTo,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BoulderBuddy.colors.textTertiary,
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(Dimens.paddingXL))
 

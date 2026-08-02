@@ -3,12 +3,16 @@ package com.boulderbuddy.ui.viewmodel
 import app.cash.turbine.test
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
-import com.boulderbuddy.data.db.entity.HangboardSessionEntity
+import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
+import com.boulderbuddy.data.db.entity.HangboardWorkoutOrigin
+import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.model.RouteStatus
 import com.boulderbuddy.fake.FakeGradeRepository
-import com.boulderbuddy.fake.FakeHangboardSessionRepository
+import com.boulderbuddy.fake.FakeHangboardWorkoutRepository
 import com.boulderbuddy.fake.FakeRouteRepository
 import com.boulderbuddy.fake.FakeSessionRepository
 import com.boulderbuddy.util.MainDispatcherRule
@@ -32,7 +36,7 @@ class StatistikViewModelTest {
     private val sessions = FakeSessionRepository()
     private val routes = FakeRouteRepository()
     private val grades = FakeGradeRepository()
-    private val hangboardSessions = FakeHangboardSessionRepository()
+    private val hangboardWorkouts = FakeHangboardWorkoutRepository()
 
     @Test
     fun aggregatesTopsFlashRateHangboardAndDistribution() =
@@ -51,14 +55,26 @@ class StatistikViewModelTest {
                 // Offen → zählt nicht als Top.
                 RouteEntity(id = 3, sessionId = 1, gradeId = 11, status = RouteStatus.OPEN),
             )
-            hangboardSessions.all.value = listOf(
-                HangboardSessionEntity(
-                    id = 1, sessionId = 1, completedSets = 10, totalSets = 10,
-                    hangSec = 7, restSec = 3, date = 0L,
+            // 10 Sätze à 7s Hang (Segmente) — Hängezeit kommt aus den gemessenen Dauern.
+            hangboardWorkouts.all.value = listOf(
+                HangboardWorkoutWithSegments(
+                    workout = HangboardWorkoutEntity(
+                        id = 1, sessionId = 1,
+                        mode = HangboardWorkoutMode.MANUAL,
+                        origin = HangboardWorkoutOrigin.PHONE,
+                        startedAt = 0L, endedAt = 0L,
+                        plannedSets = 10, plannedHangSec = 7, plannedRestSec = 3,
+                    ),
+                    segments = List(10) { i ->
+                        HangboardSegmentEntity(
+                            id = i + 1, workoutId = 1, setIndex = i,
+                            hangMs = 7_000L, restMs = if (i < 9) 3_000L else 0L,
+                        )
+                    },
                 ),
             )
 
-            val vm = StatistikViewModel(sessions, routes, grades, hangboardSessions)
+            val vm = StatistikViewModel(sessions, routes, grades, hangboardWorkouts)
 
             vm.uiState.test {
                 // Auf den berechneten Zustand warten (erstes Item ist der initiale Leerzustand).
@@ -93,7 +109,7 @@ class StatistikViewModelTest {
                 RouteEntity(id = 1, sessionId = 1, gradeId = null, status = RouteStatus.OPEN),
             )
 
-            val vm = StatistikViewModel(sessions, routes, grades, hangboardSessions)
+            val vm = StatistikViewModel(sessions, routes, grades, hangboardWorkouts)
 
             vm.uiState.test {
                 var state = awaitItem()

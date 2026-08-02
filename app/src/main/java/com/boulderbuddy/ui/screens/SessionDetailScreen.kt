@@ -40,7 +40,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
-import com.boulderbuddy.ui.viewmodel.HangboardSessionUi
+import com.boulderbuddy.ui.viewmodel.HangboardWorkoutUi
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 import kotlinx.coroutines.delay
 
@@ -59,8 +59,8 @@ fun SessionDetailScreen(
     startMillis: Long = System.currentTimeMillis(),
     topGrade: String = "–",
     boulders: List<SessionBoulderUi> = emptyList(),
-    // Getrackte Hangboard-Durchläufe dieser Session; leer = Block wird ausgeblendet.
-    hangboardSessions: List<HangboardSessionUi> = emptyList(),
+    // Getrackte Hangboard-Workouts dieser Session; leer = Block wird ausgeblendet.
+    hangboardWorkouts: List<HangboardWorkoutUi> = emptyList(),
     // Navigations-Callbacks (Phase 2). onAddRoute ist von SessionRoute bereits an die
     // sessionId dieser Session gebunden.
     onBack: () -> Unit = {},
@@ -185,11 +185,11 @@ fun SessionDetailScreen(
                 }
 
                 // --- Hangboard-Training (nur wenn damit trainiert wurde) ---
-                if (hangboardSessions.isNotEmpty()) {
+                if (hangboardWorkouts.isNotEmpty()) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                             SectionHeader(text = "Hangboard-Training")
-                            hangboardSessions.forEach { hb ->
+                            hangboardWorkouts.forEach { hb ->
                                 Text(
                                     text = "• ${hb.summary}",
                                     style = MaterialTheme.typography.bodyMedium,
