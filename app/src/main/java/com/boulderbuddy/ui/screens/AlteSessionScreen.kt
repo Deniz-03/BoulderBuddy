@@ -1,6 +1,7 @@
 package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,18 +10,23 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -36,6 +42,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
+import kotlinx.coroutines.launch
 
 // Status eines Boulders. getoppt = als geschafft gewertet (Top oder Flash zählen beide
 // als Top; Projekt nicht). Das Symbol steckt am Status, damit es nur eine Quelle gibt.
@@ -67,6 +74,11 @@ fun AlteSessionScreen(
     // gespeichert — sonst löste jeder Tastendruck einen Room-Write aus.
     var notiz by remember(notes) { mutableStateOf(notes) }
 
+    // Das Speichern beim Fokusverlust ist für sich genommen unsichtbar — die kurze
+    // Rückmeldung macht daraus eine nachvollziehbare Aktion.
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
     // Stat-Werte werden aus den Daten ABGELEITET: Boulder = Anzahl, Tops = davon geschaffte.
     val boulderAnzahl = boulders.size
     val topAnzahl = boulders.count { it.status.getoppt }
@@ -88,6 +100,7 @@ fun AlteSessionScreen(
             )
         },
         content = { _ ->
+          Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
@@ -134,7 +147,10 @@ fun AlteSessionScreen(
                         // hasFocus statt isFocused: der Modifier sitzt am Container der
                         // TextField-Komponente, der das eigentliche Eingabefeld als Kind hält.
                         modifier = Modifier.onFocusChanged { focusState ->
-                            if (!focusState.hasFocus && notiz != notes) onNotesChange(notiz)
+                            if (!focusState.hasFocus && notiz != notes) {
+                                onNotesChange(notiz)
+                                scope.launch { snackbarHostState.showSnackbar("Notiz gespeichert") }
+                            }
                         },
                     )
                 }
@@ -143,6 +159,13 @@ fun AlteSessionScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                         SectionHeader(text = "Gekletterte Boulder")
+                        if (boulders.isEmpty()) {
+                            Text(
+                                text = "In dieser Session wurde kein Boulder geloggt.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = BoulderBuddy.colors.textSecondary,
+                            )
+                        }
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                             boulders.forEach { boulder ->
                                 BoulderListRow(
@@ -163,6 +186,15 @@ fun AlteSessionScreen(
                     }
                 }
             }
+
+            // Schwebt über der Liste am unteren Rand — quittiert das gespeicherte Notizfeld.
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding(),
+            )
+          }
         },
     )
 }

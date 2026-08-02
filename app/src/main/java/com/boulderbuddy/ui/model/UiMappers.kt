@@ -71,6 +71,9 @@ fun Long.toLocalDate(): LocalDate =
 /** epoch-millis → "12. Juni". */
 fun formatDayMonth(millis: Long): String = millis.toLocalDate().format(dayMonthFormatter)
 
+/** Datum → "12. Juni" (gleiche Schreibweise wie die millis-Variante). */
+fun formatDayMonth(date: LocalDate): String = date.format(dayMonthFormatter)
+
 /**
  * Menschliche Kurzform relativ zu [today]: "Heute", "Gestern" oder "12. Juni".
  * [today] injizierbar für deterministische Tests/Previews.
@@ -87,6 +90,9 @@ fun formatRelativeDay(millis: Long, today: LocalDate = LocalDate.now()): String 
 /**
  * Dauer in Millisekunden als kurze Stundenangabe, z.B. "1.5h". Unter einer Stunde
  * werden Minuten gezeigt ("45min").
+ *
+ * Gedacht für **Session-Dauern** (Größenordnung Stunden). Für Hängezeiten am Hangboard
+ * ist [formatHangTime] zuständig — dort sind Sekunden die relevante Einheit.
  */
 fun formatDurationShort(millis: Long): String {
     val totalMinutes = (millis / 60_000).coerceAtLeast(0)
@@ -96,4 +102,19 @@ fun formatDurationShort(millis: Long): String {
         val hours = totalMinutes / 60.0
         String.format(Locale.GERMAN, "%.1fh", hours)
     }
+}
+
+/**
+ * Hängezeit in Millisekunden. Unter einer Minute in Sekunden ("30s"), darüber als
+ * Minuten mit Sekunden ("1:10min").
+ *
+ * Eigene Funktion statt [formatDurationShort]: ein kurzer Hangboard-Durchlauf liegt im
+ * Sekundenbereich und würde beim Abrunden auf ganze Minuten als "0min" erscheinen.
+ */
+fun formatHangTime(millis: Long): String {
+    val totalSeconds = (millis / 1000).coerceAtLeast(0)
+    if (totalSeconds < 60) return "${totalSeconds}s"
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02dmin".format(minutes, seconds)
 }

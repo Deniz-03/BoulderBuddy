@@ -12,7 +12,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Landscape
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +29,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.FilterChip
 import com.boulderbuddy.ui.components.RouteCard
 import com.boulderbuddy.ui.components.TextField
@@ -191,6 +194,29 @@ fun BoulderUebersichtScreen(
                                     onClick = { selectedGradeId = grade.id },
                                 )
                             }
+                        }
+                    }
+                }
+
+                // --- Leerzustand: gar keine Boulder vs. nichts gefunden ---
+                // Die Unterscheidung ist wichtig: im ersten Fall fehlen Daten (der Nutzer muss
+                // etwas anlegen), im zweiten filtert er nur zu eng (er muss anders suchen).
+                if (boulders.isEmpty()) {
+                    item {
+                        if (state.boulders.isEmpty()) {
+                            EmptyState(
+                                icon = Icons.Outlined.Landscape,
+                                title = "Noch keine Boulder",
+                                description = "Boulder, die du in einer Session anlegst, " +
+                                    "sammeln sich hier sessionübergreifend.",
+                            )
+                        } else {
+                            EmptyState(
+                                icon = Icons.Outlined.SearchOff,
+                                title = "Nichts gefunden",
+                                description = "Kein Boulder passt zu Suche und Filter. " +
+                                    "Probier einen anderen Begriff oder setz die Filter zurück.",
+                            )
                         }
                     }
                 }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +39,7 @@ import com.boulderbuddy.ui.components.BarChartEntry
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.FilterChip
 import com.boulderbuddy.ui.components.SectionHeader
+import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -51,17 +53,9 @@ import com.boulderbuddy.ui.viewmodel.StatistikUiState
 // ─────────────────────────────────────────────────────────────────────────────
 // Statistik-Screen (#10 der Wireframes). Bottom-Nav-Tab "Statistik".
 //
-// Dieser Screen ist fast vollständig datengetrieben — die UI steht, aber JEDER
-// hier gezeigte Wert ist aktuell ein Platzhalter. Sobald Room + ViewModel
-// existieren, müssen die unten markierten Stellen an echte Aggregat-Abfragen
-// angebunden werden. Die TODOs beschreiben pro Block, welche Query/Berechnung
-// dahinter gehört.
-//
-// Empfohlene Architektur (analog zu den anderen Screens):
-//   StatistikViewModel exponiert einen StatistikUiState (StateFlow), den dieser
-//   Composable per collectAsStateWithLifecycle() liest. Die Aggregationen laufen
-//   als @Query-Methoden im DAO (COUNT/AVG/GROUP BY) bzw. als Mapping im Repository
-//   — NICHT im Composable.
+// Stateless: sämtliche Werte kommen fertig aggregiert und formatiert aus dem
+// StatistikViewModel (Room), dieser Composable rechnet nichts selbst. Ohne eine
+// einzige Session zeigt er statt lauter Nullen einen Leerzustand.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Ein Quick-Stat-Kärtchen (Label + fertig formatierter Wert).
@@ -116,6 +110,20 @@ fun StatistikScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingXL),
             ) {
+                // Ohne eine einzige Session sind alle Auswertungen Nullen und leere Diagramme —
+                // dann lieber erklären, wodurch die Daten entstehen.
+                if (state.totalSessions == 0) {
+                    item {
+                        EmptyState(
+                            icon = Icons.Outlined.BarChart,
+                            title = "Noch keine Auswertung",
+                            description = "Sobald du deine erste Session geloggt hast, entstehen " +
+                                "hier Flash-Rate, Grad-Verteilung und Aktivität.",
+                        )
+                    }
+                    return@LazyColumn
+                }
+
                 // --- Quick-Stats ---
                 item {
                     QuickStatsRow(quickStats)
@@ -137,6 +145,7 @@ fun StatistikScreen(
                             )
                             ActivitySection(
                                 activity = activity,
+                                range = state.activityRange,
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -153,7 +162,7 @@ fun StatistikScreen(
                         )
                     }
                     item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
-                    item { ActivitySection(activity = activity) }
+                    item { ActivitySection(activity = activity, range = state.activityRange) }
                 }
             }
         },
@@ -273,13 +282,18 @@ private fun HangboardSection(
 
 // Aktivitäts-Heatmap der letzten Wochen.
 @Composable
-private fun ActivitySection(activity: List<Float>, modifier: Modifier = Modifier) {
+private fun ActivitySection(
+    activity: List<Float>,
+    range: String,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
         SectionHeader(text = "Aktivität")
-        // TODO(DB): Zeitraum dynamisch aus den echten Daten bilden
-        //  (z.B. konkrete Datumsspanne statt "letzten 4 Wochen").
         Text(
-            text = "Deine Kletteraktivität der letzten 4 Wochen",
+            // Konkrete Spanne aus dem ViewModel; fehlt sie, bleibt die allgemeine Angabe.
+            text = range.takeIf { it.isNotBlank() }
+                ?.let { "Deine Kletteraktivität · $it" }
+                ?: "Deine Kletteraktivität der letzten 4 Wochen",
             style = MaterialTheme.typography.bodySmall,
             color = BoulderBuddy.colors.textSecondary,
         )

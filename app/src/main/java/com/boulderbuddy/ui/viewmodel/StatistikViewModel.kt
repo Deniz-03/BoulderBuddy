@@ -11,7 +11,8 @@ import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.components.BarChartEntry
-import com.boulderbuddy.ui.model.formatDurationShort
+import com.boulderbuddy.ui.model.formatDayMonth
+import com.boulderbuddy.ui.model.formatHangTime
 import com.boulderbuddy.ui.model.istGetoppt
 import com.boulderbuddy.ui.model.toLocalDate
 import com.boulderbuddy.ui.theme.routeColorPalette
@@ -32,6 +33,8 @@ data class StatistikUiState(
     /** Je System die Grade-Verteilung (ein Balken je Grad, in Grad-Reihenfolge). */
     val distributionBySystem: Map<Int, List<BarChartEntry>> = emptyMap(),
     val activity: List<Float> = emptyList(),
+    /** Konkreter Zeitraum der Heatmap, z.B. "6. Juli – 2. August"; leer = keine Angabe. */
+    val activityRange: String = "",
     // --- Hangboard-Training ---
     /** Anzahl abgeschlossener Hangboard-Workouts (Phone+Uhr, manuell+auto, auch ohne Session). */
     val hangboardWorkouts: Int = 0,
@@ -85,10 +88,13 @@ class StatistikViewModel @Inject constructor(
             distributionSystems = distributionSystems,
             distributionBySystem = distributionBySystem,
             activity = activity(routes, sessionsById),
+            activityRange = activityRange(),
             hangboardWorkouts = hangboardWorkouts.size,
             hangboardSets = hangboardSets,
+            // formatHangTime statt formatDurationShort: ein 30-Sekunden-Durchlauf würde beim
+            // Abrunden auf ganze Minuten sonst als "0min" erscheinen.
             hangboardHangTime = if (hangboardWorkouts.isEmpty()) "–"
-                else formatDurationShort(hangboardHangMs),
+                else formatHangTime(hangboardHangMs),
         )
     }.stateIn(
         scope = viewModelScope,
@@ -143,5 +149,12 @@ class StatistikViewModel @Inject constructor(
             val day = startDay.plusDays(offset.toLong())
             (countsByDay[day] ?: 0).toFloat() / max
         }
+    }
+
+    // Konkrete Datumsspanne der Heatmap, passend zu [activity]. Statt der vagen Angabe
+    // "letzte 4 Wochen" sieht man, welcher Zeitraum tatsächlich dargestellt ist.
+    private fun activityRange(today: LocalDate = LocalDate.now()): String {
+        val startDay = today.minusDays((ACTIVITY_DAYS - 1).toLong())
+        return "${formatDayMonth(startDay)} – ${formatDayMonth(today)}"
     }
 }

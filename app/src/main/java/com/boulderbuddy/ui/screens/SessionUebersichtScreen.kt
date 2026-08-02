@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Landscape
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.DropdownMenu
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SessionListItem
 import com.boulderbuddy.ui.components.UebersichtTopBar
@@ -97,6 +99,22 @@ fun SessionUebersichtScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
             ) {
+                // Ohne Sessions ersetzt der Leerzustand Kopfzeile und Liste — eine
+                // "0 Sessions"-Überschrift über einer leeren Fläche hilft niemandem.
+                if (state.sessions.isEmpty()) {
+                    item {
+                        EmptyState(
+                            icon = Icons.Outlined.Landscape,
+                            title = "Noch keine Sessions",
+                            description = "Starte deine erste Session — danach findest du hier " +
+                                "jeden Hallenbesuch mit seinen Bouldern.",
+                            actionText = "Session starten",
+                            onAction = onCreateSession,
+                        )
+                    }
+                    return@LazyColumn
+                }
+
                 // Kopfzeile: Anzahl links, Sortierung rechts
                 item {
                     Row(
