@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Vibration bei Timer-Phasenwechseln (Schalter „Haptisches Feedback"). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:name=".BoulderBuddyApp"
         android:allowBackup="true"

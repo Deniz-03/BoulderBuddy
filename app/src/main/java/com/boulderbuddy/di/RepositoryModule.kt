@@ -1,5 +1,7 @@
 package com.boulderbuddy.di
 
+import com.boulderbuddy.data.haptics.HapticPlayer
+import com.boulderbuddy.data.haptics.SystemHapticPlayer
 import com.boulderbuddy.data.repository.GhostAnalysisRepository
 import com.boulderbuddy.data.repository.GhostAnalysisRepositoryImpl
 import com.boulderbuddy.data.repository.GradeRepository
@@ -16,6 +18,8 @@ import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.repository.SessionRepositoryImpl
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.data.settings.SettingsRepositoryImpl
+import com.boulderbuddy.wearsync.WearConnection
+import com.boulderbuddy.wearsync.WearNodeConnection
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -65,4 +69,12 @@ abstract class RepositoryModule {
     abstract fun bindGhostAnalysisRepository(
         impl: GhostAnalysisRepositoryImpl,
     ): GhostAnalysisRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHapticPlayer(impl: SystemHapticPlayer): HapticPlayer
+
+    @Binds
+    @Singleton
+    abstract fun bindWearConnection(impl: WearNodeConnection): WearConnection
 }

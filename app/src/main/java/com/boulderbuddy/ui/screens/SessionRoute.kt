@@ -53,6 +53,7 @@ fun SessionRoute(
             durationText = state.durationText,
             notes = state.notes,
             boulders = state.boulders,
+            onNotesChange = viewModel::updateNotes,
             onBack = onBack,
             onOpenBoulder = onOpenBoulder,
         )

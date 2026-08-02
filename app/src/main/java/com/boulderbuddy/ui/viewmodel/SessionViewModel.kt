@@ -108,6 +108,19 @@ class SessionViewModel @AssistedInject constructor(
         initialValue = SessionUiState(),
     )
 
+    /**
+     * Schreibt die Session-Notiz zurück. Leerer Text wird zu `null` normalisiert, damit
+     * "keine Notiz" nur eine Repräsentation hat.
+     */
+    fun updateNotes(notes: String) {
+        viewModelScope.launch {
+            val session = sessionRepository.getById(sessionId) ?: return@launch
+            val bereinigt = notes.trim().takeIf { it.isNotEmpty() }
+            if (bereinigt == session.notes) return@launch
+            sessionRepository.update(session.copy(notes = bereinigt))
+        }
+    }
+
     fun endSession() {
         viewModelScope.launch {
             sessionRepository.endSession(sessionId)

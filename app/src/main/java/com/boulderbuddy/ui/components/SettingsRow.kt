@@ -27,15 +27,18 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 
-// Eine Zeile im Einstellungen-Screen: führendes Icon, Label, und rechts entweder
-// ein Wert-Text (z.B. "Französisch", "v0.1") ODER ein eigenes trailing-Element
-// (ToggleSwitch, Chevron). onClick optional — gesetzt, wenn die ganze Zeile navigiert.
+// Eine Zeile im Einstellungen-Screen: führendes Icon, Label (optional mit erklärender
+// Unterzeile), und rechts entweder ein Wert-Text (z.B. "Französisch", "v0.1") ODER ein
+// eigenes trailing-Element (ToggleSwitch, Chevron). Die Unterzeile trägt die Erklärung bei
+// Toggle-Zeilen, wo der Platz rechts schon vom Schalter belegt ist.
+// onClick optional — gesetzt, wenn die ganze Zeile navigiert.
 @Composable
 fun SettingsRow(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
     value: String? = null,
+    subtitle: String? = null,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
@@ -54,12 +57,20 @@ fun SettingsRow(
             tint = BoulderBuddy.colors.textSecondary,
             modifier = Modifier.size(Dimens.iconS),
         )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = BoulderBuddy.colors.textTertiary,
+                )
+            }
+        }
         // Trailing: eigenes Element hat Vorrang, sonst der Wert-Text.
         when {
             trailing != null -> trailing()

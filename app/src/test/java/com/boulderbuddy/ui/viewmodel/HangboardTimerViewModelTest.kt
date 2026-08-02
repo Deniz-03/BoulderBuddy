@@ -6,11 +6,14 @@ import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
 import com.boulderbuddy.data.db.entity.HangboardWorkoutOrigin
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.settings.TimerConfig
+import com.boulderbuddy.data.haptics.HapticPattern
 import com.boulderbuddy.fake.FakeGymRepository
 import com.boulderbuddy.fake.FakeHangboardRepository
 import com.boulderbuddy.fake.FakeHangboardWorkoutRepository
+import com.boulderbuddy.fake.FakeHapticPlayer
 import com.boulderbuddy.fake.FakeSessionRepository
 import com.boulderbuddy.fake.FakeSettingsRepository
+import com.boulderbuddy.fake.FakeWearConnection
 import com.boulderbuddy.ui.screens.TimerPhase
 import com.boulderbuddy.util.MainDispatcherRule
 import com.google.common.truth.Truth.assertThat
@@ -40,6 +43,8 @@ class HangboardTimerViewModelTest {
     private val hangboardWorkouts = FakeHangboardWorkoutRepository()
     private val hangboard = FakeHangboardRepository()
     private val gyms = FakeGymRepository()
+    private val haptics = FakeHapticPlayer()
+    private val wear = FakeWearConnection()
 
     private fun createViewModel() = HangboardTimerViewModel(
         settingsRepository = settings,
@@ -47,6 +52,8 @@ class HangboardTimerViewModelTest {
         hangboardWorkoutRepository = hangboardWorkouts,
         hangboardRepository = hangboard,
         gymRepository = gyms,
+        hapticPlayer = haptics,
+        wearConnection = wear,
     )
 
     @Test
@@ -145,6 +152,45 @@ class HangboardTimerViewModelTest {
         assertThat(state.phase).isEqualTo(TimerPhase.HANG)
         assertThat(state.currentSet).isEqualTo(1)
         assertThat(state.isRunning).isFalse()
+    }
+
+    @Test
+    fun phaseChanges_vibrateWhileHapticsAreEnabled() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.onPlayPause()
+        advanceUntilIdle()
+
+        // 2 Sätze: HANG→REST, REST→HANG (je ein Impuls), dann HANG→DONE (Abschlussmuster).
+        assertThat(haptics.played).containsExactly(
+            HapticPattern.PHASENWECHSEL,
+            HapticPattern.PHASENWECHSEL,
+            HapticPattern.FERTIG,
+        ).inOrder()
+    }
+
+    @Test
+    fun phaseChanges_stayQuietWhenHapticsAreOff() = runTest(mainDispatcherRule.dispatcher) {
+        settings.hapticFeedbackState.value = false
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.onPlayPause()
+        advanceUntilIdle()
+
+        assertThat(haptics.played).isEmpty()
+    }
+
+    @Test
+    fun watchConnection_isReflectedInState() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = createViewModel()
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.watchConnected).isFalse()
+
+        wear.connectedState.value = true
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.watchConnected).isTrue()
     }
 
     @Test

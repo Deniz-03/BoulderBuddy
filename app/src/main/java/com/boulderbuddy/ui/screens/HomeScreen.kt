@@ -50,7 +50,12 @@ fun HomeScreen(
     onOpenAllBoulders: () -> Unit = {},
     onOpenLastSession: () -> Unit = {},
 ) {
-    val userName = state.userName
+    // Name kommt aus den Einstellungen (DataStore). Ist keiner gesetzt, grüßt die App neutral,
+    // statt einen Platzhalter-Namen zu erfinden.
+    val greeting = state.userName
+        .takeIf { it.isNotBlank() }
+        ?.let { "Hallo, $it 👋" }
+        ?: "Hallo 👋"
     val hasActiveSession = state.hasActiveSession
 
     // Ermittlung des aktuellen Datums
@@ -66,8 +71,7 @@ fun HomeScreen(
         // Obere Leiste
         topBar = {
             TopBar(
-                // TODO: "$userName" durch echten Nutzernamen aus der Datenbank ersetzen
-                title = "Hallo, $userName 👋",
+                title = greeting,
                 subtitle = dateText,
                 actions = {
                     IconButton(onClick = onOpenSettings) {
@@ -208,6 +212,7 @@ private fun HomeScreenPreview() {
     BoulderBuddyTheme {
         HomeScreen(
             state = HomeUiState(
+                userName = "Deniz",
                 sessionsPerWeek = 4,
                 totalTops = 23,
                 topGrade = "6c",

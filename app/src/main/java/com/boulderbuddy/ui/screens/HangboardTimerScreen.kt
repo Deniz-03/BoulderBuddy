@@ -17,7 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Watch
+import androidx.compose.material.icons.outlined.WatchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,6 +78,8 @@ data class HangboardTimerUiState(
     val doneSummary: String? = null,
     // Wohin das Workout gespeichert wurde (Session vs. eigenständig); null bis gespeichert.
     val savedTo: String? = null,
+    /** Ob eine Uhr verbunden ist — steuert den Smartwatch-Indikator in der Top-Bar. */
+    val watchConnected: Boolean = false,
     val presets: List<TimerPreset> = emptyList(),
 )
 
@@ -114,15 +117,27 @@ fun HangboardTimerScreen(
             TopBar(
                 title = "Hangboard-Timer",
                 actions = {
-                    // Smartwatch-Indikator (laut Screen-Konzept im Header dieses Screens).
-                    // TODO: Echten Verbindungsstatus anzeigen + Wear-OS-Sync anstoßen.
-                    IconButton(onClick = { /* TODO: Wear-OS-Verbindung/Status */ }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Smartwatch",
-                            tint = M3OnPrimary,
-                        )
-                    }
+                    // Smartwatch-Indikator: reine Statusanzeige, kein Button — die Kopplung
+                    // passiert in der Wear-App, hier gäbe es nichts zu tippen. Getrennt =
+                    // durchgestrichenes Icon + abgeschwächte Farbe.
+                    Icon(
+                        imageVector = if (state.watchConnected) {
+                            Icons.Outlined.Watch
+                        } else {
+                            Icons.Outlined.WatchOff
+                        },
+                        contentDescription = if (state.watchConnected) {
+                            "Smartwatch verbunden"
+                        } else {
+                            "Smartwatch nicht verbunden"
+                        },
+                        tint = if (state.watchConnected) {
+                            M3OnPrimary
+                        } else {
+                            M3OnPrimary.copy(alpha = 0.4f)
+                        },
+                        modifier = Modifier.padding(horizontal = Dimens.paddingM),
+                    )
                 }
             )
         },

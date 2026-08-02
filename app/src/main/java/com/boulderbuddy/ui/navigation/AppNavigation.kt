@@ -156,6 +156,7 @@ fun AppNavigation(
                     // und Zurück laufen über den Pane-Navigator im SessionsListDetail.
                     SessionsListDetail(
                         state = state,
+                        onSetSortMode = viewModel::setSortMode,
                         onCreateSession = { navController.navigate(SessionErstellen) },
                         onOpenBoulderOverview = onOpenBoulderOverview,
                         onOpenSettings = { navController.navigate(Einstellungen) },
@@ -166,6 +167,7 @@ fun AppNavigation(
                     // Phone (Compact): unverändertes Push-Verhalten.
                     SessionUebersichtScreen(
                         state = state,
+                        onSetSortMode = viewModel::setSortMode,
                         onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
                         onCreateSession = { navController.navigate(SessionErstellen) },
                         onOpenBoulderOverview = onOpenBoulderOverview,
@@ -210,6 +212,8 @@ fun AppNavigation(
                     onSelectGradeSystem = viewModel::selectGradeSystem,
                     onExportSessions = viewModel::exportSessions,
                     onSetDarkMode = viewModel::setDarkMode,
+                    onSetHapticFeedback = viewModel::setHapticFeedback,
+                    onSetUserName = viewModel::setUserName,
                     exportMessage = exportMessage,
                     onExportMessageShown = viewModel::consumeExportMessage,
                     onOpenGhostClimber = { navController.navigate(GhostClimber) },

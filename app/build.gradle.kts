@@ -40,6 +40,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // Liefert BuildConfig.VERSION_NAME für die Versionsanzeige in den Einstellungen.
+        buildConfig = true
     }
 }
 

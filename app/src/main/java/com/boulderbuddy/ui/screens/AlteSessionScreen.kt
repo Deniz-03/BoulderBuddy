@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
@@ -55,12 +56,15 @@ fun AlteSessionScreen(
     durationText: String = "1.5h",
     notes: String = "",
     boulders: List<SessionBoulderUi> = emptyList(),
+    // Schreibt die geänderte Session-Notiz zurück (beim Verlassen des Feldes).
+    onNotesChange: (String) -> Unit = {},
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
     onOpenBoulder: (Int) -> Unit = {},
 ) {
-    // Session-Notiz. Read-only-Ansicht: zeigt die gespeicherte Notiz.
-    // TODO(6.4+): Änderungen zurückschreiben (aktuell nur lokale Anzeige, nicht persistiert).
+    // Session-Notiz: nachträglich editierbar (die Reflexion schreibt man meist nach der
+    // Session). Der Text lebt während des Tippens lokal und wird beim Fokusverlust
+    // gespeichert — sonst löste jeder Tastendruck einen Room-Write aus.
     var notiz by remember(notes) { mutableStateOf(notes) }
 
     // Stat-Werte werden aus den Daten ABGELEITET: Boulder = Anzahl, Tops = davon geschaffte.
@@ -118,15 +122,20 @@ fun AlteSessionScreen(
                     }
                 }
 
-                // --- Notiz (read-only über unsere TextField-Komponente) ---
+                // --- Notiz (editierbar, speichert beim Verlassen des Feldes) ---
                 item {
                     TextField(
                         value = notiz,
                         onChange = { notiz = it },
                         label = "NOTIZ",
-                        placeholder = "Keine Notiz zu dieser Session.",
+                        placeholder = "Notiz zu dieser Session…",
                         singleLine = false,
                         minLines = 3,
+                        // hasFocus statt isFocused: der Modifier sitzt am Container der
+                        // TextField-Komponente, der das eigentliche Eingabefeld als Kind hält.
+                        modifier = Modifier.onFocusChanged { focusState ->
+                            if (!focusState.hasFocus && notiz != notes) onNotesChange(notiz)
+                        },
                     )
                 }
 

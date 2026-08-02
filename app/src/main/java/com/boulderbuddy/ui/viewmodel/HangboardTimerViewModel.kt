@@ -3,6 +3,8 @@ package com.boulderbuddy.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
+import com.boulderbuddy.data.haptics.HapticPattern
+import com.boulderbuddy.data.haptics.HapticPlayer
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
 import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
 import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
@@ -16,6 +18,7 @@ import com.boulderbuddy.data.settings.TimerConfig
 import com.boulderbuddy.ui.screens.HangboardTimerUiState
 import com.boulderbuddy.ui.screens.TimerPhase
 import com.boulderbuddy.ui.screens.TimerPreset
+import com.boulderbuddy.wearsync.WearConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -45,6 +48,8 @@ class HangboardTimerViewModel @Inject constructor(
     private val hangboardWorkoutRepository: HangboardWorkoutRepository,
     private val hangboardRepository: HangboardRepository,
     private val gymRepository: GymRepository,
+    private val hapticPlayer: HapticPlayer,
+    wearConnection: WearConnection,
 ) : ViewModel() {
 
     // Konfiguration (var, da über updateConfig änderbar). Defaults bis DataStore geladen ist.
@@ -67,6 +72,11 @@ class HangboardTimerViewModel @Inject constructor(
     private var startedAtMillis: Long? = null
     // Speicherort-Feedback nach DONE (§0 Säule 3), z.B. "In Session „Halle X" gespeichert".
     private var savedTo: String? = null
+    // Zwischengespeicherter Stand des Haptik-Schalters. Der Phasenwechsel läuft synchron in der
+    // Timer-Schleife, dort wäre ein suspendierender DataStore-Zugriff pro Sekunde unnötig.
+    private var hapticEnabled = true
+    // Ob gerade eine Uhr verbunden ist — steuert nur den Indikator in der Top-Bar.
+    private var watchConnected = false
 
     private val _uiState = MutableStateFlow(snapshot())
     val uiState: StateFlow<HangboardTimerUiState> = _uiState.asStateFlow()
@@ -80,6 +90,17 @@ class HangboardTimerViewModel @Inject constructor(
         viewModelScope.launch {
             hangboardRepository.observeAll().collect {
                 presets = it
+                _uiState.value = snapshot()
+            }
+        }
+        // Haptik-Schalter beobachten, damit eine Änderung sofort greift.
+        viewModelScope.launch {
+            settingsRepository.hapticFeedback.collect { hapticEnabled = it }
+        }
+        // Uhr-Verbindung beobachten und in den UI-State spiegeln (Indikator in der Top-Bar).
+        viewModelScope.launch {
+            wearConnection.connected.collect {
+                watchConnected = it
                 _uiState.value = snapshot()
             }
         }
@@ -185,24 +206,32 @@ class HangboardTimerViewModel @Inject constructor(
         _uiState.value = snapshot()
     }
 
-    // Phasenübergang, wenn die aktuelle Phase abgelaufen ist.
+    // Phasenübergang, wenn die aktuelle Phase abgelaufen ist. Jeder Übergang vibriert (sofern
+    // eingeschaltet) — am Hangboard schaut man nicht auf den Bildschirm.
     private fun advancePhase() {
         when (phase) {
             TimerPhase.HANG ->
                 if (currentSet >= totalSets) {
                     phase = TimerPhase.DONE
                     running = false
+                    vibrate(HapticPattern.FERTIG)
                 } else {
                     phase = TimerPhase.REST
                     secondsLeft = restSec
+                    vibrate(HapticPattern.PHASENWECHSEL)
                 }
             TimerPhase.REST -> {
                 currentSet++
                 phase = TimerPhase.HANG
                 secondsLeft = hangSec
+                vibrate(HapticPattern.PHASENWECHSEL)
             }
             TimerPhase.DONE -> running = false
         }
+    }
+
+    private fun vibrate(pattern: HapticPattern) {
+        if (hapticEnabled) hapticPlayer.play(pattern)
     }
 
     /**
@@ -267,6 +296,7 @@ class HangboardTimerViewModel @Inject constructor(
                 "$totalSets Sätze · ${format(totalSets * hangSec)} Hängezeit"
             } else null,
             savedTo = if (phase == TimerPhase.DONE) savedTo else null,
+            watchConnected = watchConnected,
             presets = presets.map {
                 TimerPreset(
                     id = it.id,
