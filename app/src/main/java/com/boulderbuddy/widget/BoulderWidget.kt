@@ -2,6 +2,8 @@ package com.boulderbuddy.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +32,7 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import kotlinx.coroutines.flow.first
 
 // Marken-Farben (an Color.kt angelehnt). Bewusst fest: ein Widget hat keinen App-Theme-Context.
 private val WidgetBg = Color(0xFFF9F4E3)
@@ -40,26 +43,52 @@ private val WidgetAccent = Color(0xFFC9A89A)
 
 /**
  * Homescreen-Widget (7.4c): zeigt die aktive Session (Halle · Boulder/Tops) bzw. die
- * Gesamt-Tops, plus Schnellstart-Buttons (Timer / Session). Tap aufs Widget öffnet die App.
- * Daten kommen als einmaliger Room-Snapshot ([loadWidgetData]); ein Refresh-Knopf lädt neu.
+ * Gesamt-Tops, plus zwei Schnellstart-Buttons.
+ *
+ * Einstiegs-Logik: Läuft eine Session, führen Widget-Tap und Session-Knopf direkt in DIESE
+ * Session; ohne aktive Session bietet der Knopf „Session starten" (Tap auf die Fläche öffnet
+ * dann nur die App, damit ein Fehlgriff nicht im Anlege-Formular landet). Der Timer ist in
+ * beiden Fällen über den zweiten Knopf erreichbar.
+ *
+ * Daten kommen live aus Room ([observeWidgetData]) und werden IN der Composition gesammelt —
+ * siehe [provideGlance].
  */
 class BoulderWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val data = loadWidgetData(context)
-        provideContent { WidgetContent(context, data) }
+        val dataFlow = observeWidgetData(context)
+        // Erster Wert noch vor der Composition: sonst zeigt der erste Frame kurz den
+        // Leerzustand ("Keine aktive Session").
+        val initial = dataFlow.first()
+        provideContent {
+            // Wichtig: die Sammlung gehört INNERHALB von provideContent. Alles davor läuft nur
+            // einmal je Glance-Session; update()/updateAll() rekomponiert eine noch laufende
+            // Session nur, ohne die Repositories erneut zu lesen. Ein vor provideContent
+            // geladener Snapshot blieb deshalb stehen (z. B. nach dem Beenden einer Session).
+            val data by dataFlow.collectAsState(initial)
+            WidgetContent(context, data)
+        }
     }
 }
 
 @Composable
 private fun WidgetContent(context: Context, data: WidgetData) {
+    // Session-Ziel einmal ableiten: aktive Session öffnen ODER neue Session starten.
+    val sessionIntent = WidgetIntent.toApp(
+        context,
+        target = data.sessionNavTarget,
+        sessionId = data.activeSessionId,
+    )
+    // Tap auf die Fläche: mit laufender Session direkt hinein, sonst nur die App öffnen —
+    // ein versehentlicher Tap soll niemanden ins Anlege-Formular werfen.
+    val surfaceIntent = if (data.hasActiveSession) sessionIntent else WidgetIntent.toApp(context)
+
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(WidgetBg))
             .cornerRadius(20.dp)
             .padding(16.dp)
-            // Tap auf die Fläche öffnet die App (Home).
-            .clickable(actionStartActivity(WidgetIntent.toApp(context))),
+            .clickable(actionStartActivity(surfaceIntent)),
     ) {
         // Kopf: Titel + Refresh.
         Row(
@@ -125,27 +154,23 @@ private fun WidgetContent(context: Context, data: WidgetData) {
 
         Spacer(GlanceModifier.defaultWeight())
 
-        // Schnellstart-Buttons.
+        // Schnellstart-Buttons: Session als primäre Aktion (nimmt den Restplatz), der Timer
+        // daneben in fester Breite — er muss in JEDEM Zustand erreichbar bleiben.
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             WidgetButton(
-                text = "Timer",
+                text = if (data.hasActiveSession) "Session öffnen" else "Session starten",
                 filled = true,
-                action = actionStartActivity(
-                    WidgetIntent.toApp(context, WidgetIntent.TARGET_TIMER),
-                ),
+                action = actionStartActivity(sessionIntent),
                 modifier = GlanceModifier.defaultWeight(),
             )
             Spacer(GlanceModifier.width(8.dp))
             WidgetButton(
-                text = if (data.hasActiveSession) "Öffnen" else "Session",
+                text = "Timer",
                 filled = false,
                 action = actionStartActivity(
-                    WidgetIntent.toApp(
-                        context,
-                        if (data.hasActiveSession) null else WidgetIntent.TARGET_NEW_SESSION,
-                    ),
+                    WidgetIntent.toApp(context, WidgetIntent.TARGET_TIMER),
                 ),
-                modifier = GlanceModifier.defaultWeight(),
+                modifier = GlanceModifier.width(64.dp),
             )
         }
     }
@@ -168,6 +193,9 @@ private fun WidgetButton(
     ) {
         Text(
             text = text,
+            // Einzeilig: das Widget kann auf 3 Zellen schrumpfen, ein Umbruch würde die
+            // 40-dp-Fläche sprengen.
+            maxLines = 1,
             style = TextStyle(
                 color = ColorProvider(if (filled) WidgetCream else WidgetInk),
                 fontSize = 13.sp,
