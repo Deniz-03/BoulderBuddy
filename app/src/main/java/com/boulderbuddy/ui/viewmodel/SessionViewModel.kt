@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,10 +20,12 @@ import com.boulderbuddy.ui.model.istGetoppt
 import com.boulderbuddy.ui.model.toBoulderStatus
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.screens.BoulderStatus
+import com.boulderbuddy.widget.refreshBoulderWidget
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -77,6 +80,8 @@ class SessionViewModel @AssistedInject constructor(
     gymRepository: GymRepository,
     gradeRepository: GradeRepository,
     hangboardWorkoutRepository: HangboardWorkoutRepository,
+    // Nur fürs Homescreen-Widget: nach dem Beenden soll es keine aktive Session mehr anbieten.
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -104,7 +109,11 @@ class SessionViewModel @AssistedInject constructor(
     )
 
     fun endSession() {
-        viewModelScope.launch { sessionRepository.endSession(sessionId) }
+        viewModelScope.launch {
+            sessionRepository.endSession(sessionId)
+            // Widget-Snapshot nachziehen: es darf jetzt nicht mehr in diese Session springen.
+            refreshBoulderWidget(appContext)
+        }
     }
 
     private fun buildState(

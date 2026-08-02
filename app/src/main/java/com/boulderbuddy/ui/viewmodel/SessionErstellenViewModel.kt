@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GymEntity
@@ -7,7 +8,9 @@ import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.widget.refreshBoulderWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -26,6 +29,8 @@ class SessionErstellenViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val gymRepository: GymRepository,
     gradeRepository: GradeRepository,
+    // Nur fürs Homescreen-Widget: nach dem Anlegen soll es sofort die neue Session zeigen.
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     // Reale Grading-Systeme (Standards + Custom) für die Auswahl beim Session-Anlegen.
@@ -67,6 +72,9 @@ class SessionErstellenViewModel @Inject constructor(
                     endedAt = null,
                 )
             )
+            // Widget-Snapshot nachziehen, damit dort sofort „Session öffnen" statt
+            // „Session starten" steht (7.4c: sonst erst nach bis zu 30 min).
+            refreshBoulderWidget(appContext)
             onCreated(newId)
         }
     }

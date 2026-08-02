@@ -69,15 +69,21 @@ fun AppNavigation(
     windowSizeClass: WindowSizeClass,
     // Optionales Sprungziel vom Homescreen-Widget (7.4c); null = normaler Start (Home).
     initialNavTarget: String? = null,
+    // Session-ID zu TARGET_ACTIVE_SESSION; sonst null.
+    initialNavSessionId: Int? = null,
 ) {
     val navController = rememberNavController()
 
     // Einmaliger Sprung ins Widget-Ziel (7.4c). key = Zielwert → feuert nur beim Start-Intent,
     // nicht bei jeder Recomposition.
-    LaunchedEffect(initialNavTarget) {
+    LaunchedEffect(initialNavTarget, initialNavSessionId) {
         when (initialNavTarget) {
             WidgetIntent.TARGET_TIMER -> navController.navigateToTab(BottomNavTab.Timer)
             WidgetIntent.TARGET_NEW_SESSION -> navController.navigate(SessionErstellen)
+            // Direkt in die laufende Session. Der Push liegt über Home, Zurück führt also
+            // dorthin. Fehlt die ID (veralteter Widget-Stand), bleiben wir auf Home.
+            WidgetIntent.TARGET_ACTIVE_SESSION ->
+                initialNavSessionId?.let { navController.navigate(Session(sessionId = it)) }
         }
     }
 
