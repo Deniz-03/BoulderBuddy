@@ -68,25 +68,54 @@ const val HEX_LIGHT_ON_FILL_STRONG = 0xFFF7F2E2
 const val HEX_LIGHT_ACCENT = 0xFF9C4E37
 const val HEX_LIGHT_ACCENT_ON_SURFACE = 0xFF954E38
 
-// --- Dark: warme Fast-Schwarz-Rampe, dunkel nach hell ------------------------
-const val HEX_DARK_SURFACE_LOWEST = 0xFF0E0C08
-const val HEX_DARK_BACKGROUND = 0xFF14110C     // = surface
-const val HEX_DARK_SURFACE_LOW = 0xFF1A160F
-const val HEX_DARK_CARD = 0xFF201C14           // = surfaceContainer
-const val HEX_DARK_SURFACE_HIGH = 0xFF2A251A   // Dialoge, Menüs, Bottom-Sheets
-const val HEX_DARK_SURFACE_HIGHEST = 0xFF352F22
-const val HEX_DARK_PATTERN = 0xFF221E15
+// --- Dark: warme, angehobene Rampe -------------------------------------------
+/*
+ * Diese Rampe lag bis zum 03.08.2026 rund zehn Helligkeitsstufen tiefer — der Hintergrund
+ * war #14110C, in CIE-L* gerechnet 5,2 von 100, also praktisch Schwarz. Auf dem Papier war
+ * das die beste Variante: der Primärtext erreichte dort 15,9:1, mehr als im Light Mode.
+ * Gelesen hat es sich trotzdem schlechter, und beides hat dieselbe Ursache.
+ *
+ * HALATION. Auf einem nahezu schwarzen Grund blühen helle Buchstaben aus und werden weich.
+ * Der Effekt wird durch hohen Kontrast schlimmer, nicht besser — deshalb sieht die Zahl gut
+ * aus, während das Auge sich anstrengt. Ein Kontrastwert kann das nicht abbilden; er kennt
+ * nur zwei Farben, nicht die absolute Helligkeit, gegen die sie stehen.
+ *
+ * UND DIE FARBE WAR WEG. Farbigkeit ist bei so geringer Helligkeit physikalisch kaum
+ * darstellbar: der Hintergrund hatte eine RGB-Spanne von 8 gegenüber 29 im Light Mode. Von
+ * dem warmen Creme, das die App ausmacht, blieb Schwarz übrig.
+ *
+ * Jetzt liegt der Hintergrund bei 14,9 mit einer Spanne von 21. Die Punkte darauf sind
+ * wieder ein Muster statt Schwarz auf Schwarz, und das Chrome hat einen eigenen Wert —
+ * vorher war es ZEICHENGLEICH MIT DER CARD (beide #201C14), sodass TopBar und Bottom-Nav
+ * sich nicht als Rahmen lasen.
+ *
+ * DER PREIS, OFFEN BENANNT: ein angehobener Grund kostet Spielraum nach oben. Damit jede
+ * Textebene auf JEDER Fläche 4,5:1 hält, rücken die drei Ebenen enger zusammen — ihre
+ * Abstände sind jetzt 9,9 und 10,6 statt 20,3 und 10,2. Die Hierarchie ist dadurch flacher,
+ * jede einzelne Ebene aber besser lesbar. Das war die Abwägung.
+ *
+ * Reihenfolge nach wahrgenommener Helligkeit: das Chrome liegt UNTER dem Hintergrund —
+ * gespiegelt zum Light Mode, wo es ebenfalls darunter liegt und den Inhalt rahmt.
+ */
+const val HEX_DARK_SURFACE_LOWEST = 0xFF1B170D  // Helligkeit  7,9
+const val HEX_DARK_CHROME = 0xFF221D11          // Helligkeit 11,0 — eigener Wert, nicht = Card
+const val HEX_DARK_BACKGROUND = 0xFF2B2516      // Helligkeit 14,9 = surface
+const val HEX_DARK_SURFACE_LOW = 0xFF322C1B     // Helligkeit 18,2
+const val HEX_DARK_PATTERN = 0xFF36301D         // Helligkeit 20,0 — Punkte, jetzt sichtbar
+const val HEX_DARK_CARD = 0xFF393220            // Helligkeit 21,0 = surfaceContainer
+const val HEX_DARK_SURFACE_HIGH = 0xFF403925    // Helligkeit 24,2 — Dialoge, Menüs
+const val HEX_DARK_SURFACE_HIGHEST = 0xFF473F2B // Helligkeit 26,9 — bindend für alle Texte
 
-const val HEX_DARK_ON_SURFACE = 0xFFF2ECDA
-const val HEX_DARK_TEXT_SECONDARY = 0xFFBFB392
-const val HEX_DARK_TEXT_TERTIARY = 0xFFA1987D
+// Der Primärtext ist ein warmes Off-White, KEIN Weiß: reines Weiß auf dunklem Grund ist die
+// Halation in Reinform. Die erste Rechnung lief genau dorthin und wurde deshalb verworfen.
+const val HEX_DARK_ON_SURFACE = 0xFFECE5D1      // Helligkeit 91,0
+const val HEX_DARK_TEXT_SECONDARY = 0xFFD3C9AD  // Helligkeit 81,1
+const val HEX_DARK_TEXT_TERTIARY = 0xFFB7AC8E   // Helligkeit 70,5
 
-// Rand: der bindende Fall ist hier die **hellste** Fläche, nicht die dunkelste.
-const val HEX_DARK_BORDER = 0xFF837A5F
+// Rand: bindend ist die hellste Fläche, nicht die dunkelste.
+const val HEX_DARK_BORDER = 0xFF978B69
 
-// Chrome bleibt im Dark Mode dunkel — hier ist es die Umgebung, die dunkel ist.
-const val HEX_DARK_CHROME = 0xFF201C14
-const val HEX_DARK_ON_CHROME = 0xFFF2ECDA
+const val HEX_DARK_ON_CHROME = 0xFFECE5D1
 
 /**
  * Hier dreht das Paar um: im Dark Mode ist die **Füllung hell** und der Text darauf dunkel.
@@ -95,11 +124,12 @@ const val HEX_DARK_ON_CHROME = 0xFFF2ECDA
  * Aktion. Im Dark Mode ziehen die Aufgaben auseinander: ein dunkler Button auf dunklem Grund
  * ist keine primäre Aktion mehr, er verschwindet.
  */
-const val HEX_DARK_FILL_STRONG = 0xFFE8DEBE
-const val HEX_DARK_ON_FILL_STRONG = 0xFF1B1811
+const val HEX_DARK_FILL_STRONG = 0xFFE7DCBF
+const val HEX_DARK_ON_FILL_STRONG = 0xFF241F12
 
-const val HEX_DARK_ACCENT = 0xFFC9A89A
-const val HEX_DARK_ACCENT_ON_SURFACE = 0xFFCB8975
+// Zwei Akzentwerte, weil Chrome und Inhaltsflächen verschieden hell sind.
+const val HEX_DARK_ACCENT = 0xFFC8866E
+const val HEX_DARK_ACCENT_ON_SURFACE = 0xFFD9A08C
 
 // --- Route-Akzente (in beiden Themes gleich) ----------------------------------
 // Reine Wiedererkennung der Grifffarbe, nie Textträger.

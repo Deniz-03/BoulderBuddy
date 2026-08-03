@@ -29,6 +29,10 @@ class PaletteContrastTest {
         "Card" to HEX_LIGHT_CARD,
         "Chrome" to HEX_LIGHT_CHROME,
         "Container" to HEX_LIGHT_SURFACE_CONTAINER,
+        // Die Lochstruktur liegt auf dem Hintergrund, und Text liegt darüber — ein Buchstabe
+        // kann also auf einem Punkt landen. Sie gehört deshalb in die Flächenliste, auch
+        // wenn sie rein dekorativ gemeint ist.
+        "Punkte-Muster" to HEX_LIGHT_PATTERN,
         "Dialog/Menü" to HEX_LIGHT_SURFACE_HIGH,
         "höchste Fläche" to HEX_LIGHT_SURFACE_HIGHEST,
         "weiß" to HEX_LIGHT_SURFACE_LOWEST,
@@ -40,6 +44,7 @@ class PaletteContrastTest {
         "Chrome" to HEX_DARK_CHROME,
         "tiefste Fläche" to HEX_DARK_SURFACE_LOWEST,
         "niedrige Fläche" to HEX_DARK_SURFACE_LOW,
+        "Punkte-Muster" to HEX_DARK_PATTERN,
         "Dialog/Menü" to HEX_DARK_SURFACE_HIGH,
         "höchste Fläche" to HEX_DARK_SURFACE_HIGHEST,
     )
