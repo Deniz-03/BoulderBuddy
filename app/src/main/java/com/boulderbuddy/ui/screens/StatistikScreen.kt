@@ -318,8 +318,8 @@ private fun ActivityLegend(modifier: Modifier = Modifier) {
     ) {
         Text(
             text = "Weniger",
-            style = MaterialTheme.typography.labelSmall,
-            color = BoulderBuddy.colors.textTertiary,
+            style = MaterialTheme.typography.bodySmall,
+            color = BoulderBuddy.colors.textSecondary,
         )
         steps.forEach { intensity ->
             Box(
@@ -333,8 +333,8 @@ private fun ActivityLegend(modifier: Modifier = Modifier) {
         }
         Text(
             text = "Mehr",
-            style = MaterialTheme.typography.labelSmall,
-            color = BoulderBuddy.colors.textTertiary,
+            style = MaterialTheme.typography.bodySmall,
+            color = BoulderBuddy.colors.textSecondary,
         )
     }
 }

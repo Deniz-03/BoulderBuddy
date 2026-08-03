@@ -186,18 +186,29 @@ class PaletteContrastTest {
     }
 
     @Test
-    fun chrome_dreht_zwischenDenThemes() {
-        // Der Kern der Light-Mode-Korrektur: das Chrome ist im Light Mode hell und im Dark
-        // Mode dunkel. Vorher war es in beiden Themes fast-schwarz — der Light Mode sah
-        // deshalb nicht nach Light Mode aus. Ein Zahlenwert, der das festhält, verhindert,
-        // dass die Entscheidung beim nächsten Aufräumen unbemerkt zurückgedreht wird.
-        val chromeHellerAlsInhaltImLight =
-            kontrastVerhaeltnis(HEX_LIGHT_CHROME, 0xFF000000) >
-                kontrastVerhaeltnis(HEX_LIGHT_BACKGROUND, 0xFF000000)
-        val chromeDunkelImDark =
-            kontrastVerhaeltnis(HEX_DARK_CHROME, 0xFFFFFFFF) > 10.0
-        assertThat(chromeHellerAlsInhaltImLight).isTrue()
-        assertThat(chromeDunkelImDark).isTrue()
+    fun chrome_istImLightHellUndImDarkDunkel() {
+        // Der Kern der Light-Mode-Korrektur: das Chrome dreht mit dem Theme. Ursprünglich war
+        // es in beiden Themes fast-schwarz, und der Light Mode sah deshalb nicht nach Light
+        // Mode aus.
+        //
+        // Geprüft wird die **Helligkeitsklasse**, nicht die Richtung gegenüber dem Inhalt.
+        // Die erste Fassung dieses Tests forderte „Chrome heller als der Hintergrund" — das
+        // war eine Annahme über die Gestaltung, keine Anforderung, und sie fiel, als sich
+        // zeigte, dass ein Chrome *über* dem Inhalt nicht wie ein Rahmen wirkt, sondern wie
+        // eine besonders helle Stelle. Ein Test darf festhalten, was gelten muss, nicht wie
+        // man es am Tag des Schreibens gelöst hat.
+        assertThat(kontrastVerhaeltnis(HEX_LIGHT_CHROME, 0xFF000000)).isGreaterThan(10.0)
+        assertThat(kontrastVerhaeltnis(HEX_DARK_CHROME, 0xFFFFFFFF)).isGreaterThan(10.0)
+    }
+
+    @Test
+    fun chrome_istVomInhaltUnterscheidbar() {
+        // Es muss sich vom Hintergrund abheben — in welche Richtung, ist Gestaltung. Ganz
+        // gleich darf es nicht sein, sonst ist die Leiste nur noch eine Linie im Inhalt.
+        assertThat(kontrastVerhaeltnis(HEX_LIGHT_CHROME, HEX_LIGHT_BACKGROUND))
+            .isGreaterThan(1.05)
+        // Und die Kante trägt zusätzlich der Rand — dass er auf dem Chrome 3:1 hält, prüft
+        // `rand_haeltAufJederFlaeche`, weil das Chrome in der Flächenliste steht.
     }
 
     // --- Die Formel selbst ---------------------------------------------------

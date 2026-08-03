@@ -44,12 +44,14 @@ const val HEX_LIGHT_BORDER = 0xFF8A7D51
 /**
  * Chrome = TopBar und Bottom-Nav.
  *
- * **Dreht mit dem Theme.** Früher war es in beiden Themes fast-schwarz — mit dem Ergebnis, dass
- * der Light Mode nicht nach Light Mode aussah: der Inhalt war creme, aber Kopf- und Fußleiste
- * waren schwarz, also das Auffälligste am Bildschirm. Jetzt ist das Chrome im Light Mode eine
- * helle Fläche und trennt sich vom Inhalt über den Rand statt über die Farbe.
+ * **Dreht mit dem Theme.** Ursprünglich war es in beiden Themes fast-schwarz — der Light Mode
+ * sah deshalb nicht nach Light Mode aus. Der erste Versuch drehte es auf ein warmes Fast-Weiß
+ * und lag damit **heller als der Inhalt**; die Leiste wirkte dadurch nicht wie ein Rahmen,
+ * sondern wie eine besonders helle Stelle. Jetzt eine gesättigtere Creme-Stufe **unter** dem
+ * Hintergrund: das Chrome liegt farblich am unteren Ende der hellen Rampe und rahmt den
+ * Inhalt, statt aus ihm herauszustechen. Die Kante zieht zusätzlich eine Linie.
  */
-const val HEX_LIGHT_CHROME = 0xFFFFFDF7
+const val HEX_LIGHT_CHROME = 0xFFEDE4C6
 const val HEX_LIGHT_ON_CHROME = 0xFF23211B
 
 // Primäre Aktionen: dunkle Füllung, heller Text.
@@ -63,7 +65,7 @@ const val HEX_LIGHT_ON_FILL_STRONG = 0xFFF7F2E2
  * schwarzem Chrome und hatte dort 6,4:1. Auf hellem Chrome wären es 2,2:1 gewesen — dieselbe
  * Farbe, anderer Untergrund, und aus einem guten Wert wird ein unbrauchbarer.
  */
-const val HEX_LIGHT_ACCENT = 0xFFAD5F47
+const val HEX_LIGHT_ACCENT = 0xFF9C4E37
 const val HEX_LIGHT_ACCENT_ON_SURFACE = 0xFF954E38
 
 // --- Dark: warme Fast-Schwarz-Rampe, dunkel nach hell ------------------------

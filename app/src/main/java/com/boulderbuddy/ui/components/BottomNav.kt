@@ -34,7 +34,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 
 import androidx.compose.ui.geometry.Size
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -65,7 +65,10 @@ fun BottomNav(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .drawBehind {
+            // drawWithContent statt drawBehind — siehe TopBar: die Füllfarbe der Surface
+            // kommt nach dem übergebenen Modifier und würde die Linie überdecken.
+            .drawWithContent {
+                drawContent()
                 val staerke = 1.dp.toPx()
                 drawRect(color = randfarbe, size = Size(size.width, staerke))
             },

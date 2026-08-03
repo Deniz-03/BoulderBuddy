@@ -134,8 +134,8 @@ fun SessionUebersichtScreen(
                             ) {
                                 Text(
                                     text = state.sortMode.label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = BoulderBuddy.colors.textTertiary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = BoulderBuddy.colors.textSecondary,
                                 )
                                 Icon(
                                     imageVector = Icons.Outlined.SwapVert,

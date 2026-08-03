@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -39,16 +39,20 @@ fun TopBar(
     navIcon: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
 ) {
-    // Trennlinie nach unten statt Farbunterschied: seit das Chrome mitdreht, ist es im
-    // Light Mode nahezu so hell wie der Inhalt und braucht eine Kante, um als Leiste zu
-    // lesen. Im Dark Mode schadet sie nicht — dort trennt zusätzlich die Helligkeit.
-    // Die Farbe wird außerhalb von drawBehind gelesen: der DrawScope ist kein Composable
-    // und kommt an das Theme nicht heran.
+    // Trennlinie nach unten. Das Chrome dreht mit dem Theme und liegt im Light Mode
+    // farblich dicht am Inhalt — ohne Kante liest die Leiste sich nicht als Rahmen.
+    // Die Farbe wird hier gelesen und nicht im Zeichenblock: der DrawScope ist kein
+    // Composable und kommt an das Theme nicht heran.
     val randfarbe = BoulderBuddy.colors.borderSubtle
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .drawBehind {
+            // drawWithContent statt drawBehind: Surface legt seine Füllfarbe NACH dem
+            // übergebenen Modifier auf: eine mit drawBehind gezeichnete Linie wird davon
+            // wieder überdeckt und ist unsichtbar. drawContent() rendert erst Fläche und
+            // Inhalt, danach kommt die Linie darüber.
+            .drawWithContent {
+                drawContent()
                 val staerke = 1.dp.toPx()
                 drawRect(
                     color = randfarbe,

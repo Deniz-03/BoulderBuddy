@@ -100,8 +100,8 @@ private fun QuellenZeile(
             )
             Text(
                 text = erklaerung,
-                style = MaterialTheme.typography.labelSmall,
-                color = BoulderBuddy.colors.textTertiary,
+                style = MaterialTheme.typography.bodySmall,
+                color = BoulderBuddy.colors.textSecondary,
             )
         }
     }

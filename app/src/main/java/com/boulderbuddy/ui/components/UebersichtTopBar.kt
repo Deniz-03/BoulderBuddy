@@ -27,7 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
@@ -56,7 +56,12 @@ fun UebersichtTopBar(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .drawBehind {
+            // drawWithContent statt drawBehind: Surface legt seine Füllfarbe NACH dem
+            // übergebenen Modifier auf: eine mit drawBehind gezeichnete Linie wird davon
+            // wieder überdeckt und ist unsichtbar. drawContent() rendert erst Fläche und
+            // Inhalt, danach kommt die Linie darüber.
+            .drawWithContent {
+                drawContent()
                 val staerke = 1.dp.toPx()
                 drawRect(
                     color = randfarbe,

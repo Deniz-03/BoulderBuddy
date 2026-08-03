@@ -264,8 +264,8 @@ private fun SavedAnalysisRow(
             )
             Text(
                 text = "Vorschlag: ${analysis.modeLabel}",
-                style = MaterialTheme.typography.labelSmall,
-                color = BoulderBuddy.colors.textTertiary,
+                style = MaterialTheme.typography.bodySmall,
+                color = BoulderBuddy.colors.textSecondary,
             )
         }
         IconButton(onClick = onDelete) {

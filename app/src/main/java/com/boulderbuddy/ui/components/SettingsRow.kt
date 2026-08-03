@@ -64,20 +64,26 @@ fun SettingsRow(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (subtitle != null) {
+                // bodySmall statt labelSmall: das hier ist ein erklärender Satz, kein
+                // Versalien-Label. Klein plus gesperrt macht ihn mühsam, unabhängig von
+                // der Farbe. Aus demselben Grund textSecondary statt textTertiary — die
+                // Erklärung trägt Information und ist keine Dekoration.
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = BoulderBuddy.colors.textTertiary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
                 )
             }
         }
         // Trailing: eigenes Element hat Vorrang, sonst der Wert-Text.
         when {
             trailing != null -> trailing()
+            // Der Wert rechts ist die Antwort auf die Zeile („Französisch", „v0.1") und
+            // damit ihr eigentlicher Inhalt — zweite Textebene, nicht dritte.
             value != null -> Text(
                 text = value,
-                style = MaterialTheme.typography.bodySmall,
-                color = BoulderBuddy.colors.textTertiary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = BoulderBuddy.colors.textSecondary,
             )
         }
     }

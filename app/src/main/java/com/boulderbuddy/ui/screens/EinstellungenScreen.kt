@@ -368,8 +368,9 @@ private fun NameAendernDialog(
                 Text(
                     text = "Wird auf dem Home-Screen zur Begrüßung genutzt. Leer lassen für eine " +
                         "neutrale Begrüßung.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = BoulderBuddy.colors.textTertiary,
+                    // Ein Satz gehört in einen Body-Stil, nicht in den Versalien-Label-Stil.
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
                 )
             }
         },
@@ -411,8 +412,8 @@ private fun GradingSystemeVerwaltenDialog(
                                 )
                                 Text(
                                     text = "${system.gradeCount} Grade",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = BoulderBuddy.colors.textTertiary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = BoulderBuddy.colors.textSecondary,
                                 )
                             }
                             if (system.deletable) {
@@ -426,8 +427,8 @@ private fun GradingSystemeVerwaltenDialog(
                             } else {
                                 Text(
                                     text = "Standard",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = BoulderBuddy.colors.textTertiary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = BoulderBuddy.colors.textSecondary,
                                 )
                             }
                         }
@@ -467,8 +468,8 @@ private fun GradingSystemAnlegenDialog(
                 )
                 Text(
                     text = "Grade (von leicht nach schwer)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = BoulderBuddy.colors.textTertiary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
                 )
                 labels.forEachIndexed { index, label ->
                     Row(

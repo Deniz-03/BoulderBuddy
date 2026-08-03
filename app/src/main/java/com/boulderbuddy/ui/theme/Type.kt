@@ -105,10 +105,22 @@ val Typography = Typography(
         letterSpacing = 0.1.sp,
     ),
 
-    // --- Body: Fließtext ---------------------------------------------------------------
-    // letterSpacing 0 statt der 0,5 sp aus der Vorlage: ein halber Punkt Sperrung auf 16 sp
-    // lässt Absätze auseinanderfallen. Die Vorlagenwerte stammen aus Materials eigener
-    // Schrift, nicht aus dieser.
+    // --- Body: alles, was GELESEN wird ---------------------------------------------------
+    //
+    // Die Trennung zu den Label-Stilen unten ist keine Formalie, sondern die Regel, an der
+    // sich diese Skala entscheidet:
+    //
+    //   Body  = Text, den man liest — Sätze, Erklärungen, Werte, Legenden.
+    //   Label = Text, den man *wiedererkennt* — Versalien-Überschriften, Chips, Badges.
+    //
+    // Label-Stile sind kleiner und stärker gesperrt. Beides hilft beim Wiedererkennen und
+    // schadet beim Lesen. Ein erklärender Satz in `labelSmall` ist deshalb schlecht lesbar,
+    // auch wenn seine Farbe jeden Kontrastwert hält — genau das war in den Einstellungen der
+    // Fall, wo Unterzeilen und Werte im Versalien-Label-Stil gesetzt waren.
+    //
+    // letterSpacing 0 auf bodyLarge statt der 0,5 sp aus der Vorlage: ein halber Punkt
+    // Sperrung auf 16 sp lässt Absätze auseinanderfallen. Die Vorlagenwerte stammen aus
+    // Materials eigener Schrift, nicht aus dieser.
     bodyLarge = TextStyle(
         fontFamily = Schrift,
         fontWeight = FontWeight.Normal,
@@ -123,6 +135,9 @@ val Typography = Typography(
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp,
     ),
+    // Die kleinste **lesbare** Stufe: Unterzeilen in Einstellungen, Werte rechts in
+    // Listenzeilen, Diagramm-Legenden. Nicht kleiner als 13 sp und fast ungesperrt — das ist
+    // die Grenze, unter der ein Satz mühsam wird, egal wie kräftig seine Farbe ist.
     bodySmall = TextStyle(
         fontFamily = Schrift,
         fontWeight = FontWeight.Normal,
@@ -149,13 +164,18 @@ val Typography = Typography(
         lineHeight = 16.sp,
         letterSpacing = 0.4.sp,
     ),
-    // Uppercase-Abschnittslabels („HALLE / ORT", „GRADING-SYSTEM"). Die starke Sperrung
-    // gehört ins Theme, damit sie nicht in jeder Komponente einzeln hartkodiert wird —
+    // **Nur für Versalien-Abschnittslabels** („HALLE / ORT", „GRADING-SYSTEM"). Die starke
+    // Sperrung gehört ins Theme, damit sie nicht in jeder Komponente hartkodiert wird —
     // Versalien ohne Sperrung wirken gedrängt.
+    //
+    // Für Sätze, Werte oder Legenden ist dieser Stil die falsche Wahl: klein plus gesperrt
+    // plus Medium ist auf Wiedererkennung ausgelegt, nicht auf Lesen. Dafür gibt es
+    // `bodySmall`. Von 11 auf 12 sp angehoben — 11 sp lag auch für ein Label unter dem,
+    // was auf einem Telefon in einer Halle noch komfortabel ist.
     labelSmall = TextStyle(
         fontFamily = Schrift,
         fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
+        fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 1.sp,
     ),
