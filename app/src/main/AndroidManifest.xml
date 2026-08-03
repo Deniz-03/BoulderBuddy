@@ -14,6 +14,17 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!--
+      Eigener Aufnahme-Screen (CameraX) für Boulder-Fotos/-Videos und Ghost-Climber-Aufnahmen.
+      Der Ton von Videoaufnahmen läuft über das oben bereits deklarierte RECORD_AUDIO.
+      `required="false"`: die App bleibt auf Geräten ohne Kamera installierbar — dort fällt
+      der Aufnahme-Weg weg, die Galerie-Auswahl funktioniert weiter.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+
+    <!--
       Package Visibility (ab API 30): ohne diese Abfrage meldet SpeechRecognizer.isRecognitionAvailable()
       false und der Intent-Fallback findet keine Ziel-Activity, obwohl ein Erkenner installiert ist.
     -->
@@ -47,6 +58,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Macht die app-internen Aufnahmen unter `filesDir/aufnahmen/` als `content://`-URI
+          adressierbar. Nicht exportiert: nur die App selbst greift darauf zu — geteilt wird
+          nichts, die Aufnahmen bleiben in der App-Sandbox.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Homescreen-Widget (Phase 7.4c): aktive Session / Tops / Schnellstart. -->
         <receiver

@@ -55,6 +55,13 @@ object HangboardHistorie  // -> HangboardHistorieScreen
 // Push-Ziele MIT Argument:
 // -----------------------------------------------------------------------------
 
+// Eigener Aufnahme-Screen auf CameraX (7.4d). `auftrag` ist der Name eines
+// CaptureAuftrag-Eintrags — als String, weil @Serializable-Routen keine Enums tragen.
+// Das Ergebnis geht NICHT über diese Route zurück, sondern über den savedStateHandle des
+// vorigen Back-Stack-Eintrags (siehe KAMERA_ERGEBNIS in AppNavigation).
+@Serializable
+data class KameraAufnahme(val auftrag: String)   // -> KameraScreen
+
 @Serializable
 data class BoulderDetail(val boulderId: Int)   // -> BoulderDetailScreen
 

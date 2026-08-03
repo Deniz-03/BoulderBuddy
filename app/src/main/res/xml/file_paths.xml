@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Freigabepfade des FileProvider (Phase 7.4d, CameraX-Aufnahmen).
+
+  Aufnahmen liegen app-intern unter `filesDir/aufnahmen/`. Der FileProvider macht daraus
+  `content://`-URIs — nötig, weil die App den Medientyp über `contentResolver.getType()`
+  ableitet (`MediaType.kt`) und Coil/Media3 mit `content://` arbeiten. Eine rohe
+  `file://`-URI beantwortet `getType()` nicht zuverlässig.
+-->
+<paths>
+    <files-path
+        name="aufnahmen"
+        path="aufnahmen/" />
+</paths>
