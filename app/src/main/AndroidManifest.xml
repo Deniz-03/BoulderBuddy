@@ -5,6 +5,27 @@
     <!-- Vibration bei Timer-Phasenwechseln (Schalter „Haptisches Feedback"). -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!--
+      Spracheingabe in Notizfeldern (Weg A): Die App spricht den SpeechRecognizer direkt an und
+      zeigt eine eigene Aufnahme-UI. Damit nimmt sie selbst auf und braucht RECORD_AUDIO.
+      Wird die Freigabe verweigert, fällt SpeechToTextButton auf den System-RecognizerIntent
+      zurück — der läuft in der Erkenner-App und kommt ohne diese Permission aus.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
+      Package Visibility (ab API 30): ohne diese Abfrage meldet SpeechRecognizer.isRecognitionAvailable()
+      false und der Intent-Fallback findet keine Ziel-Activity, obwohl ein Erkenner installiert ist.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
     <application
         android:name=".BoulderBuddyApp"
         android:allowBackup="true"
