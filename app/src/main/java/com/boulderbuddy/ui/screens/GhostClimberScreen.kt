@@ -52,7 +52,6 @@ import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.GhostClimberUiState
 import com.boulderbuddy.ui.viewmodel.GhostRole
 import com.boulderbuddy.ui.viewmodel.GhostStep
@@ -121,7 +120,7 @@ fun GhostClimberScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },

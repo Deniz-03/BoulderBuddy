@@ -54,7 +54,6 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.theme.keyForRouteColor
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.theme.routeColorPalette
@@ -158,7 +157,7 @@ fun RouteHinzufuegenScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },

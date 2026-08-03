@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.theme.dotPattern
 import androidx.compose.ui.tooling.preview.Preview
 
@@ -68,7 +67,7 @@ private fun BoulderBuddyScaffoldFullPreview() {
                             Icon(
                                 imageVector = Icons.Outlined.Settings,
                                 contentDescription = "Einstellungen",
-                                tint = M3OnPrimary,
+                                tint = BoulderBuddy.colors.onChrome,
                             )
                         }
                     },

@@ -21,16 +21,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
-
-private val TopBarSubtitleColor = Color(0xFFBBB5A5)
 
 @Composable
 fun TopBar(
@@ -40,8 +39,23 @@ fun TopBar(
     navIcon: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
 ) {
+    // Trennlinie nach unten statt Farbunterschied: seit das Chrome mitdreht, ist es im
+    // Light Mode nahezu so hell wie der Inhalt und braucht eine Kante, um als Leiste zu
+    // lesen. Im Dark Mode schadet sie nicht — dort trennt zusätzlich die Helligkeit.
+    // Die Farbe wird außerhalb von drawBehind gelesen: der DrawScope ist kein Composable
+    // und kommt an das Theme nicht heran.
+    val randfarbe = BoulderBuddy.colors.borderSubtle
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .drawBehind {
+                val staerke = 1.dp.toPx()
+                drawRect(
+                    color = randfarbe,
+                    topLeft = Offset(0f, size.height - staerke),
+                    size = Size(size.width, staerke),
+                )
+            },
         color = BoulderBuddy.colors.surfaceChrome,
     ) {
         Row(
@@ -71,13 +85,13 @@ fun TopBar(
                         MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
                     else
                         MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = M3OnPrimary,
+                    color = BoulderBuddy.colors.onChrome,
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TopBarSubtitleColor,
+                        color = BoulderBuddy.colors.textSecondary,
                     )
                 }
             }
@@ -114,7 +128,7 @@ private fun TopBarWithBackPreview() {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Zurück",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
             },
@@ -134,7 +148,7 @@ private fun TopBarGreetingPreview() {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = "Einstellungen",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
             },
@@ -153,14 +167,14 @@ private fun TopBarMultiActionPreview() {
                     Icon(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = "Suchen",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
                 IconButton(onClick = {}) {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = "Einstellungen",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
             },

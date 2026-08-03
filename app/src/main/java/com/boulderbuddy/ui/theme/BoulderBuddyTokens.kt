@@ -41,12 +41,17 @@ data class BoulderBuddyColors(
     val surfaceCard: Color,
 
     /**
-     * Chrome: TopBar und Bottom-Nav. Bleibt in **beiden** Themes dunkel — es rahmt den Inhalt,
-     * und ein im Dark Mode plötzlich helles Chrome würde blenden. Inhalt darauf: [onChrome].
+     * Chrome: TopBar und Bottom-Nav.
+     *
+     * **Dreht mit dem Theme.** Vorher war es in beiden Themes fast-schwarz, und der Light Mode
+     * sah deshalb nicht nach Light Mode aus: der Inhalt war creme, aber Kopf- und Fußleiste
+     * waren das Dunkelste am Bildschirm. Jetzt hell im Light Mode, dunkel im Dark Mode; die
+     * Trennung zum Inhalt leistet in beiden Fällen [borderSubtle], nicht die Farbe.
+     * Inhalt darauf: [onChrome].
      */
     val surfaceChrome: Color,
 
-    /** Beschriftungen und Icons auf [surfaceChrome]. */
+    /** Beschriftungen und Icons auf [surfaceChrome]. Dreht mit [surfaceChrome]. */
     val onChrome: Color,
 
     /**
@@ -74,8 +79,21 @@ data class BoulderBuddyColors(
      */
     val borderSubtle: Color,
 
-    /** Akzent des aktiven Bottom-Nav-Eintrags. Sitzt immer auf [surfaceChrome]. */
+    /**
+     * Markenakzent auf dem Chrome: der aktive Bottom-Nav-Eintrag.
+     *
+     * Muss mitdrehen, seit das Chrome mitdreht. Der frühere helle Rosé hatte auf schwarzem
+     * Chrome 6,4:1 — auf hellem Chrome wären es 2,2:1 gewesen. Gleiche Farbe, anderer
+     * Untergrund, unbrauchbarer Wert.
+     */
     val navActive: Color,
+
+    /**
+     * Derselbe Akzent für Flächen des Inhalts statt des Chromes — die Beschriftung von
+     * Textbuttons in Dialogen. Eigener Wert, weil Dialoge auf einer anderen Fläche liegen
+     * als das Chrome.
+     */
+    val accentOnSurface: Color,
 
     val routes: RouteColors,
 )

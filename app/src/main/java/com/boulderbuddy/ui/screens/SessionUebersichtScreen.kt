@@ -42,7 +42,6 @@ import com.boulderbuddy.ui.components.UebersichtTopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import androidx.compose.ui.graphics.Color
 import com.boulderbuddy.ui.viewmodel.SessionListItemUi
 import com.boulderbuddy.ui.viewmodel.SessionListUiState
@@ -79,7 +78,7 @@ fun SessionUebersichtScreen(
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },

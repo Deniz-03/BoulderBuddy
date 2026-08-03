@@ -5,25 +5,65 @@ import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
 
 /**
- * Rechnet jede Farbpaarung nach, die in der App tatsächlich vorkommt.
+ * Rechnet jede Farbpaarung nach, die in der App vorkommen kann.
  *
  * **Warum es diesen Test gibt:** Der Dark Mode paarte eine dunkle Füllfläche mit dunklem Text
- * — gemessen 1,42:1, praktisch unsichtbar. Aufgefallen ist das erst, als ein Nutzer sagte
- * „im Dark Mode kann man gar nichts lesen". Aus dem Code war es nicht zu sehen, weil beide
- * Farben **einzeln** plausibel aussahen; falsch war nur ihr Verhältnis. Genau das prüft ein
- * Blick auf eine Farbliste nie und ein Test immer.
+ * — gemessen 1,42:1. Aus dem Code war das nicht zu sehen, weil beide Farben **einzeln**
+ * plausibel aussahen; falsch war nur ihr Verhältnis.
  *
- * Die Werte kommen aus `PaletteHex.kt` — derselben Quelle, aus der `Color.kt` seine Farben
- * baut. Der Test kann also nicht gegen eine veraltete Kopie laufen.
+ * **Warum er in dieser Form aussieht:** Die erste Fassung prüfte eine *Liste* von Paarungen —
+ * und fand deshalb nur, was jemand aufgeschrieben hatte. Sie übersah, dass Dialoge und Menüs
+ * gar nicht auf `surface` liegen, sondern auf `surfaceContainerHigh`; dort landete die dritte
+ * Textebene bei 4,45:1. Ein Test, der eine Auswahl prüft, ist so gut wie die Auswahl.
  *
- * Konvention der Testnamen: `<was>_<auf welchem Grund>_<Schwelle>`.
+ * Deshalb jetzt **Kreuzprodukt**: jede Textfarbe gegen *alle* Flächen ihres Themes. Neue
+ * Flächen und neue Textfarben werden dadurch automatisch mitgeprüft, sobald sie in den
+ * Listen unten stehen — und dort zu fehlen ist der einzige verbleibende Weg, etwas zu
+ * übersehen.
  */
 class PaletteContrastTest {
 
+    /** Alle Flächen, auf denen im Light Mode Text landen kann. */
+    private val lightFlaechen = mapOf(
+        "Hintergrund" to HEX_LIGHT_BACKGROUND,
+        "Card" to HEX_LIGHT_CARD,
+        "Chrome" to HEX_LIGHT_CHROME,
+        "Container" to HEX_LIGHT_SURFACE_CONTAINER,
+        "Dialog/Menü" to HEX_LIGHT_SURFACE_HIGH,
+        "höchste Fläche" to HEX_LIGHT_SURFACE_HIGHEST,
+        "weiß" to HEX_LIGHT_SURFACE_LOWEST,
+    )
+
+    private val darkFlaechen = mapOf(
+        "Hintergrund" to HEX_DARK_BACKGROUND,
+        "Card" to HEX_DARK_CARD,
+        "Chrome" to HEX_DARK_CHROME,
+        "tiefste Fläche" to HEX_DARK_SURFACE_LOWEST,
+        "niedrige Fläche" to HEX_DARK_SURFACE_LOW,
+        "Dialog/Menü" to HEX_DARK_SURFACE_HIGH,
+        "höchste Fläche" to HEX_DARK_SURFACE_HIGHEST,
+    )
+
     /**
-     * Die Fehlermeldung nennt den gemessenen Wert. Ohne ihn stünde beim Fehlschlag nur
-     * „expected at least 4.5" da, und man müsste selbst nachrechnen, wie weit es daneben lag.
+     * Alle Textfarben, die auf einer Inhaltsfläche landen können — inklusive des Akzents:
+     * er ist die Beschriftung von Textbuttons, und Material setzt ihn als `primary` überall
+     * dort ein, wo es selbst zeichnet. Ihn aus dem Kreuzprodukt zu lassen wäre genau die
+     * Auslassung, die diesen Test beim letzten Mal blind gemacht hat.
      */
+    private val lightTexte = mapOf(
+        "Primärtext" to HEX_LIGHT_ON_SURFACE,
+        "textSecondary" to HEX_LIGHT_TEXT_SECONDARY,
+        "textTertiary" to HEX_LIGHT_TEXT_TERTIARY,
+        "Akzent" to HEX_LIGHT_ACCENT_ON_SURFACE,
+    )
+
+    private val darkTexte = mapOf(
+        "Primärtext" to HEX_DARK_ON_SURFACE,
+        "textSecondary" to HEX_DARK_TEXT_SECONDARY,
+        "textTertiary" to HEX_DARK_TEXT_TERTIARY,
+        "Akzent" to HEX_DARK_ACCENT_ON_SURFACE,
+    )
+
     private fun pruefe(label: String, vg: Long, hg: Long, schwelle: Double) {
         val r = kontrastVerhaeltnis(vg, hg)
         // Truth ersetzt in seinen Meldungen ausschließlich %s — Zahlenformate müssen deshalb
@@ -32,7 +72,44 @@ class PaletteContrastTest {
         assertWithMessage(meldung).that(r).isAtLeast(schwelle)
     }
 
-    // --- Der behobene Fehler -------------------------------------------------
+    private fun kreuzPruefung(
+        theme: String,
+        texte: Map<String, Long>,
+        flaechen: Map<String, Long>,
+    ) {
+        texte.forEach { (textName, text) ->
+            flaechen.forEach { (flaecheName, flaeche) ->
+                pruefe("$theme: $textName auf $flaecheName", text, flaeche, TEXT)
+            }
+        }
+    }
+
+    // --- Das Kreuzprodukt: jede Textebene auf jeder Fläche -------------------
+
+    @Test
+    fun jedeTextebene_haeltAufJederLightFlaeche() {
+        kreuzPruefung("Light", lightTexte, lightFlaechen)
+    }
+
+    @Test
+    fun jedeTextebene_haeltAufJederDarkFlaeche() {
+        kreuzPruefung("Dark", darkTexte, darkFlaechen)
+    }
+
+    @Test
+    fun rand_haeltAufJederFlaeche() {
+        // WCAG 1.4.11: 3:1 für Grenzen, die ein Bedienelement identifizieren. Der Rand
+        // trägt hier die Abgrenzung von Karte, Eingabefeld, ungewähltem Chip — und seit dem
+        // hellen Chrome auch die Kante zwischen TopBar und Inhalt.
+        lightFlaechen.forEach { (name, flaeche) ->
+            pruefe("Light: Rand auf $name", HEX_LIGHT_BORDER, flaeche, UI)
+        }
+        darkFlaechen.forEach { (name, flaeche) ->
+            pruefe("Dark: Rand auf $name", HEX_DARK_BORDER, flaeche, UI)
+        }
+    }
+
+    // --- Gefüllte Elemente ---------------------------------------------------
 
     @Test
     fun primaerbutton_beschriftungAufFuellung_beideThemes() {
@@ -51,64 +128,37 @@ class PaletteContrastTest {
 
     @Test
     fun primaerbutton_hebtSichVomHintergrundAb() {
-        // Der zweite Teil desselben Problems: ein lesbarer Button, den man auf dem Screen
-        // nicht findet, ist auch keine primäre Aktion. Deshalb dreht fillStrong im Dark Mode
-        // auf hell statt nur minimal aufgehellt zu werden.
+        // Ein lesbarer Button, den man auf dem Screen nicht findet, ist auch keine primäre
+        // Aktion. Deshalb dreht fillStrong im Dark Mode auf hell.
         pruefe("Light: fillStrong auf Hintergrund", HEX_LIGHT_FILL_STRONG, HEX_LIGHT_BACKGROUND, UI)
         pruefe("Dark: fillStrong auf Hintergrund", HEX_DARK_FILL_STRONG, HEX_DARK_BACKGROUND, UI)
-    }
-
-    // --- Text auf den drei Flächen -------------------------------------------
-
-    @Test
-    fun primaertext_aufAllenFlaechen() {
-        pruefe("Light: onSurface auf Hintergrund", HEX_LIGHT_ON_SURFACE, HEX_LIGHT_BACKGROUND, TEXT)
-        pruefe("Light: onSurface auf Card", HEX_LIGHT_ON_SURFACE, HEX_LIGHT_CARD, TEXT)
-        pruefe("Dark: onSurface auf Hintergrund", HEX_DARK_ON_SURFACE, HEX_DARK_BACKGROUND, TEXT)
-        pruefe("Dark: onSurface auf Card", HEX_DARK_ON_SURFACE, HEX_DARK_CARD, TEXT)
-    }
-
-    @Test
-    fun textSecondary_aufAllenFlaechen() {
-        pruefe("Light: textSecondary auf Hintergrund", HEX_LIGHT_TEXT_SECONDARY, HEX_LIGHT_BACKGROUND, TEXT)
-        pruefe("Light: textSecondary auf Card", HEX_LIGHT_TEXT_SECONDARY, HEX_LIGHT_CARD, TEXT)
-        pruefe("Dark: textSecondary auf Hintergrund", HEX_DARK_TEXT_SECONDARY, HEX_DARK_BACKGROUND, TEXT)
-        pruefe("Dark: textSecondary auf Card", HEX_DARK_TEXT_SECONDARY, HEX_DARK_CARD, TEXT)
-    }
-
-    @Test
-    fun textTertiary_aufAllenFlaechen() {
-        // Die dritte Ebene lag im Light Mode bei 2,93:1 und riss damit sogar die
-        // 3:1-Schwelle. An ihr hängen alle Uppercase-Labels, Platzhalter und EmptyState-Texte
-        // — sie ist kein Randfall, sondern ein großer Teil der sichtbaren Schrift.
-        pruefe("Light: textTertiary auf Hintergrund", HEX_LIGHT_TEXT_TERTIARY, HEX_LIGHT_BACKGROUND, TEXT)
-        pruefe("Light: textTertiary auf Card", HEX_LIGHT_TEXT_TERTIARY, HEX_LIGHT_CARD, TEXT)
-        pruefe("Dark: textTertiary auf Hintergrund", HEX_DARK_TEXT_TERTIARY, HEX_DARK_BACKGROUND, TEXT)
-        pruefe("Dark: textTertiary auf Card", HEX_DARK_TEXT_TERTIARY, HEX_DARK_CARD, TEXT)
     }
 
     // --- Chrome: TopBar und Bottom-Nav ---------------------------------------
 
     @Test
-    fun chrome_inhaltUndAkzent() {
+    fun chrome_inhaltUndBeideNavZustaende() {
         pruefe("Light: onChrome auf Chrome", HEX_LIGHT_ON_CHROME, HEX_LIGHT_CHROME, TEXT)
         pruefe("Dark: onChrome auf Chrome", HEX_DARK_ON_CHROME, HEX_DARK_CHROME, TEXT)
-        // Der aktive Nav-Eintrag ist ein Bedienelement-Zustand, kein Fließtext → 3:1.
-        pruefe("Light: navActive auf Chrome", HEX_NAV_ACTIVE, HEX_LIGHT_CHROME, UI)
-        pruefe("Dark: navActive auf Chrome", HEX_NAV_ACTIVE, HEX_DARK_CHROME, UI)
+
+        // Der aktive Nav-Eintrag trägt eine 11-sp-Beschriftung, nicht nur ein Icon — deshalb
+        // die Textschwelle und nicht 3:1. Der frühere helle Rosé hätte auf hellem Chrome
+        // 2,2:1 erreicht; er war nur deshalb in Ordnung, weil das Chrome schwarz war.
+        pruefe("Light: navActive auf Chrome", HEX_LIGHT_ACCENT, HEX_LIGHT_CHROME, TEXT)
+        pruefe("Dark: navActive auf Chrome", HEX_DARK_ACCENT, HEX_DARK_CHROME, TEXT)
+
+        // Der inaktive Eintrag ist textTertiary und wird oben im Kreuzprodukt mitgeprüft —
+        // er war vorher ein Alpha-Wert auf der Inhaltsfarbe und lag bei 3,94:1.
     }
 
-    // --- Ränder --------------------------------------------------------------
-
     @Test
-    fun rand_grenztKarteUndFeldAufBeidenFlaechenAb() {
-        // Der Rand trägt die Abgrenzung allein: die Flächenstufe Card-zu-Hintergrund liegt
-        // bei rund 1,16:1 und ist als alleinige Grenze zu fein. WCAG 1.4.11 verlangt 3:1 für
-        // Grenzen, die ein Bedienelement identifizieren — und Eingabefeld wie Chip sind das.
-        pruefe("Light: Rand auf Card", HEX_LIGHT_BORDER, HEX_LIGHT_CARD, UI)
-        pruefe("Light: Rand auf Hintergrund", HEX_LIGHT_BORDER, HEX_LIGHT_BACKGROUND, UI)
-        pruefe("Dark: Rand auf Card", HEX_DARK_BORDER, HEX_DARK_CARD, UI)
-        pruefe("Dark: Rand auf Hintergrund", HEX_DARK_BORDER, HEX_DARK_BACKGROUND, UI)
+    fun markenakzent_haeltAufDenInhaltsflaechen() {
+        // Beschriftung von Textbuttons in Dialogen. Eigener Wert, weil Dialoge nicht auf
+        // dem Chrome liegen — derselbe Fehler wie beim Nav-Akzent, nur andersherum.
+        pruefe("Light: Akzent auf Dialog", HEX_LIGHT_ACCENT_ON_SURFACE, HEX_LIGHT_SURFACE_HIGH, TEXT)
+        pruefe("Light: Akzent auf Card", HEX_LIGHT_ACCENT_ON_SURFACE, HEX_LIGHT_CARD, TEXT)
+        pruefe("Dark: Akzent auf Dialog", HEX_DARK_ACCENT_ON_SURFACE, HEX_DARK_SURFACE_HIGH, TEXT)
+        pruefe("Dark: Akzent auf Card", HEX_DARK_ACCENT_ON_SURFACE, HEX_DARK_CARD, TEXT)
     }
 
     // --- Was der Test bewusst NICHT fordert ----------------------------------
@@ -116,7 +166,7 @@ class PaletteContrastTest {
     @Test
     fun flaechenstufe_istBewusstFeinUndDarfDieSchwelleReissen() {
         // Card gegen Hintergrund liegt unter 3:1 und soll das auch. Die Stufe ist eine
-        // Andeutung von Tiefe, keine Grenze — die Grenze zieht der Rand (Test darüber).
+        // Andeutung von Tiefe, keine Grenze — die Grenze zieht der Rand (Test oben).
         // Festgehalten, damit niemand die Zahl später „repariert" und das Design verhärtet.
         val light = kontrastVerhaeltnis(HEX_LIGHT_CARD, HEX_LIGHT_BACKGROUND)
         val dark = kontrastVerhaeltnis(HEX_DARK_CARD, HEX_DARK_BACKGROUND)
@@ -130,11 +180,24 @@ class PaletteContrastTest {
     fun routeAkzente_sindFlaechenfarbenUndKeineTextfarben() {
         // Gelb erreicht auf der Card nur rund 2,3:1. Das ist in Ordnung, solange die
         // Route-Farben als Rand oder Punkt auftreten — als Textfarbe wären sie unlesbar.
-        // Der Test hält fest, warum die Farbe trotz schwachem Kontrast bleiben darf.
         val gelbAufCard = kontrastVerhaeltnis(HEX_ROUTE_YELLOW, HEX_LIGHT_CARD)
         assertThat(gelbAufCard).isLessThan(TEXT)
-        // Als Fläche gegen den Hintergrund ist sie dagegen klar zu erkennen.
         assertThat(kontrastVerhaeltnis(HEX_ROUTE_YELLOW, HEX_LIGHT_BACKGROUND)).isGreaterThan(1.8)
+    }
+
+    @Test
+    fun chrome_dreht_zwischenDenThemes() {
+        // Der Kern der Light-Mode-Korrektur: das Chrome ist im Light Mode hell und im Dark
+        // Mode dunkel. Vorher war es in beiden Themes fast-schwarz — der Light Mode sah
+        // deshalb nicht nach Light Mode aus. Ein Zahlenwert, der das festhält, verhindert,
+        // dass die Entscheidung beim nächsten Aufräumen unbemerkt zurückgedreht wird.
+        val chromeHellerAlsInhaltImLight =
+            kontrastVerhaeltnis(HEX_LIGHT_CHROME, 0xFF000000) >
+                kontrastVerhaeltnis(HEX_LIGHT_BACKGROUND, 0xFF000000)
+        val chromeDunkelImDark =
+            kontrastVerhaeltnis(HEX_DARK_CHROME, 0xFFFFFFFF) > 10.0
+        assertThat(chromeHellerAlsInhaltImLight).isTrue()
+        assertThat(chromeDunkelImDark).isTrue()
     }
 
     // --- Die Formel selbst ---------------------------------------------------

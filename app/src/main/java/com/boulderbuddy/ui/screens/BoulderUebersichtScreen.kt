@@ -34,9 +34,9 @@ import com.boulderbuddy.ui.components.FilterChip
 import com.boulderbuddy.ui.components.RouteCard
 import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.UebersichtTopBar
+import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import androidx.compose.ui.graphics.Color
 import com.boulderbuddy.ui.viewmodel.BoulderOverviewItemUi
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtUiState
@@ -105,14 +105,14 @@ fun BoulderUebersichtScreen(
                         Icon(
                             imageVector = if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,
                             contentDescription = if (searchOpen) "Suche schließen" else "Suchen",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },

@@ -44,7 +44,6 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 
 // Phase eines Hangboard-Satzes. Steuert Label-Text und Ring-Farbe.
 // HANG = aktiv hängen (grün), REST = Pause (orange), DONE = alle Sätze fertig.
@@ -131,10 +130,13 @@ fun HangboardTimerScreen(
                         } else {
                             "Smartwatch nicht verbunden"
                         },
+                        // Beide Farben sitzen auf dem Chrome und drehen deshalb mit dem
+                        // Theme. Der getrennte Zustand nimmt textTertiary statt eines
+                        // Alpha-Werts: 40 % Deckkraft ergab auf hellem Chrome 2,4:1.
                         tint = if (state.watchConnected) {
-                            M3OnPrimary
+                            BoulderBuddy.colors.onChrome
                         } else {
-                            M3OnPrimary.copy(alpha = 0.4f)
+                            BoulderBuddy.colors.textTertiary
                         },
                         modifier = Modifier.padding(horizontal = Dimens.paddingM),
                     )

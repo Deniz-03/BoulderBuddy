@@ -28,9 +28,9 @@ import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SessionListItem
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
+import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.HomeUiState
 import com.boulderbuddy.ui.viewmodel.LastSessionUi
 import androidx.compose.ui.graphics.Color
@@ -78,7 +78,7 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
