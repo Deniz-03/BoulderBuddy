@@ -31,7 +31,6 @@ import com.boulderbuddy.data.speech.SpeechInputState
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 
 /**
  * Eigene Aufnahme-UI der Spracheingabe (Weg A) — der Ersatz für den Google-Dialog.
@@ -133,23 +132,23 @@ private fun MikrofonIndikator(state: SpeechInputState) {
                 .size(KREIS_GROESSE + RING_MAX * ringPegel)
                 .clip(CircleShape)
                 .background(
-                    BoulderBuddy.colors.surfaceInverse.copy(alpha = RING_ALPHA * ringPegel),
+                    BoulderBuddy.colors.surfaceChrome.copy(alpha = RING_ALPHA * ringPegel),
                 ),
         )
         Box(
             modifier = Modifier
                 .size(KREIS_GROESSE)
                 .clip(CircleShape)
-                .background(BoulderBuddy.colors.surfaceInverse),
+                .background(BoulderBuddy.colors.surfaceChrome),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = if (fehlerhaft) Icons.Outlined.MicOff else Icons.Outlined.Mic,
                 // null: der Statustext daneben sagt bereits, was gerade passiert.
                 contentDescription = null,
-                // Cremefarbener Inhalt auf der dunklen Markenfläche — dieselbe Paarung wie
-                // TopBar und PrimaryButton, und im Dark Mode ebenso lesbar.
-                tint = M3OnPrimary,
+                // Inhalt auf der Chrome-Fläche. Das Chrome bleibt in beiden Themes dunkel,
+                // deshalb ist onChrome hier in beiden Themes creme.
+                tint = BoulderBuddy.colors.onChrome,
                 modifier = Modifier.size(Dimens.iconL),
             )
         }
@@ -169,7 +168,7 @@ private val RING_MAX = 28.dp
 private const val RING_ALPHA = 0.35f
 private val TEILTEXT_HOEHE = 64.dp
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun SpeechInputDialogHoertPreview() {
     BoulderBuddyTheme {
@@ -182,7 +181,7 @@ private fun SpeechInputDialogHoertPreview() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun SpeechInputDialogFehlerPreview() {
     BoulderBuddyTheme {

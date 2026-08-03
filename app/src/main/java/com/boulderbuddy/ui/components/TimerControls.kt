@@ -81,8 +81,8 @@ private fun CircleControl(
         onClick = onClick,
         modifier = Modifier.size(if (primary) ControlPrimarySize else ControlSecondarySize),
         shape = CircleShape,
-        color = if (primary) BoulderBuddy.colors.surfaceInverse else BoulderBuddy.colors.surfaceCard,
-        contentColor = if (primary) BoulderBuddy.colors.surfaceBackground else BoulderBuddy.colors.textSecondary,
+        color = if (primary) BoulderBuddy.colors.fillStrong else BoulderBuddy.colors.surfaceCard,
+        contentColor = if (primary) BoulderBuddy.colors.onFillStrong else BoulderBuddy.colors.textSecondary,
         border = if (primary) null else BorderStroke(Dimens.borderSubtle, BoulderBuddy.colors.borderSubtle),
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -95,7 +95,7 @@ private fun CircleControl(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun TimerControlsPreview() {
     BoulderBuddyTheme {

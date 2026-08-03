@@ -107,7 +107,7 @@ private fun SessionBadge(text: String, color: Color) {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun SessionListItemActivePreview() {
     BoulderBuddyTheme {
@@ -121,7 +121,7 @@ private fun SessionListItemActivePreview() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun SessionListItemPastPreview() {
     BoulderBuddyTheme {

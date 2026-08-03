@@ -60,7 +60,7 @@ fun BottomNav(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = BoulderBuddy.colors.surfaceInverse,
+        color = BoulderBuddy.colors.surfaceChrome,
     ) {
         Row(
             modifier = Modifier
@@ -144,7 +144,7 @@ private fun BottomNavTimerPreview() {
     }
 }
 
-@Preview(name = "Scaffold + TopBar + BottomNav", showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(name = "Scaffold + TopBar + BottomNav", showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun FullLayoutPreview() {
     BoulderBuddyTheme {

@@ -2,42 +2,57 @@ package com.boulderbuddy.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Surfaces
-val BoulderBuddySurfaceBackground = Color(0xFFF9F4E3)
-val BoulderBuddySurfacePattern    = Color(0xFFECE6CE)
-val BoulderBuddySurfaceCard       = Color(0xFFFFFCF2)
-val BoulderBuddySurfaceInverse    = Color(0xFF2B2B2B)
+// Compose-Farben des Designsystems. Die Werte selbst stehen in PaletteHex.kt — hier wird
+// ausschließlich verpackt. So prüft PaletteContrastTest dieselben Zahlen, die die App zeichnet.
 
-// Text & Borders
-val BoulderBuddyTextSecondary = Color(0xFF6B6040)
-val BoulderBuddyTextTertiary  = Color(0xFF9A8F6A)
-val BoulderBuddyBorderSubtle  = Color(0xFFC8BB8A)
-val BoulderBuddyNavActive     = Color(0xFFC9A89A)
+// --- Light: warmes Creme ------------------------------------------------------
+val BoulderBuddySurfaceBackground = Color(HEX_LIGHT_BACKGROUND)
+val BoulderBuddySurfacePattern    = Color(HEX_LIGHT_PATTERN)
+val BoulderBuddySurfaceCard       = Color(HEX_LIGHT_CARD)
+val BoulderBuddyBorderSubtle      = Color(HEX_LIGHT_BORDER)
+val BoulderBuddyOnSurface         = Color(HEX_LIGHT_ON_SURFACE)
+val BoulderBuddyTextSecondary     = Color(HEX_LIGHT_TEXT_SECONDARY)
+val BoulderBuddyTextTertiary      = Color(HEX_LIGHT_TEXT_TERTIARY)
+val BoulderBuddyChrome            = Color(HEX_LIGHT_CHROME)
+val BoulderBuddyOnChrome          = Color(HEX_LIGHT_ON_CHROME)
+val BoulderBuddyFillStrong        = Color(HEX_LIGHT_FILL_STRONG)
+val BoulderBuddyOnFillStrong      = Color(HEX_LIGHT_ON_FILL_STRONG)
 
-// M3 Seed (nach Theme Builder ggf. durch generierten LightColorScheme ersetzen)
-val M3Seed      = Color(0xFF7A6E6A)
-val M3OnPrimary = Color(0xFFF9F4E3)
+// --- Dark: warmes Fast-Schwarz ------------------------------------------------
+val BoulderBuddyDarkBackground    = Color(HEX_DARK_BACKGROUND)
+val BoulderBuddyDarkPattern       = Color(HEX_DARK_PATTERN)
+val BoulderBuddyDarkCard          = Color(HEX_DARK_CARD)
+val BoulderBuddyDarkBorderSubtle  = Color(HEX_DARK_BORDER)
+val BoulderBuddyDarkOnSurface     = Color(HEX_DARK_ON_SURFACE)
+val BoulderBuddyDarkTextSecondary = Color(HEX_DARK_TEXT_SECONDARY)
+val BoulderBuddyDarkTextTertiary  = Color(HEX_DARK_TEXT_TERTIARY)
+val BoulderBuddyDarkChrome        = Color(HEX_DARK_CHROME)
+val BoulderBuddyDarkOnChrome      = Color(HEX_DARK_ON_CHROME)
+val BoulderBuddyDarkFillStrong    = Color(HEX_DARK_FILL_STRONG)
+val BoulderBuddyDarkOnFillStrong  = Color(HEX_DARK_ON_FILL_STRONG)
 
-// --- Dark Mode (7.4a) --------------------------------------------------------
-// Warmer, dunkler Gegenpart zum cremefarbenen Light-Schema. Nur Flächen/Text/Border
-// flippen; die dunkle Marken-Füllfläche (surfaceInverse) + Route-Akzente bleiben,
-// weil sie überall mit cremefarbenem Inhalt gepaart sind (TopBar, Buttons, Chips).
-val BoulderBuddyDarkBackground = Color(0xFF15120D) // warmes Fast-Schwarz
-val BoulderBuddyDarkPattern    = Color(0xFF221E16) // dezente Punkte auf dem Hintergrund
-val BoulderBuddyDarkCard       = Color(0xFF221E16)
-val BoulderBuddyDarkOnSurface  = Color(0xFFF2ECDC) // warmes Off-White als Primärtext
-val BoulderBuddyDarkTextSecondary = Color(0xFFC0B594)
-val BoulderBuddyDarkTextTertiary  = Color(0xFF8C8264)
-val BoulderBuddyDarkBorderSubtle  = Color(0xFF3A342A)
-// surfaceInverse bleibt eine dunkle Fläche, im Dark Mode minimal aufgehellt, damit
-// Buttons/TopBar sich vom noch dunkleren Hintergrund abheben.
-val BoulderBuddyDarkSurfaceInverse = Color(0xFF33302A)
+// --- In beiden Themes gleich --------------------------------------------------
+val BoulderBuddyNavActive = Color(HEX_NAV_ACTIVE)
 
-// Route Accents – 7 Grifffarben (immer als 2dp BorderStroke verwenden)
-val RouteRed    = Color(0xFFE53935)
-val RouteOrange = Color(0xFFFB8C00)
-val RouteYellow = Color(0xFFC8A800) // gedunkelt – reines Gelb zu wenig Kontrast
-val RouteGreen  = Color(0xFF43A047)
-val RouteBlue   = Color(0xFF1E88E5)
-val RoutePurple = Color(0xFF8E24AA)
-val RoutePink   = Color(0xFFE91E63)
+// Seed für die von Material selbst gefärbten Bausteine (Ripple, Auswahlfarben in
+// AlertDialog/Switch). Die App färbt ihre eigenen Flächen über die Tokens oben.
+val M3Seed = Color(0xFF7A6E6A)
+
+/**
+ * Heller Inhalt auf dunkler Markenfläche.
+ *
+ * Früher wurde dafür `surfaceBackground` zweckentfremdet — solange der Hintergrund creme war,
+ * ergab das zufällig fast dieselbe Farbe. Im Dark Mode drehte der Hintergrund mit, der Text
+ * wurde dunkel auf dunkel (gemessen 1,42:1). Jetzt ein eigener Wert, der nicht mitdreht.
+ */
+val M3OnPrimary = Color(HEX_LIGHT_ON_CHROME)
+
+// Route-Akzente – 7 Grifffarben. Immer als Fläche oder Rand, nie als Textfarbe auf hellem
+// Grund: Gelb erreicht auf der Card nur 2,3:1 und wäre als Text unlesbar.
+val RouteRed    = Color(HEX_ROUTE_RED)
+val RouteOrange = Color(HEX_ROUTE_ORANGE)
+val RouteYellow = Color(HEX_ROUTE_YELLOW)
+val RouteGreen  = Color(HEX_ROUTE_GREEN)
+val RouteBlue   = Color(HEX_ROUTE_BLUE)
+val RoutePurple = Color(HEX_ROUTE_PURPLE)
+val RoutePink   = Color(HEX_ROUTE_PINK)

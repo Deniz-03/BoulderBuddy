@@ -35,9 +35,9 @@ import androidx.glance.unit.ColorProvider
 import kotlinx.coroutines.flow.first
 
 // Marken-Farben (an Color.kt angelehnt). Bewusst fest: ein Widget hat keinen App-Theme-Context.
-private val WidgetBg = Color(0xFFF9F4E3)
+private val WidgetBg = Color(0xFFF3ECD6)
 private val WidgetInk = Color(0xFF2B2B2B)
-private val WidgetCream = Color(0xFFF9F4E3)
+private val WidgetCream = Color(0xFFF3ECD6)
 private val WidgetSecondary = Color(0xFF6B6040)
 private val WidgetAccent = Color(0xFFC9A89A)
 

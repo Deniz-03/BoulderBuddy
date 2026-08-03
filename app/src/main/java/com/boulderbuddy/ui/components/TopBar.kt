@@ -42,7 +42,7 @@ fun TopBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = BoulderBuddy.colors.surfaceInverse,
+        color = BoulderBuddy.colors.surfaceChrome,
     ) {
         Row(
             modifier = Modifier

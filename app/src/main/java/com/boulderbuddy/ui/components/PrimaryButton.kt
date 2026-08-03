@@ -26,7 +26,11 @@ import com.boulderbuddy.ui.theme.Dimens
 // Primärer Aktions-Button für Formular-Screens ("Session starten", "Speichern").
 // Bewusst auf Surface(onClick) aufgebaut statt M3-Button: passt zur flachen
 // Designsprache (kein Schatten) und nutzt dieselbe Farbpaarung wie der gewählte
-// SelectableChip — dunkle Füllung (surfaceInverse) + heller Text (surfaceBackground).
+// SelectableChip — fillStrong als Füllung, onFillStrong als Inhalt.
+//
+// Das Paar dreht zwischen den Themes: Light dunkel-auf-hell, Dark hell-auf-dunkel. So bleibt
+// der Button in beiden Fällen das auffälligste Element. Früher stand hier surfaceInverse mit
+// surfaceBackground als Textfarbe — im Dark Mode ergab das 1,42:1, also unlesbar.
 //
 // Surface setzt die contentColor als LocalContentColor, daher erben Icon und Text
 // die Textfarbe automatisch — kein explizites tint/color nötig.
@@ -41,8 +45,8 @@ fun PrimaryButton(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = BoulderBuddy.colors.surfaceInverse,
-        contentColor = BoulderBuddy.colors.surfaceBackground,
+        color = BoulderBuddy.colors.fillStrong,
+        contentColor = BoulderBuddy.colors.onFillStrong,
     ) {
         Row(
             modifier = Modifier.padding(
@@ -69,7 +73,7 @@ fun PrimaryButton(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3, widthDp = 360)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6, widthDp = 360)
 @Composable
 private fun PrimaryButtonPreview() {
     BoulderBuddyTheme {

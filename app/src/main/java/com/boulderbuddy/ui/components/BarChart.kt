@@ -81,7 +81,7 @@ fun BarChart(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3, widthDp = 320)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6, widthDp = 320)
 @Composable
 private fun BarChartPreview() {
     BoulderBuddyTheme {

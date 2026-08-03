@@ -35,13 +35,13 @@ fun SelectableChip(
         onClick = onClick,
         modifier = modifier,
         shape = MaterialTheme.shapes.extraLarge,
-        color = if (selected) BoulderBuddy.colors.surfaceInverse else BoulderBuddy.colors.surfaceCard,
+        color = if (selected) BoulderBuddy.colors.fillStrong else BoulderBuddy.colors.surfaceCard,
         border = if (selected) null else BorderStroke(Dimens.borderSubtle, BoulderBuddy.colors.borderSubtle),
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
-            color = if (selected) BoulderBuddy.colors.surfaceBackground else BoulderBuddy.colors.textSecondary,
+            color = if (selected) BoulderBuddy.colors.onFillStrong else BoulderBuddy.colors.textSecondary,
             modifier = Modifier.padding(horizontal = Dimens.paddingL, vertical = Dimens.paddingS),
         )
     }
@@ -85,7 +85,7 @@ fun SelectableChipGroup(
 // wie auf dem Handy umbricht.
 // widthDp simuliert die Handy-Breite, damit FlowRow in der Preview wie auf dem
 // Gerät ins 2×2-Raster umbricht (in Annotationen sind Konstanten unvermeidbar).
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3, widthDp = 300)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6, widthDp = 300)
 @Composable
 private fun SelectableChipGroupPreview() {
     BoulderBuddyTheme {

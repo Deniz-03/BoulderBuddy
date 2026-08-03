@@ -33,9 +33,12 @@ private val ThumbSizeOn = 24.dp   // An: voller Thumb
 private val ThumbSizeOff = 16.dp  // Aus: kleinerer Thumb
 
 // An/Aus-Schalter für die Einstellungen. Bewusst als Custom-Switch statt M3-Switch:
-// es gibt keinen Schatten (flach, passend zur Designsprache). Der helle Thumb
-// (surfaceBackground) gleitet animiert zwischen links und rechts und wird dabei im
-// Aus-Zustand kleiner. Track dunkel im An-Zustand, dezent im Aus-Zustand.
+// es gibt keinen Schatten (flach, passend zur Designsprache). Der Thumb gleitet animiert
+// zwischen links und rechts und wird im Aus-Zustand kleiner.
+//
+// Track im An-Zustand ist `fillStrong` — dasselbe Paar wie beim PrimaryButton, also im Light
+// Mode dunkel und im Dark Mode hell. Der Thumb nimmt deshalb `onFillStrong` und nicht wie
+// früher den Screen-Hintergrund: nur so bleibt er in beiden Themes der Gegenpol zum Track.
 @Composable
 fun ToggleSwitch(
     checked: Boolean,
@@ -43,7 +46,7 @@ fun ToggleSwitch(
     modifier: Modifier = Modifier,
 ) {
     val trackColor =
-        if (checked) BoulderBuddy.colors.surfaceInverse else BoulderBuddy.colors.borderSubtle
+        if (checked) BoulderBuddy.colors.fillStrong else BoulderBuddy.colors.borderSubtle
     // Thumb gleitet von links (paddingXS) nach rechts (Track minus voller Thumb minus Inset).
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) TrackWidth - ThumbSizeOn - Dimens.paddingXS else Dimens.paddingXS,
@@ -72,12 +75,12 @@ fun ToggleSwitch(
                 .offset(x = thumbOffset)
                 .size(thumbSize)
                 .clip(CircleShape)
-                .background(BoulderBuddy.colors.surfaceBackground),
+                .background(BoulderBuddy.colors.onFillStrong),
         )
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun ToggleSwitchPreview() {
     BoulderBuddyTheme {

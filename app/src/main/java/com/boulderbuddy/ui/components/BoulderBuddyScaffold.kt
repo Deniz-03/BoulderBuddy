@@ -54,7 +54,7 @@ fun BoulderBuddyScaffold(
 
 // --- Previews ---
 
-@Preview(name = "Scaffold – vollständig", showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(name = "Scaffold – vollständig", showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun BoulderBuddyScaffoldFullPreview() {
     BoulderBuddyTheme {
@@ -94,7 +94,7 @@ private fun BoulderBuddyScaffoldFullPreview() {
     }
 }
 
-@Preview(name = "Scaffold – nur Content", showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(name = "Scaffold – nur Content", showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun BoulderBuddyScaffoldContentOnlyPreview() {
     BoulderBuddyTheme {

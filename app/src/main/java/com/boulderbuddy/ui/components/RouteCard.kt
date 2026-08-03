@@ -71,7 +71,7 @@ fun RouteCard(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun RouteCardPreview() {
     BoulderBuddyTheme {
@@ -91,7 +91,7 @@ private fun RouteCardPreview() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun RouteCardWithStatusPreview() {
     BoulderBuddyTheme {

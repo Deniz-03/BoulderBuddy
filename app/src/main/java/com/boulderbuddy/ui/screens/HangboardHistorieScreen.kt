@@ -89,7 +89,7 @@ fun HangboardHistorieScreen(
     )
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
 @Composable
 private fun HangboardHistorieScreenPreview() {
     BoulderBuddyTheme {
