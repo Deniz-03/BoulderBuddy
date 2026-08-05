@@ -42,6 +42,16 @@ object Dimens {
     val kachelMaxHoehe = 160.dp
 
     /**
+     * Obergrenze für eine Bild-/Videovorschau.
+     *
+     * Vorschauen sind über `aspectRatio` gebaut, ihre Höhe folgt also der Breite. Ohne Deckel
+     * wurde aus einem 16:9-Rahmen im Detail-Pane des Tablets eine Fläche von 920 × 517 dp —
+     * bei einem noch nicht gesetzten Foto ein riesiger leerer Rahmen mit einem kleinen
+     * Platzhalter-Icon in der Mitte.
+     */
+    val medienMaxBreite = 640.dp
+
+    /**
      * Mindesthöhe des Inhaltsbereichs einer TopBar (ohne Statusleiste).
      *
      * Vorher hatte jede Leiste die Höhe ihres Inhalts: eine mit Aktions-Icon war 72 dp hoch

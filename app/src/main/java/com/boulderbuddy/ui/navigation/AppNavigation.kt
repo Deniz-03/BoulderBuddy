@@ -35,7 +35,7 @@ import com.boulderbuddy.ui.components.SideNav
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.Breite
 import com.boulderbuddy.ui.theme.aktuelleBreite
-import com.boulderbuddy.ui.screens.BoulderDetailScreen
+import com.boulderbuddy.ui.screens.BoulderDetailRoute
 import com.boulderbuddy.ui.screens.BoulderUebersichtScreen
 import com.boulderbuddy.ui.screens.EinstellungenScreen
 import com.boulderbuddy.ui.screens.GhostClimberScreen
@@ -48,7 +48,6 @@ import com.boulderbuddy.ui.screens.SessionErstellenScreen
 import com.boulderbuddy.ui.screens.SessionRoute
 import com.boulderbuddy.ui.screens.SessionUebersichtScreen
 import com.boulderbuddy.ui.screens.StatistikScreen
-import com.boulderbuddy.ui.viewmodel.BoulderDetailViewModel
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtViewModel
 import com.boulderbuddy.ui.viewmodel.EinstellungenViewModel
 import com.boulderbuddy.ui.viewmodel.GhostClimberViewModel
@@ -311,19 +310,33 @@ fun AppNavigation(
             composable<BoulderUebersicht> {
                 val viewModel: BoulderUebersichtViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
-                BoulderUebersichtScreen(
-                    state = state,
-                    onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
-                    // Dropdown "Sessions": zurück auf die Sessions-Ansicht desselben Tabs
-                    // (Variante A); ersetzt Boulder, statt es zu stapeln.
-                    onOpenSessionOverview = {
-                        navController.navigate(Sessions) {
-                            popUpTo(BoulderUebersicht) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    },
-                    onOpenSettings = { navController.navigate(Einstellungen) },
-                )
+                // Dropdown "Sessions": zurück auf die Sessions-Ansicht desselben Tabs
+                // (Variante A); ersetzt Boulder, statt es zu stapeln.
+                val onOpenSessionOverview = {
+                    navController.navigate(Sessions) {
+                        popUpTo(BoulderUebersicht) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+                if (isWideLayout) {
+                    // Tablet: Raster + Detail nebeneinander, wie im Sessions-Tab.
+                    BoulderListDetail(
+                        state = state,
+                        onOpenSessionOverview = onOpenSessionOverview,
+                        onOpenSettings = { navController.navigate(Einstellungen) },
+                        onEditBoulder = { boulderId ->
+                            navController.navigate(RouteHinzufuegen(boulderId = boulderId))
+                        },
+                    )
+                } else {
+                    // Phone (Compact): unverändertes Push-Verhalten.
+                    BoulderUebersichtScreen(
+                        state = state,
+                        onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
+                        onOpenSessionOverview = onOpenSessionOverview,
+                        onOpenSettings = { navController.navigate(Einstellungen) },
+                    )
+                }
             }
             composable<RouteHinzufuegen> { entry ->
                 val viewModel: RouteHinzufuegenViewModel = hiltViewModel()
@@ -366,16 +379,13 @@ fun AppNavigation(
 
             // --- Push-Ziele mit Argument (typsicher aus toRoute()) --------------
             composable<BoulderDetail> { entry ->
-                val boulderId = entry.toRoute<BoulderDetail>().boulderId
-                val viewModel: BoulderDetailViewModel = hiltViewModel()
-                val state by viewModel.uiState.collectAsStateWithLifecycle()
-                BoulderDetailScreen(
-                    state = state,
+                BoulderDetailRoute(
+                    boulderId = entry.toRoute<BoulderDetail>().boulderId,
                     onBack = { navController.popBackStack() },
                     // Bearbeiten öffnet das Formular im Edit-Modus (vorbefüllt, aktualisiert die Route).
-                    onEdit = { navController.navigate(RouteHinzufuegen(boulderId = boulderId)) },
-                    onIncrementAttempts = viewModel::incrementAttempts,
-                    onDecrementAttempts = viewModel::decrementAttempts,
+                    onEdit = { boulderId ->
+                        navController.navigate(RouteHinzufuegen(boulderId = boulderId))
+                    },
                 )
             }
             composable<Session> { entry ->

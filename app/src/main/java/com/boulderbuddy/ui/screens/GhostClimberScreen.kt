@@ -52,6 +52,8 @@ import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.aktuelleBreite
+import com.boulderbuddy.ui.theme.Breite
 import com.boulderbuddy.ui.viewmodel.GhostClimberUiState
 import com.boulderbuddy.ui.viewmodel.GhostRole
 import com.boulderbuddy.ui.viewmodel.GhostStep
@@ -201,22 +203,78 @@ private fun SelectionStep(
         color = BoulderBuddy.colors.textSecondary,
     )
 
-    VideoSlotPicker(
-        title = "Referenz-Video",
-        slot = state.reference,
-        onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
-        onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
-    )
-    VideoSlotPicker(
-        title = "Vergleichs-Video",
-        slot = state.comparison,
-        onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
-        onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
-    )
+    /*
+     * Die beiden Auswahlflächen stehen ab Tablet-Breite NEBENEINANDER.
+     *
+     * Untereinander sind sie am Telefon richtig — dort ist kein Platz für etwas anderes. Am
+     * Tablet ergab dieselbe Anordnung zwei 16:9-Flächen von je ~1200 dp Breite, die zusammen
+     * über die Bildhöhe hinausreichten: man musste scrollen, um beide zu sehen. Ausgerechnet
+     * bei einem Schritt, dessen ganze Aufgabe der **Vergleich zweier Videos** ist, sah man nie
+     * beide gleichzeitig.
+     *
+     * Nebeneinander entspricht die Anordnung außerdem dem, was danach passiert: die
+     * Vergleichsansicht stellt dieselben zwei Videos nebeneinander.
+     */
+    val nebeneinander = aktuelleBreite() != Breite.Kompakt
+
+    if (nebeneinander) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingL),
+        ) {
+            VideoSlotPicker(
+                title = "Referenz-Video",
+                slot = state.reference,
+                onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
+                onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
+                modifier = Modifier.weight(1f),
+            )
+            VideoSlotPicker(
+                title = "Vergleichs-Video",
+                slot = state.comparison,
+                onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
+                onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    } else {
+        VideoSlotPicker(
+            title = "Referenz-Video",
+            slot = state.reference,
+            onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
+            onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
+        )
+        VideoSlotPicker(
+            title = "Vergleichs-Video",
+            slot = state.comparison,
+            onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
+            onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
+        )
+    }
 
     if (state.analyzing) {
-        AnalysisProgress(label = "Referenz", slot = state.reference)
-        AnalysisProgress(label = "Vergleich", slot = state.comparison)
+        // Der Fortschritt folgt der Anordnung darüber — zwei Balken untereinander unter zwei
+        // Flächen nebeneinander wären nicht mehr zuzuordnen.
+        if (nebeneinander) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingL),
+            ) {
+                AnalysisProgress(
+                    label = "Referenz",
+                    slot = state.reference,
+                    modifier = Modifier.weight(1f),
+                )
+                AnalysisProgress(
+                    label = "Vergleich",
+                    slot = state.comparison,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        } else {
+            AnalysisProgress(label = "Referenz", slot = state.reference)
+            AnalysisProgress(label = "Vergleich", slot = state.comparison)
+        }
     } else if (state.canAnalyze) {
         PrimaryButton(
             text = "Posen analysieren",
@@ -284,6 +342,7 @@ private fun VideoSlotPicker(
     slot: GhostVideoSlot,
     onSelected: (String) -> Unit,
     onAufnehmen: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -310,7 +369,10 @@ private fun VideoSlotPicker(
         )
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+    ) {
         SectionHeader(text = title)
         PhotoPicker(
             onClick = { zeigeQuellenwahl = true },
@@ -322,8 +384,15 @@ private fun VideoSlotPicker(
 }
 
 @Composable
-private fun AnalysisProgress(label: String, slot: GhostVideoSlot) {
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+private fun AnalysisProgress(
+    label: String,
+    slot: GhostVideoSlot,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+    ) {
         when {
             slot.track != null -> Text(
                 text = "$label: fertig (${slot.track.frames.size} Frames)",

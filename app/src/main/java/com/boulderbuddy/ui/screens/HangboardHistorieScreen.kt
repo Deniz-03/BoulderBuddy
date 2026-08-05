@@ -21,6 +21,7 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.HangboardHistorieEntryUi
 import com.boulderbuddy.ui.viewmodel.HangboardHistorieUiState
 
@@ -61,7 +62,13 @@ fun HangboardHistorieScreen(
                 )
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        // Eine reine Liste ohne Detailansicht: hier gibt es nichts, was die
+                        // zweite Bildhälfte füllen könnte. Über 1280 dp gezogen bestünde jede
+                        // Zeile aus einem Titel links und Abzeichen ganz rechts, mit einem
+                        // Meter Leere dazwischen.
+                        .inhaltsBreite(),
                     contentPadding = PaddingValues(
                         horizontal = Dimens.paddingL,
                         vertical = Dimens.paddingL,
