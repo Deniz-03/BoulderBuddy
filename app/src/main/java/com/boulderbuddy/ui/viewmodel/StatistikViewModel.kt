@@ -11,6 +11,11 @@ import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.components.BarChartEntry
+import com.boulderbuddy.ui.components.LinePoint
+import com.boulderbuddy.ui.model.Zeitraum
+import com.boulderbuddy.ui.model.eimerLabel
+import com.boulderbuddy.ui.model.eimerReihe
+import com.boulderbuddy.ui.model.eimerStart
 import com.boulderbuddy.ui.model.formatDayMonth
 import com.boulderbuddy.ui.model.formatHangTime
 import com.boulderbuddy.ui.model.istGetoppt
@@ -35,6 +40,21 @@ data class StatistikUiState(
     val activity: List<Float> = emptyList(),
     /** Konkreter Zeitraum der Heatmap, z.B. "6. Juli – 2. August"; leer = keine Angabe. */
     val activityRange: String = "",
+    // --- Verläufe über die Zeit ---
+    /**
+     * Routen je Zeitabschnitt, **unkumuliert** — ein Balken je Woche/Monat/Jahr, Abschnitte
+     * ohne Aktivität stehen mit 0 drin. Alle drei Körnungen werden vorgehalten, damit der
+     * Umschalter im Screen ohne neue Datenbankabfrage auskommt; die Datenmenge ist klein.
+     */
+    val routenVerlauf: Map<Zeitraum, List<BarChartEntry>> = emptyMap(),
+    /**
+     * Höchster getoppter Grad je Zeitabschnitt, **je Gradsystem** (Schlüssel = systemId).
+     *
+     * Die Trennung nach System ist keine Bequemlichkeit: `order` zählt pro System, und ein
+     * „V4" ist gegen ein „6b" nicht verrechenbar. Eine systemübergreifende Kurve wäre eine
+     * Linie durch zwei verschiedene Maßstäbe.
+     */
+    val gradVerlauf: Map<Zeitraum, Map<Int, List<LinePoint>>> = emptyMap(),
     // --- Hangboard-Training ---
     /** Anzahl abgeschlossener Hangboard-Workouts (Phone+Uhr, manuell+auto, auch ohne Session). */
     val hangboardWorkouts: Int = 0,
@@ -46,6 +66,10 @@ data class StatistikUiState(
 
 // Anzahl der Tage in der Aktivitäts-Heatmap (4 Wochen à 7 Tage).
 private const val ACTIVITY_DAYS = 28
+
+// Einheitliche Balkenfarbe der Verlaufs-Diagramme. Index in die Route-Palette, damit sie aus
+// demselben Vorrat stammt wie alles andere und nicht als Sonderfarbe danebensteht.
+private const val VERLAUF_FARBE_INDEX = 4
 
 @HiltViewModel
 class StatistikViewModel @Inject constructor(
@@ -89,6 +113,12 @@ class StatistikViewModel @Inject constructor(
             distributionBySystem = distributionBySystem,
             activity = activity(routes, sessionsById),
             activityRange = activityRange(),
+            routenVerlauf = Zeitraum.entries.associateWith { zeitraum ->
+                routenVerlauf(routes, sessionsById, zeitraum)
+            },
+            gradVerlauf = Zeitraum.entries.associateWith { zeitraum ->
+                gradVerlauf(topped, sessionsById, gradesById, zeitraum)
+            },
             hangboardWorkouts = hangboardWorkouts.size,
             hangboardSets = hangboardSets,
             // formatHangTime statt formatDurationShort: ein 30-Sekunden-Durchlauf würde beim
@@ -148,6 +178,80 @@ class StatistikViewModel @Inject constructor(
         return (0 until ACTIVITY_DAYS).map { offset ->
             val day = startDay.plusDays(offset.toLong())
             (countsByDay[day] ?: 0).toFloat() / max
+        }
+    }
+
+    /**
+     * Routen je Zeitabschnitt — **unkumuliert**: jeder Balken zählt nur, was in *diesem*
+     * Abschnitt geklettert wurde.
+     *
+     * Abschnitte ohne Aktivität erscheinen mit dem Wert 0 und nicht etwa gar nicht. Das ist
+     * der Punkt der Darstellung: eine Lücke im Training soll als Lücke sichtbar sein und
+     * nicht dadurch verschwinden, dass zwei aktive Wochen nebeneinander rutschen.
+     *
+     * Die Farbe ist einheitlich, nicht zyklisch wie bei der Grade-Verteilung: dort steht jede
+     * Farbe für einen anderen Grad, hier wäre sie bedeutungslos und würde Unterschiede
+     * behaupten, wo nur Zeit vergeht.
+     */
+    private fun routenVerlauf(
+        routes: List<RouteEntity>,
+        sessionsById: Map<Int, SessionEntity>,
+        zeitraum: Zeitraum,
+        heute: LocalDate = LocalDate.now(),
+    ): List<BarChartEntry> {
+        val proEimer = routes
+            .mapNotNull { route -> sessionsById[route.sessionId]?.date?.toLocalDate() }
+            .groupingBy { tag -> eimerStart(tag, zeitraum) }
+            .eachCount()
+
+        return eimerReihe(heute, zeitraum).map { start ->
+            BarChartEntry(
+                label = eimerLabel(start, zeitraum),
+                value = (proEimer[start] ?: 0).toFloat(),
+                color = VERLAUF_FARBE_INDEX.let { routeColorPalette[it].second },
+            )
+        }
+    }
+
+    /**
+     * Höchster getoppter Grad je Zeitabschnitt und System.
+     *
+     * **Höchster, nicht durchschnittlicher.** Ein Mittelwert sinkt, sobald man an einem Tag
+     * viel Leichtes zum Aufwärmen klettert — er misst dann die Zusammensetzung der Session
+     * statt des Könnens. Das Maximum beantwortet die Frage, um die es hier geht: „Was habe
+     * ich in dieser Zeit geschafft?"
+     *
+     * Der Kurvenwert ist die Ordnungszahl des Grades (`order`), weil nur die eine Reihenfolge
+     * kennt; angezeigt wird das Label. Abschnitte ohne Top ergeben `null` — keinen Nullpunkt,
+     * siehe [LinePoint].
+     */
+    private fun gradVerlauf(
+        topped: List<RouteEntity>,
+        sessionsById: Map<Int, SessionEntity>,
+        gradesById: Map<Int, GradeEntity>,
+        zeitraum: Zeitraum,
+        heute: LocalDate = LocalDate.now(),
+    ): Map<Int, List<LinePoint>> {
+        // (systemId, Eimerstart) → bester Grad dieses Abschnitts
+        val bester = HashMap<Pair<Int, LocalDate>, GradeEntity>()
+        topped.forEach { route ->
+            val grade = route.gradeId?.let(gradesById::get) ?: return@forEach
+            val tag = sessionsById[route.sessionId]?.date?.toLocalDate() ?: return@forEach
+            val schluessel = grade.systemId to eimerStart(tag, zeitraum)
+            val bisher = bester[schluessel]
+            if (bisher == null || grade.order > bisher.order) bester[schluessel] = grade
+        }
+
+        val reihe = eimerReihe(heute, zeitraum)
+        return bester.keys.map { it.first }.distinct().associateWith { systemId ->
+            reihe.map { start ->
+                val grade = bester[systemId to start]
+                LinePoint(
+                    label = eimerLabel(start, zeitraum),
+                    wert = grade?.order?.toFloat(),
+                    wertLabel = grade?.label,
+                )
+            }
         }
     }
 

@@ -32,6 +32,10 @@ private val BarChartHeight = 160.dp
 // Diagramms — geht neben der Fläche unter.
 private val BarMaxWidth = 56.dp
 
+// Anteil der Zeichenfläche, den auch ein Nullwert behält (~2,5 dp von 160 dp) — gerade genug,
+// um als Grundlinie sichtbar zu sein, zu wenig, um mit einem echten Wert verwechselt zu werden.
+private const val NullStummel = 0.015f
+
 /**
  * Testmarke am einzelnen Balken.
  *
@@ -99,7 +103,22 @@ fun BarChart(
                              */
                             .widthIn(max = BarMaxWidth)
                             .fillMaxWidth()
-                            .fillMaxHeight(entry.value / maxValue)
+                            /*
+                             * Ein Wert von 0 bekommt einen sichtbaren Stummel statt Höhe 0.
+                             *
+                             * Nötig geworden mit dem Verlaufs-Diagramm: dort steht eine Woche
+                             * ohne Klettern ausdrücklich mit 0 in der Reihe, und ein Balken
+                             * der Höhe 0 ist schlicht unsichtbar. Aus „acht Wochen, davon
+                             * eine aktiv" wurde optisch „ein einzelner Balken im Nichts" — man
+                             * konnte nicht sehen, dass es die anderen sieben Abschnitte
+                             * überhaupt gibt. Der Stummel ist die Grundlinie, an der man die
+                             * Null abliest.
+                             *
+                             * Für die Grade-Verteilung ändert sich nichts: dort kommen nur
+                             * Zählwerte ab 1 vor, und selbst der kleinste (1 von 8 = 0,125)
+                             * liegt weit über dem Stummel.
+                             */
+                            .fillMaxHeight((entry.value / maxValue).coerceAtLeast(NullStummel))
                             .clip(MaterialTheme.shapes.extraSmall)
                             .background(entry.color)
                             .testTag(BAR_TEST_TAG),

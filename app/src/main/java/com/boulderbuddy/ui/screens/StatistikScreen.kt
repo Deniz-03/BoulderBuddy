@@ -35,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.ActivityHeatmap
 import com.boulderbuddy.ui.components.BarChart
+import com.boulderbuddy.ui.components.LineChart
 import com.boulderbuddy.ui.components.BarChartEntry
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.FilterChip
@@ -45,6 +46,7 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.model.Zeitraum
 import androidx.compose.ui.graphics.Color
 import com.boulderbuddy.ui.viewmodel.GradeSystemFilterUi
 import com.boulderbuddy.ui.viewmodel.StatistikUiState
@@ -83,6 +85,15 @@ fun StatistikScreen(
     val effectiveSystemId = selectedSystemId?.takeIf { id -> state.distributionSystems.any { it.id == id } }
         ?: state.distributionSystems.firstOrNull()?.id
     val gradeDistribution = effectiveSystemId?.let { state.distributionBySystem[it] }.orEmpty()
+
+    // Körnung der beiden Verlaufs-Diagramme. Ein gemeinsamer Umschalter für beide: sie
+    // beantworten dieselbe Frage aus zwei Richtungen ("wie viel" und "wie schwer"), und zwei
+    // getrennte Regler nebeneinander würde man unweigerlich gegeneinander verstellen.
+    var zeitraum by remember { mutableStateOf(Zeitraum.Woche) }
+    val routenVerlauf = state.routenVerlauf[zeitraum].orEmpty()
+    val gradVerlauf = effectiveSystemId
+        ?.let { state.gradVerlauf[zeitraum]?.get(it) }
+        .orEmpty()
 
     BoulderBuddyScaffold(
         topBar = {
@@ -135,6 +146,47 @@ fun StatistikScreen(
                 // gezieltes Training mit Zielwerten, die anderen beiden sind Rückblicke auf
                 // das, was ohnehin passiert ist. Was man steuert, gehört nach oben.
                 item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
+
+                // --- Verlauf über die Zeit ---
+                item {
+                    ZeitraumUmschalter(
+                        aktuell = zeitraum,
+                        onSelect = { zeitraum = it },
+                    )
+                }
+                item {
+                    VerlaufSection(
+                        titel = "Routen pro ${zeitraum.label.dropLast(1)}",
+                        // Kein kumulativer Zähler: jeder Balken ist das, was in genau diesem
+                        // Abschnitt geklettert wurde. Abschnitte ohne Aktivität stehen als
+                        // Lücke drin und werden nicht weggelassen.
+                        hinweis = "Unkumuliert — jeder Balken zählt nur diesen Abschnitt.",
+                        leerText = "Noch keine Routen erfasst.",
+                        istLeer = routenVerlauf.all { it.value == 0f },
+                    ) {
+                        BarChart(entries = routenVerlauf, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+                item {
+                    VerlaufSection(
+                        titel = "Grad-Verlauf",
+                        hinweis = "Höchster getoppter Grad je ${zeitraum.label.dropLast(1)}.",
+                        leerText = "Noch keine getoppten Boulder.",
+                        istLeer = gradVerlauf.none { it.wert != null },
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                            // Der Verlauf zeigt immer genau ein System — Grade verschiedener
+                            // Systeme liegen auf verschiedenen Skalen und ergäben eine Kurve
+                            // durch zwei Maßstäbe.
+                            SystemUmschalter(
+                                systeme = state.distributionSystems,
+                                aktuell = effectiveSystemId,
+                                onSelect = { selectedSystemId = it },
+                            )
+                            LineChart(points = gradVerlauf, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
 
                 if (wide) {
                     // Tablet: Grade-Verteilung und Aktivität nebeneinander (top-aligned).
@@ -195,6 +247,99 @@ private fun QuickStatsRow(quickStats: List<QuickStat>, modifier: Modifier = Modi
     }
 }
 
+/**
+ * Umschalter für die Körnung der Verlaufs-Diagramme.
+ *
+ * `FilterChip` und nicht `SelectableChip`: das ist derselbe Baustein, mit dem in der
+ * Boulder-Übersicht und über der Grade-Verteilung gefiltert wird — eine Auswahl aus wenigen
+ * sich ausschließenden Möglichkeiten. Ein Dropdown wäre für drei Einträge ein Klick zu viel.
+ */
+@Composable
+private fun ZeitraumUmschalter(
+    aktuell: Zeitraum,
+    onSelect: (Zeitraum) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+    ) {
+        Zeitraum.entries.forEach { z ->
+            FilterChip(
+                label = z.label,
+                selected = z == aktuell,
+                onClick = { onSelect(z) },
+            )
+        }
+    }
+}
+
+/**
+ * Rahmen für ein Verlaufs-Diagramm: Überschrift, erklärende Zeile, und entweder das Diagramm
+ * oder ein Hinweis.
+ *
+ * Der Leerfall ist ausdrücklich behandelt, statt ein Diagramm aus lauter Nullen zu zeichnen.
+ * Eine flache Linie auf 0 sieht aus wie ein Messwert; „noch keine Daten" ist einer.
+ */
+@Composable
+private fun VerlaufSection(
+    titel: String,
+    hinweis: String,
+    leerText: String,
+    istLeer: Boolean,
+    modifier: Modifier = Modifier,
+    diagramm: @Composable () -> Unit,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+        SectionHeader(text = titel)
+        if (istLeer) {
+            Text(
+                text = leerText,
+                style = MaterialTheme.typography.bodySmall,
+                color = BoulderBuddy.colors.textSecondary,
+            )
+        } else {
+            Text(
+                text = hinweis,
+                style = MaterialTheme.typography.bodySmall,
+                color = BoulderBuddy.colors.textSecondary,
+            )
+            diagramm()
+        }
+    }
+}
+
+/**
+ * Umschalter für das Gradsystem — nur sichtbar, wenn überhaupt in mehreren Systemen getoppt
+ * wurde. Bei einem System wäre er eine Auswahl ohne Alternative.
+ *
+ * Bewusst an **jeder** Stelle wiederholt, die vom gewählten System abhängt (Grad-Verlauf und
+ * Grade-Verteilung). Sie teilen sich denselben Zustand, hängen also zusammen — aber sie
+ * stehen inzwischen weit auseinander im Screen, und ein Regler, dessen Wirkung man erst nach
+ * dem Scrollen sieht, ist kein Regler, sondern eine Überraschung.
+ */
+@Composable
+private fun SystemUmschalter(
+    systeme: List<GradeSystemFilterUi>,
+    aktuell: Int?,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (systeme.size <= 1) return
+    Row(
+        modifier = modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+    ) {
+        systeme.forEach { system ->
+            FilterChip(
+                label = system.name,
+                selected = aktuell == system.id,
+                onClick = { onSelect(system.id) },
+            )
+        }
+    }
+}
+
 // Grade-Verteilung (pro System, da Grade systemübergreifend nicht vergleichbar).
 @Composable
 private fun GradeDistributionSection(
@@ -213,21 +358,11 @@ private fun GradeDistributionSection(
                 color = BoulderBuddy.colors.textSecondary,
             )
         } else {
-            // System-Umschalter — nur nötig, wenn in mehreren Systemen getoppt wurde.
-            if (state.distributionSystems.size > 1) {
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-                ) {
-                    state.distributionSystems.forEach { system ->
-                        FilterChip(
-                            label = system.name,
-                            selected = effectiveSystemId == system.id,
-                            onClick = { onSelectSystem(system.id) },
-                        )
-                    }
-                }
-            }
+            SystemUmschalter(
+                systeme = state.distributionSystems,
+                aktuell = effectiveSystemId,
+                onSelect = onSelectSystem,
+            )
             BarChart(
                 entries = gradeDistribution,
                 modifier = Modifier.fillMaxWidth(),
