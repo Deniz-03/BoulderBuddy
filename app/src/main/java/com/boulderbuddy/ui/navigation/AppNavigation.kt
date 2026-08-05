@@ -32,6 +32,7 @@ import com.boulderbuddy.ui.screens.GhostClimberScreen
 import com.boulderbuddy.ui.screens.HangboardHistorieScreen
 import com.boulderbuddy.ui.screens.HangboardTimerScreen
 import com.boulderbuddy.ui.screens.HomeScreen
+import com.boulderbuddy.ui.screens.KameraScreen
 import com.boulderbuddy.ui.screens.RouteHinzufuegenScreen
 import com.boulderbuddy.ui.screens.SessionErstellenScreen
 import com.boulderbuddy.ui.screens.SessionRoute
@@ -48,7 +49,19 @@ import com.boulderbuddy.ui.viewmodel.RouteHinzufuegenViewModel
 import com.boulderbuddy.ui.viewmodel.SessionErstellenViewModel
 import com.boulderbuddy.ui.viewmodel.SessionListViewModel
 import com.boulderbuddy.ui.viewmodel.StatistikViewModel
+import com.boulderbuddy.data.camera.CaptureAuftrag
 import com.boulderbuddy.widget.WidgetIntent
+
+/**
+ * Schlüssel, unter dem der Kamera-Screen seine fertige Aufnahme im `savedStateHandle` des
+ * **vorigen** Back-Stack-Eintrags ablegt (7.4d).
+ *
+ * Nav-Compose kennt keine Rückgabewerte einer Route — der Weg über den `savedStateHandle` des
+ * Aufrufers ist der vorgesehene Ersatz. Der Aufrufer liest den Wert, verarbeitet ihn und
+ * **löscht ihn** wieder; sonst käme dieselbe Aufnahme bei jedem erneuten Betreten des Screens
+ * noch einmal an.
+ */
+const val KAMERA_ERGEBNIS = "kamera_ergebnis_uri"
 
 // =============================================================================
 // AppNavigation — der NavHost: verbindet jede Route aus Destinations.kt mit
@@ -69,15 +82,21 @@ fun AppNavigation(
     windowSizeClass: WindowSizeClass,
     // Optionales Sprungziel vom Homescreen-Widget (7.4c); null = normaler Start (Home).
     initialNavTarget: String? = null,
+    // Session-ID zu TARGET_ACTIVE_SESSION; sonst null.
+    initialNavSessionId: Int? = null,
 ) {
     val navController = rememberNavController()
 
     // Einmaliger Sprung ins Widget-Ziel (7.4c). key = Zielwert → feuert nur beim Start-Intent,
     // nicht bei jeder Recomposition.
-    LaunchedEffect(initialNavTarget) {
+    LaunchedEffect(initialNavTarget, initialNavSessionId) {
         when (initialNavTarget) {
             WidgetIntent.TARGET_TIMER -> navController.navigateToTab(BottomNavTab.Timer)
             WidgetIntent.TARGET_NEW_SESSION -> navController.navigate(SessionErstellen)
+            // Direkt in die laufende Session. Der Push liegt über Home, Zurück führt also
+            // dorthin. Fehlt die ID (veralteter Widget-Stand), bleiben wir auf Home.
+            WidgetIntent.TARGET_ACTIVE_SESSION ->
+                initialNavSessionId?.let { navController.navigate(Session(sessionId = it)) }
         }
     }
 
@@ -150,6 +169,7 @@ fun AppNavigation(
                     // und Zurück laufen über den Pane-Navigator im SessionsListDetail.
                     SessionsListDetail(
                         state = state,
+                        onSetSortMode = viewModel::setSortMode,
                         onCreateSession = { navController.navigate(SessionErstellen) },
                         onOpenBoulderOverview = onOpenBoulderOverview,
                         onOpenSettings = { navController.navigate(Einstellungen) },
@@ -160,6 +180,7 @@ fun AppNavigation(
                     // Phone (Compact): unverändertes Push-Verhalten.
                     SessionUebersichtScreen(
                         state = state,
+                        onSetSortMode = viewModel::setSortMode,
                         onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
                         onCreateSession = { navController.navigate(SessionErstellen) },
                         onOpenBoulderOverview = onOpenBoulderOverview,
@@ -204,17 +225,31 @@ fun AppNavigation(
                     onSelectGradeSystem = viewModel::selectGradeSystem,
                     onExportSessions = viewModel::exportSessions,
                     onSetDarkMode = viewModel::setDarkMode,
+                    onSetHapticFeedback = viewModel::setHapticFeedback,
+                    onSetUserName = viewModel::setUserName,
                     exportMessage = exportMessage,
                     onExportMessageShown = viewModel::consumeExportMessage,
                     onOpenGhostClimber = { navController.navigate(GhostClimber) },
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable<GhostClimber> {
+            composable<GhostClimber> { entry ->
                 val viewModel: GhostClimberViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
+                // Aufnahme aus dem Kamera-Screen; null, solange keine zurückkam.
+                val aufnahmeUri by entry.savedStateHandle
+                    .getStateFlow<String?>(KAMERA_ERGEBNIS, null)
+                    .collectAsStateWithLifecycle()
                 GhostClimberScreen(
                     state = state,
+                    // Ghost vergleicht zwei Videos — ein Foto wäre hier sinnlos.
+                    onOpenKamera = {
+                        navController.navigate(
+                            KameraAufnahme(CaptureAuftrag.NUR_VIDEO.name),
+                        )
+                    },
+                    aufnahmeUri = aufnahmeUri,
+                    onAufnahmeVerbraucht = { entry.savedStateHandle[KAMERA_ERGEBNIS] = null },
                     onSelectVideo = viewModel::onVideoSelected,
                     onAnalyze = viewModel::analyze,
                     onSelectAnchorFrame = viewModel::loadAnchorFrame,
@@ -278,14 +313,42 @@ fun AppNavigation(
                     onOpenSettings = { navController.navigate(Einstellungen) },
                 )
             }
-            composable<RouteHinzufuegen> {
+            composable<RouteHinzufuegen> { entry ->
                 val viewModel: RouteHinzufuegenViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
+                val aufnahmeUri by entry.savedStateHandle
+                    .getStateFlow<String?>(KAMERA_ERGEBNIS, null)
+                    .collectAsStateWithLifecycle()
                 RouteHinzufuegenScreen(
                     state = state,
                     onBack = { navController.popBackStack() },
+                    // Boulder-Medien dürfen Foto oder Video sein — der Nutzer entscheidet
+                    // im Aufnahme-Screen.
+                    onOpenKamera = {
+                        navController.navigate(
+                            KameraAufnahme(CaptureAuftrag.FOTO_UND_VIDEO.name),
+                        )
+                    },
+                    aufnahmeUri = aufnahmeUri,
+                    onAufnahmeVerbraucht = { entry.savedStateHandle[KAMERA_ERGEBNIS] = null },
                     // sessionId/boulderId liest das ViewModel selbst aus den Nav-Argumenten.
                     onSave = { input -> viewModel.save(input) { navController.popBackStack() } },
+                )
+            }
+            composable<KameraAufnahme> { entry ->
+                // Unbekannter Auftragsname (etwa nach einem Umbenennen) darf nicht crashen —
+                // dann eben beides anbieten.
+                val auftrag = runCatching {
+                    CaptureAuftrag.valueOf(entry.toRoute<KameraAufnahme>().auftrag)
+                }.getOrDefault(CaptureAuftrag.FOTO_UND_VIDEO)
+                KameraScreen(
+                    auftrag = auftrag,
+                    onErgebnis = { uri ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle?.set(KAMERA_ERGEBNIS, uri)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() },
                 )
             }
 

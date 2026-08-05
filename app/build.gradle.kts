@@ -40,6 +40,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // Liefert BuildConfig.VERSION_NAME für die Versionsanzeige in den Einstellungen.
+        buildConfig = true
     }
 }
 
@@ -90,6 +92,15 @@ dependencies {
     // Media3/ExoPlayer (Phase 7.3c): Video-Wiedergabe für Routen-Medien.
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
+
+    // CameraX: eigener Aufnahme-Screen (Boulder-Foto/-Video, Ghost-Climber-Aufnahmen).
+    // Der eigene Screen statt des Kamera-Intents, weil Ghost eine berechenbare
+    // Auflösung braucht — der Intent liefert, was die Kamera-App gerade für richtig hält.
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.video)
+    implementation(libs.androidx.camera.view)
 
     // Glance (Phase 7.4c): Homescreen-App-Widget (aktive Session / Tops / Schnellstart Timer).
     implementation(libs.androidx.glance.appwidget)

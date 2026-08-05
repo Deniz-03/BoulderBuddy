@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,6 +40,7 @@ import com.boulderbuddy.ui.components.GhostAnchorEditor
 import com.boulderbuddy.ui.components.GhostPathEditor
 import com.boulderbuddy.ui.components.GhostSideBySidePlayer
 import com.boulderbuddy.ui.components.GhostSkeletonPlayer
+import com.boulderbuddy.ui.components.MedienQuelleDialog
 import com.boulderbuddy.ui.components.PhotoPicker
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SectionHeader
@@ -50,7 +52,6 @@ import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.GhostClimberUiState
 import com.boulderbuddy.ui.viewmodel.GhostRole
 import com.boulderbuddy.ui.viewmodel.GhostStep
@@ -68,6 +69,11 @@ import com.boulderbuddy.ui.viewmodel.SavedAnalysisUi
 @Composable
 fun GhostClimberScreen(
     state: GhostClimberUiState = GhostClimberUiState(),
+    // Eigener Aufnahme-Screen (CameraX, 7.4d) — für Ghost bewusst nur Video.
+    onOpenKamera: () -> Unit = {},
+    // Fertige Aufnahme von dort; null = keine. Wird der zuletzt angetippten Rolle zugeordnet.
+    aufnahmeUri: String? = null,
+    onAufnahmeVerbraucht: () -> Unit = {},
     onSelectVideo: (GhostRole, String) -> Unit = { _, _ -> },
     onAnalyze: () -> Unit = {},
     onSelectAnchorFrame: (GhostRole, Long) -> Unit = { _, _ -> },
@@ -87,6 +93,23 @@ fun GhostClimberScreen(
     onBackToPath: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
+    // Für welche Rolle wurde die Kamera geöffnet? Muss den Ausflug auf den Aufnahme-Screen
+    // überleben (Prozesstod eingeschlossen) — daher rememberSaveable und der Enum-Name als
+    // String, weil GhostRole selbst nicht ohne Weiteres speicherbar ist.
+    var wartendeRolle by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(aufnahmeUri, wartendeRolle) {
+        val uri = aufnahmeUri ?: return@LaunchedEffect
+        val rolle = wartendeRolle?.let { name ->
+            runCatching { GhostRole.valueOf(name) }.getOrNull()
+        }
+        // Ohne bekannte Rolle wird die Aufnahme verworfen statt geraten — sie dem falschen
+        // Slot zuzuordnen wäre schlimmer als sie zu ignorieren.
+        if (rolle != null) onSelectVideo(rolle, uri)
+        wartendeRolle = null
+        onAufnahmeVerbraucht()
+    }
+
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
@@ -97,7 +120,7 @@ fun GhostClimberScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -116,6 +139,10 @@ fun GhostClimberScreen(
                     GhostStep.SELECTION -> SelectionStep(
                         state = state,
                         onSelectVideo = onSelectVideo,
+                        onKameraFuerRolle = { rolle ->
+                            wartendeRolle = rolle.name
+                            onOpenKamera()
+                        },
                         onAnalyze = onAnalyze,
                         onRestoreAnalysis = onRestoreAnalysis,
                         onDeleteAnalysis = onDeleteAnalysis,
@@ -162,6 +189,7 @@ fun GhostClimberScreen(
 private fun SelectionStep(
     state: GhostClimberUiState,
     onSelectVideo: (GhostRole, String) -> Unit,
+    onKameraFuerRolle: (GhostRole) -> Unit,
     onAnalyze: () -> Unit,
     onRestoreAnalysis: (Int) -> Unit,
     onDeleteAnalysis: (Int) -> Unit,
@@ -177,11 +205,13 @@ private fun SelectionStep(
         title = "Referenz-Video",
         slot = state.reference,
         onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
+        onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
     )
     VideoSlotPicker(
         title = "Vergleichs-Video",
         slot = state.comparison,
         onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
+        onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
     )
 
     if (state.analyzing) {
@@ -234,8 +264,8 @@ private fun SavedAnalysisRow(
             )
             Text(
                 text = "Vorschlag: ${analysis.modeLabel}",
-                style = MaterialTheme.typography.labelSmall,
-                color = BoulderBuddy.colors.textTertiary,
+                style = MaterialTheme.typography.bodySmall,
+                color = BoulderBuddy.colors.textSecondary,
             )
         }
         IconButton(onClick = onDelete) {
@@ -253,20 +283,38 @@ private fun VideoSlotPicker(
     title: String,
     slot: GhostVideoSlot,
     onSelected: (String) -> Unit,
+    onAufnehmen: () -> Unit,
 ) {
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri -> uri?.let { onSelected(it.toString()) } }
 
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
-        SectionHeader(text = title)
-        PhotoPicker(
-            onClick = {
+    var zeigeQuellenwahl by rememberSaveable { mutableStateOf(false) }
+
+    if (zeigeQuellenwahl) {
+        MedienQuelleDialog(
+            // Selbst aufnehmen ist hier der bessere Weg: die App legt die Auflösung fest,
+            // und zwei gleich aufgenommene Videos vergleichen sich berechenbarer.
+            nurVideo = true,
+            onAufnehmen = {
+                zeigeQuellenwahl = false
+                onAufnehmen()
+            },
+            onGalerie = {
+                zeigeQuellenwahl = false
                 picker.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
                 )
             },
-            label = "Video auswählen",
+            onDismiss = { zeigeQuellenwahl = false },
+        )
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+        SectionHeader(text = title)
+        PhotoPicker(
+            onClick = { zeigeQuellenwahl = true },
+            label = "Video aufnehmen oder wählen",
             imageUri = slot.uri,
             isVideo = slot.uri != null,
         )

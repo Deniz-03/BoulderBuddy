@@ -2,6 +2,44 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Vibration bei Timer-Phasenwechseln (Schalter „Haptisches Feedback"). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+      Spracheingabe in Notizfeldern (Weg A): Die App spricht den SpeechRecognizer direkt an und
+      zeigt eine eigene Aufnahme-UI. Damit nimmt sie selbst auf und braucht RECORD_AUDIO.
+
+      Wird die Freigabe verweigert, ist die Spracheingabe aus — es gibt keinen zweiten Weg mehr.
+      Der frühere Rückfall auf den System-RecognizerIntent lief in der Erkenner-App und kam ohne
+      diese Permission aus; er machte die Ablehnung damit wirkungslos.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
+      Eigener Aufnahme-Screen (CameraX) für Boulder-Fotos/-Videos und Ghost-Climber-Aufnahmen.
+      Der Ton von Videoaufnahmen läuft über das oben bereits deklarierte RECORD_AUDIO.
+      `required="false"`: die App bleibt auf Geräten ohne Kamera installierbar — dort fällt
+      der Aufnahme-Weg weg, die Galerie-Auswahl funktioniert weiter.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+
+    <!--
+      Package Visibility (ab API 30): ohne diese Abfrage meldet SpeechRecognizer.isRecognitionAvailable()
+      false, obwohl ein Erkennungsdienst installiert ist — die Spracheingabe hielte sich dann für
+      unmöglich.
+
+      Die zweite Abfrage auf android.speech.action.RECOGNIZE_SPEECH ist mit dem Intent-Fallback
+      entfallen: die App startet keine fremde Spracheingabe-Activity mehr.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".BoulderBuddyApp"
         android:allowBackup="true"
@@ -23,6 +61,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Macht die app-internen Aufnahmen unter `filesDir/aufnahmen/` als `content://`-URI
+          adressierbar. Nicht exportiert: nur die App selbst greift darauf zu — geteilt wird
+          nichts, die Aufnahmen bleiben in der App-Sandbox.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Homescreen-Widget (Phase 7.4c): aktive Session / Tops / Schnellstart. -->
         <receiver

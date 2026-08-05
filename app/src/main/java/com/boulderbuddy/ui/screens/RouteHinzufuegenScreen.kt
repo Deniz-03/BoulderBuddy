@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.data.model.RouteStatus
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.ColorPicker
+import com.boulderbuddy.ui.components.MedienQuelleDialog
 import com.boulderbuddy.ui.components.PhotoPicker
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SelectableChip
@@ -52,7 +54,6 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.theme.keyForRouteColor
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.theme.routeColorPalette
@@ -69,6 +70,12 @@ fun RouteHinzufuegenScreen(
     state: RouteFormUiState = RouteFormUiState(ready = true),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
+    // Öffnet den eigenen Aufnahme-Screen (CameraX, 7.4d).
+    onOpenKamera: () -> Unit = {},
+    // Fertige Aufnahme, die von dort zurückkam; null = keine. Wird einmal übernommen und
+    // danach über onAufnahmeVerbraucht gelöscht, sonst käme sie bei jeder Rückkehr erneut.
+    aufnahmeUri: String? = null,
+    onAufnahmeVerbraucht: () -> Unit = {},
     // Übergibt die Formulareingabe nach oben; Speichern + Navigation macht der NavHost.
     onSave: (RouteFormInput) -> Unit = {},
 ) {
@@ -113,6 +120,34 @@ fun RouteHinzufuegenScreen(
         }
     }
 
+    // Quellenwahl beim Antippen des Slots: eigener Aufnahme-Screen oder Galerie.
+    var zeigeQuellenwahl by remember { mutableStateOf(false) }
+
+    // Aufnahme aus dem Kamera-Screen übernehmen. Sie ist eine app-eigene FileProvider-URI und
+    // braucht deshalb KEIN takePersistableUriPermission — die Datei gehört uns bereits.
+    LaunchedEffect(aufnahmeUri) {
+        aufnahmeUri?.let {
+            mediaUri = it
+            onAufnahmeVerbraucht()
+        }
+    }
+
+    if (zeigeQuellenwahl) {
+        MedienQuelleDialog(
+            onAufnehmen = {
+                zeigeQuellenwahl = false
+                onOpenKamera()
+            },
+            onGalerie = {
+                zeigeQuellenwahl = false
+                photoPicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo),
+                )
+            },
+            onDismiss = { zeigeQuellenwahl = false },
+        )
+    }
+
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
@@ -122,7 +157,7 @@ fun RouteHinzufuegenScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -138,13 +173,8 @@ fun RouteHinzufuegenScreen(
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
             ) {
                 PhotoPicker(
-                    onClick = {
-                        photoPicker.launch(
-                            PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                            )
-                        )
-                    },
+                    onClick = { zeigeQuellenwahl = true },
+                    label = "Foto/Video aufnehmen oder wählen",
                     imageUri = mediaUri,
                     isVideo = isVideo,
                 )

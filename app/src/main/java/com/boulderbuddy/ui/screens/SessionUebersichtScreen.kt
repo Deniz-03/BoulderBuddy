@@ -13,29 +13,39 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
+import androidx.compose.material.icons.outlined.Landscape
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SessionListItem
 import com.boulderbuddy.ui.components.UebersichtTopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import androidx.compose.ui.graphics.Color
 import com.boulderbuddy.ui.viewmodel.SessionListItemUi
 import com.boulderbuddy.ui.viewmodel.SessionListUiState
+import com.boulderbuddy.ui.viewmodel.SessionSortMode
 
 // Bottom-Nav Tab 2. Der Header trägt einen Dropdown, über den man zur Boulder-Übersicht
 // umschaltet (beide teilen sich diesen Tab). Das Umschalten ist eine Navigation zum
@@ -44,6 +54,8 @@ import com.boulderbuddy.ui.viewmodel.SessionListUiState
 fun SessionUebersichtScreen(
     // Anzeige-Zustand aus dem SessionListViewModel (Phase 6.2).
     state: SessionListUiState = SessionListUiState(),
+    // Wählt das Sortier-Kriterium; dasselbe Kriterium erneut = Richtung umdrehen.
+    onSetSortMode: (SessionSortMode) -> Unit = {},
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onOpenSession: (Int) -> Unit = {},
     onCreateSession: () -> Unit = {},
@@ -51,6 +63,8 @@ fun SessionUebersichtScreen(
     onOpenSettings: () -> Unit = {},
 ) {
     val sessionCount = state.sessions.size
+    // Steuert das Sortier-Menü hinter der Kopfzeile.
+    var showSortMenu by remember { mutableStateOf(false) }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -64,7 +78,7 @@ fun SessionUebersichtScreen(
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -84,6 +98,22 @@ fun SessionUebersichtScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
             ) {
+                // Ohne Sessions ersetzt der Leerzustand Kopfzeile und Liste — eine
+                // "0 Sessions"-Überschrift über einer leeren Fläche hilft niemandem.
+                if (state.sessions.isEmpty()) {
+                    item {
+                        EmptyState(
+                            icon = Icons.Outlined.Landscape,
+                            title = "Noch keine Sessions",
+                            description = "Starte deine erste Session — danach findest du hier " +
+                                "jeden Hallenbesuch mit seinen Bouldern.",
+                            actionText = "Session starten",
+                            onAction = onCreateSession,
+                        )
+                    }
+                    return@LazyColumn
+                }
+
                 // Kopfzeile: Anzahl links, Sortierung rechts
                 item {
                     Row(
@@ -91,25 +121,65 @@ fun SessionUebersichtScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // TODO: "$sessionCount" durch echten Wert aus der Datenbank ersetzen
-                        SectionHeader(text = "$sessionCount Sessions")
-                        // Sortier-Steuerung. TODO: Sortier-Logik implementieren (nach Datum, nach Halle etc.)
-                        Row(
-                            modifier = Modifier.clickable { /* TODO: Sortierung umschalten */ },
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingXS),
-                        ) {
-                            Text(
-                                text = "Datum",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = BoulderBuddy.colors.textTertiary,
-                            )
-                            Icon(
-                                imageVector = Icons.Outlined.SwapVert,
-                                contentDescription = "Sortierung ändern",
-                                tint = BoulderBuddy.colors.textTertiary,
-                                modifier = Modifier.size(Dimens.iconS),
-                            )
+                        SectionHeader(
+                            text = if (sessionCount == 1) "1 Session" else "$sessionCount Sessions",
+                        )
+                        // Sortier-Steuerung: öffnet ein Menü mit den Kriterien. Das aktive
+                        // Kriterium erneut zu wählen dreht die Richtung um.
+                        Box {
+                            Row(
+                                modifier = Modifier.clickable { showSortMenu = true },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingXS),
+                            ) {
+                                Text(
+                                    text = state.sortMode.label,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = BoulderBuddy.colors.textSecondary,
+                                )
+                                Icon(
+                                    imageVector = Icons.Outlined.SwapVert,
+                                    contentDescription = "Sortierung ändern",
+                                    tint = BoulderBuddy.colors.textTertiary,
+                                    modifier = Modifier.size(Dimens.iconS),
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showSortMenu,
+                                onDismissRequest = { showSortMenu = false },
+                            ) {
+                                SessionSortMode.entries.forEach { mode ->
+                                    val isActive = mode == state.sortMode
+                                    DropdownMenuItem(
+                                        text = { Text(mode.label) },
+                                        onClick = {
+                                            onSetSortMode(mode)
+                                            showSortMenu = false
+                                        },
+                                        // Pfeil nur am aktiven Kriterium: zeigt die Richtung an
+                                        // und lädt zum erneuten Tippen (= umdrehen) ein.
+                                        trailingIcon = if (isActive) {
+                                            {
+                                                Icon(
+                                                    imageVector = if (state.sortDescending) {
+                                                        Icons.Outlined.ArrowDownward
+                                                    } else {
+                                                        Icons.Outlined.ArrowUpward
+                                                    },
+                                                    contentDescription = if (state.sortDescending) {
+                                                        "Absteigend"
+                                                    } else {
+                                                        "Aufsteigend"
+                                                    },
+                                                    modifier = Modifier.size(Dimens.iconS),
+                                                )
+                                            }
+                                        } else {
+                                            null
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }

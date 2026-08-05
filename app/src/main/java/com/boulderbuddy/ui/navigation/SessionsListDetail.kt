@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import com.boulderbuddy.ui.screens.SessionRoute
 import com.boulderbuddy.ui.screens.SessionUebersichtScreen
 import com.boulderbuddy.ui.viewmodel.SessionListUiState
+import com.boulderbuddy.ui.viewmodel.SessionSortMode
 import kotlinx.coroutines.launch
 
 // =============================================================================
@@ -37,6 +38,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SessionsListDetail(
     state: SessionListUiState,
+    onSetSortMode: (SessionSortMode) -> Unit,
     onCreateSession: () -> Unit,
     onOpenBoulderOverview: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -60,6 +62,7 @@ fun SessionsListDetail(
             AnimatedPane {
                 SessionUebersichtScreen(
                     state = state,
+                    onSetSortMode = onSetSortMode,
                     onOpenSession = { sessionId ->
                         scope.launch {
                             navigator.navigateTo(ListDetailPaneScaffoldRole.Detail, sessionId)

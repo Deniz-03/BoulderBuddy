@@ -11,24 +11,32 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Landscape
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.FilterChip
 import com.boulderbuddy.ui.components.RouteCard
+import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.UebersichtTopBar
+import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import androidx.compose.ui.graphics.Color
 import com.boulderbuddy.ui.viewmodel.BoulderOverviewItemUi
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtUiState
@@ -55,16 +63,27 @@ fun BoulderUebersichtScreen(
     // Gewähltes System (null = "Alle Systeme") und Grad (null = "Alle Grade" des Systems).
     var selectedSystemId by remember { mutableStateOf<Int?>(null) }
     var selectedGradeId by remember { mutableStateOf<Int?>(null) }
+    // Suche: das Feld wird über das Lupen-Icon ein-/ausgeblendet und filtert zusätzlich
+    // zu den Grad-Filtern (beides greift gleichzeitig).
+    var searchOpen by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     // Gegen veraltete Auswahl absichern, falls sich die Daten ändern (System/Grad verschwindet).
     val effectiveSystemId = selectedSystemId?.takeIf { id -> state.systems.any { it.id == id } }
     val gradeChips = effectiveSystemId?.let { state.gradesBySystem[it] }.orEmpty()
     val effectiveGradeId = selectedGradeId?.takeIf { id -> gradeChips.any { it.id == id } }
 
+    // Suchbegriff greift über Name, Sektor und Grad-Label — die drei Dinge, die auf der
+    // Kachel stehen. Leerer Begriff = kein Filter.
+    val query = searchQuery.trim()
     val boulders = state.boulders.filter { boulder ->
         val systemOk = effectiveSystemId == null || boulder.systemId == effectiveSystemId
         val gradeOk = effectiveGradeId == null || boulder.gradeId == effectiveGradeId
-        systemOk && gradeOk
+        val searchOk = query.isEmpty() ||
+            boulder.name.contains(query, ignoreCase = true) ||
+            boulder.meta.contains(query, ignoreCase = true) ||
+            boulder.grade.contains(query, ignoreCase = true)
+        systemOk && gradeOk && searchOk
     }
 
     BoulderBuddyScaffold(
@@ -75,18 +94,25 @@ fun BoulderUebersichtScreen(
                 onSelectSessions = onOpenSessionOverview,
                 onSelectBoulder = { /* bereits hier — Dropdown schließt nur */ },
                 actions = {
-                    IconButton(onClick = { /* TODO: Boulder-Suche öffnen */ }) {
+                    // Schließen setzt den Begriff zurück, damit kein unsichtbarer Filter
+                    // aktiv bleibt, wenn das Feld wieder eingeklappt ist.
+                    IconButton(
+                        onClick = {
+                            searchOpen = !searchOpen
+                            if (!searchOpen) searchQuery = ""
+                        },
+                    ) {
                         Icon(
-                            imageVector = Icons.Outlined.Search,
-                            contentDescription = "Suchen",
-                            tint = M3OnPrimary,
+                            imageVector = if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,
+                            contentDescription = if (searchOpen) "Suche schließen" else "Suchen",
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -103,6 +129,22 @@ fun BoulderUebersichtScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
             ) {
+                // --- Suchfeld (nur wenn die Lupe aktiviert wurde) ---
+                if (searchOpen) {
+                    item {
+                        val focusRequester = remember { FocusRequester() }
+                        // Direkt nach dem Aufklappen den Fokus holen, damit die Tastatur
+                        // ohne zweiten Tap aufgeht.
+                        LaunchedEffect(Unit) { focusRequester.requestFocus() }
+                        TextField(
+                            value = searchQuery,
+                            onChange = { searchQuery = it },
+                            placeholder = "Name, Sektor oder Grad",
+                            modifier = Modifier.focusRequester(focusRequester),
+                        )
+                    }
+                }
+
                 // --- Filterebene 1: Gradsystem (nur Systeme mit Bouldern) ---
                 if (state.systems.isNotEmpty()) {
                     item {
@@ -152,6 +194,29 @@ fun BoulderUebersichtScreen(
                                     onClick = { selectedGradeId = grade.id },
                                 )
                             }
+                        }
+                    }
+                }
+
+                // --- Leerzustand: gar keine Boulder vs. nichts gefunden ---
+                // Die Unterscheidung ist wichtig: im ersten Fall fehlen Daten (der Nutzer muss
+                // etwas anlegen), im zweiten filtert er nur zu eng (er muss anders suchen).
+                if (boulders.isEmpty()) {
+                    item {
+                        if (state.boulders.isEmpty()) {
+                            EmptyState(
+                                icon = Icons.Outlined.Landscape,
+                                title = "Noch keine Boulder",
+                                description = "Boulder, die du in einer Session anlegst, " +
+                                    "sammeln sich hier sessionübergreifend.",
+                            )
+                        } else {
+                            EmptyState(
+                                icon = Icons.Outlined.SearchOff,
+                                title = "Nichts gefunden",
+                                description = "Kein Boulder passt zu Suche und Filter. " +
+                                    "Probier einen anderen Begriff oder setz die Filter zurück.",
+                            )
                         }
                     }
                 }

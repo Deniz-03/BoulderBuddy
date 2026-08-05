@@ -28,9 +28,9 @@ import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SessionListItem
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
+import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.HomeUiState
 import com.boulderbuddy.ui.viewmodel.LastSessionUi
 import androidx.compose.ui.graphics.Color
@@ -50,7 +50,12 @@ fun HomeScreen(
     onOpenAllBoulders: () -> Unit = {},
     onOpenLastSession: () -> Unit = {},
 ) {
-    val userName = state.userName
+    // Name kommt aus den Einstellungen (DataStore). Ist keiner gesetzt, grüßt die App neutral,
+    // statt einen Platzhalter-Namen zu erfinden.
+    val greeting = state.userName
+        .takeIf { it.isNotBlank() }
+        ?.let { "Hallo, $it 👋" }
+        ?: "Hallo 👋"
     val hasActiveSession = state.hasActiveSession
 
     // Ermittlung des aktuellen Datums
@@ -66,15 +71,14 @@ fun HomeScreen(
         // Obere Leiste
         topBar = {
             TopBar(
-                // TODO: "$userName" durch echten Nutzernamen aus der Datenbank ersetzen
-                title = "Hallo, $userName 👋",
+                title = greeting,
                 subtitle = dateText,
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -208,6 +212,7 @@ private fun HomeScreenPreview() {
     BoulderBuddyTheme {
         HomeScreen(
             state = HomeUiState(
+                userName = "Deniz",
                 sessionsPerWeek = 4,
                 totalTops = 23,
                 topGrade = "6c",

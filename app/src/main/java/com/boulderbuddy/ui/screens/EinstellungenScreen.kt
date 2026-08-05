@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Vibration
@@ -46,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.BuildConfig
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SelectableChip
@@ -56,7 +58,6 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.EinstellungenUiState
 import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 
@@ -74,6 +75,10 @@ fun EinstellungenScreen(
     onExportSessions: (Uri) -> Unit = {},
     // Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a).
     onSetDarkMode: (Boolean) -> Unit = {},
+    // Schaltet die Vibration bei Timer-Phasenwechseln (persistent via DataStore).
+    onSetHapticFeedback: (Boolean) -> Unit = {},
+    // Speichert den Anzeigenamen für die Home-Begrüßung.
+    onSetUserName: (String) -> Unit = {},
     // Einmalige Export-Rückmeldung (Toast); null = keine offene Meldung.
     exportMessage: String? = null,
     // Meldet dem ViewModel, dass die Export-Rückmeldung angezeigt wurde.
@@ -84,10 +89,6 @@ fun EinstellungenScreen(
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
-    // Lokaler UI-State (Geräte-Toggles noch nicht persistiert).
-    // TODO: aus den App-Einstellungen lesen/schreiben (DataStore via ViewModel).
-    var smartwatchVerbunden by remember { mutableStateOf(true) }
-    var haptischesFeedback by remember { mutableStateOf(true) }
     // Effektiver Dark-Mode-Zustand: expliziter Override, sonst dem System folgen. Der Switch
     // zeigt den aktuell wirksamen Zustand; ein Tap persistiert ihn als expliziten Override (7.4a).
     val darkMode = state.darkModeOverride ?: isSystemInDarkTheme()
@@ -112,6 +113,8 @@ fun EinstellungenScreen(
     var showManageGradingDialog by remember { mutableStateOf(false) }
     // Zu löschendes System (Bestätigung); null = kein Löschdialog offen.
     var pendingDelete by remember { mutableStateOf<GradeSystemUi?>(null) }
+    // Dialog zum Ändern des Anzeigenamens (Home-Begrüßung).
+    var showNameDialog by remember { mutableStateOf(false) }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -122,7 +125,7 @@ fun EinstellungenScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 }
@@ -197,23 +200,21 @@ fun EinstellungenScreen(
                             vertical = Dimens.paddingS,
                         ),
                     )
+                    // Reine Statusanzeige: die Kopplung passiert in der Wear-App bzw. den
+                    // Systemeinstellungen — ein Schalter hier würde Steuerbarkeit vortäuschen.
                     SettingsRow(
                         icon = Icons.Outlined.Watch,
-                        label = "Smartwatch verbunden",
-                        trailing = {
-                            ToggleSwitch(
-                                checked = smartwatchVerbunden,
-                                onCheckedChange = { smartwatchVerbunden = it },
-                            )
-                        },
+                        label = "Smartwatch",
+                        value = if (state.watchConnected) "Verbunden" else "Nicht verbunden",
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Vibration,
                         label = "Haptisches Feedback",
+                        subtitle = "Vibration bei Timer-Phasenwechseln",
                         trailing = {
                             ToggleSwitch(
-                                checked = haptischesFeedback,
-                                onCheckedChange = { haptischesFeedback = it },
+                                checked = state.hapticFeedback,
+                                onCheckedChange = onSetHapticFeedback,
                             )
                         },
                     )
@@ -244,9 +245,15 @@ fun EinstellungenScreen(
                         onClick = { exportLauncher.launch("boulderbuddy_sessions.csv") },
                     )
                     SettingsRow(
+                        icon = Icons.Outlined.Person,
+                        label = "Name",
+                        value = state.userName.ifBlank { "Nicht gesetzt" },
+                        onClick = { showNameDialog = true },
+                    )
+                    SettingsRow(
                         icon = Icons.Outlined.Info,
                         label = "Über BoulderBuddy",
-                        value = "v0.1", // TODO: aus BuildConfig.VERSION_NAME
+                        value = "v${BuildConfig.VERSION_NAME}",
                     )
                 }
 
@@ -277,6 +284,18 @@ fun EinstellungenScreen(
             selectedId = state.selectedGradeSystemId,
             onSelect = { onSelectGradeSystem(it) },
             onDismiss = { showGradingDialog = false },
+        )
+    }
+
+    // Anzeigename ändern (steuert die Begrüßung auf dem Home-Screen).
+    if (showNameDialog) {
+        NameAendernDialog(
+            current = state.userName,
+            onSave = {
+                onSetUserName(it)
+                showNameDialog = false
+            },
+            onDismiss = { showNameDialog = false },
         )
     }
 
@@ -326,6 +345,42 @@ fun EinstellungenScreen(
     }
 }
 
+// Ändert den Anzeigenamen für die Home-Begrüßung. Ein leeres Feld ist erlaubt und bedeutet
+// „keine namentliche Begrüßung" — deshalb kein `enabled`-Gate auf dem Speichern-Button.
+@Composable
+private fun NameAendernDialog(
+    current: String,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(current) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Name") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                // Kein Platzhalter-Beispiel: bei einem Feld, das genau eine offensichtliche
+                // Eingabe hat, erklärt ein „z.B. …" nichts — es schiebt nur einen fremden
+                // Namen ins Feld, den man beim Tippen erst mental wegräumen muss.
+                TextField(
+                    value = name,
+                    onChange = { name = it },
+                )
+                Text(
+                    text = "Wird auf dem Home-Screen zur Begrüßung genutzt. Leer lassen für eine " +
+                        "neutrale Begrüßung.",
+                    // Ein Satz gehört in einen Body-Stil, nicht in den Versalien-Label-Stil.
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(name) }) { Text("Speichern") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
+}
+
 // Listet alle Gradsysteme. Löschbare (Custom, `deletable`) bekommen einen Papierkorb; die
 // geschützten Standards (V-Scale/Französisch) zeigen einen dezenten "Standard"-Hinweis.
 @Composable
@@ -359,8 +414,8 @@ private fun GradingSystemeVerwaltenDialog(
                                 )
                                 Text(
                                     text = "${system.gradeCount} Grade",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = BoulderBuddy.colors.textTertiary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = BoulderBuddy.colors.textSecondary,
                                 )
                             }
                             if (system.deletable) {
@@ -374,8 +429,8 @@ private fun GradingSystemeVerwaltenDialog(
                             } else {
                                 Text(
                                     text = "Standard",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = BoulderBuddy.colors.textTertiary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = BoulderBuddy.colors.textSecondary,
                                 )
                             }
                         }
@@ -415,8 +470,8 @@ private fun GradingSystemAnlegenDialog(
                 )
                 Text(
                     text = "Grade (von leicht nach schwer)",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = BoulderBuddy.colors.textTertiary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
                 )
                 labels.forEachIndexed { index, label ->
                     Row(

@@ -87,8 +87,8 @@ class StatistikViewModelTest {
 
                 assertThat(state.hangboardWorkouts).isEqualTo(1)
                 assertThat(state.hangboardSets).isEqualTo(10)
-                // 10 Sätze × 7s = 70s → "1min".
-                assertThat(state.hangboardHangTime).isEqualTo("1min")
+                // 10 Sätze × 7s = 70s → "1:10min" (Sekunden bleiben sichtbar).
+                assertThat(state.hangboardHangTime).isEqualTo("1:10min")
 
                 // Beide Tops sind "6a" im selben System → ein Balken mit Wert 2.
                 assertThat(state.distributionSystems.map { it.id }).containsExactly(1)

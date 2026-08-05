@@ -47,7 +47,6 @@ import com.boulderbuddy.ui.components.VideoPlayer
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.BoulderDetailUiState
 import com.boulderbuddy.util.MediaType
 import com.boulderbuddy.util.mediaTypeOf
@@ -82,7 +81,7 @@ fun BoulderDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -92,7 +91,7 @@ fun BoulderDetailScreen(
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Bearbeiten",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -284,7 +283,7 @@ private fun statusBadgeStyle(status: BoulderStatus): Pair<String, Color> {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun BoulderDetailScreenPreview() {
     BoulderBuddyTheme {

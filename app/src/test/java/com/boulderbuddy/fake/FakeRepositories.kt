@@ -1,6 +1,8 @@
 package com.boulderbuddy.fake
 
 import com.boulderbuddy.data.db.entity.GradeEntity
+import com.boulderbuddy.data.haptics.HapticPattern
+import com.boulderbuddy.data.haptics.HapticPlayer
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
@@ -17,6 +19,7 @@ import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.data.settings.TimerConfig
+import com.boulderbuddy.wearsync.WearConnection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -32,10 +35,14 @@ class FakeSettingsRepository(
     private val _selectedGradeSystemId = MutableStateFlow<Int?>(null)
     val timerConfigState = MutableStateFlow(initialTimerConfig)
     val darkModeState = MutableStateFlow<Boolean?>(null)
+    val hapticFeedbackState = MutableStateFlow(true)
+    val userNameState = MutableStateFlow("")
 
     override val selectedGradeSystemId: Flow<Int?> = _selectedGradeSystemId
     override val timerConfig: Flow<TimerConfig> = timerConfigState
     override val darkMode: Flow<Boolean?> = darkModeState
+    override val hapticFeedback: Flow<Boolean> = hapticFeedbackState
+    override val userName: Flow<String> = userNameState
 
     override suspend fun setSelectedGradeSystem(systemId: Int) {
         _selectedGradeSystemId.value = systemId
@@ -48,6 +55,29 @@ class FakeSettingsRepository(
     override suspend fun setDarkMode(enabled: Boolean) {
         darkModeState.value = enabled
     }
+
+    override suspend fun setHapticFeedback(enabled: Boolean) {
+        hapticFeedbackState.value = enabled
+    }
+
+    override suspend fun setUserName(name: String) {
+        userNameState.value = name.trim()
+    }
+}
+
+/** Sammelt die abgespielten Vibrationsmuster, statt das Gerät anzusprechen. */
+class FakeHapticPlayer : HapticPlayer {
+    val played = mutableListOf<HapticPattern>()
+
+    override fun play(pattern: HapticPattern) {
+        played += pattern
+    }
+}
+
+/** Uhr-Verbindung mit umschaltbarem Zustand (Default: nicht verbunden). */
+class FakeWearConnection(initiallyConnected: Boolean = false) : WearConnection {
+    val connectedState = MutableStateFlow(initiallyConnected)
+    override val connected: Flow<Boolean> = connectedState
 }
 
 class FakeSessionRepository : SessionRepository {
@@ -85,6 +115,24 @@ class FakeRouteRepository : RouteRepository {
     override suspend fun getById(routeId: Int): RouteEntity? = all.value.find { it.id == routeId }
     override suspend fun create(route: RouteEntity): Int = 0
     override suspend fun update(route: RouteEntity) {}
+}
+
+class FakeGymRepository : GymRepository {
+    val all = MutableStateFlow<List<GymEntity>>(emptyList())
+    private var nextId = 1
+
+    override fun observeAll(): Flow<List<GymEntity>> = all
+    override suspend fun getById(gymId: Int): GymEntity? = all.value.find { it.id == gymId }
+
+    override suspend fun create(gym: GymEntity): Int {
+        val id = nextId++
+        all.value = all.value + gym.copy(id = id)
+        return id
+    }
+
+    override suspend fun update(gym: GymEntity) {
+        all.value = all.value.map { if (it.id == gym.id) gym else it }
+    }
 }
 
 class FakeGradeRepository : GradeRepository {
@@ -132,15 +180,6 @@ class FakeHangboardWorkoutRepository : HangboardWorkoutRepository {
         all.value = all.value + withSegments
         return id
     }
-}
-
-class FakeGymRepository : GymRepository {
-    val all = MutableStateFlow<List<GymEntity>>(emptyList())
-
-    override fun observeAll(): Flow<List<GymEntity>> = all
-    override suspend fun getById(gymId: Int): GymEntity? = all.value.find { it.id == gymId }
-    override suspend fun create(gym: GymEntity): Int = 0
-    override suspend fun update(gym: GymEntity) {}
 }
 
 class FakeHangboardRepository : HangboardRepository {
