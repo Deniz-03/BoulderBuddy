@@ -34,9 +34,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.BoulderListRow
 import com.boulderbuddy.ui.components.SectionHeader
+import com.boulderbuddy.ui.components.SpeechToTextButton
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.TopBar
+import com.boulderbuddy.ui.components.appendSpokenNote
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -143,6 +145,27 @@ fun AlteSessionScreen(
                         placeholder = "Notiz zu dieser Session…",
                         singleLine = false,
                         minLines = 3,
+                        // Spracheingabe, wie in „Neue Session" und „Route hinzufügen". Sie
+                        // fehlte hier als einziges der drei Notizfelder — und ausgerechnet
+                        // beim nachträglichen Festhalten einer Session, wo man am ehesten
+                        // spricht statt tippt.
+                        trailing = {
+                            SpeechToTextButton(
+                                onResult = { spoken ->
+                                    // Direkt speichern statt auf den Fokusverlust zu warten:
+                                    // der Mikrofon-Button nimmt dem Feld den Fokus, der
+                                    // Speicher-Trigger unten hat also schon ausgelöst, als der
+                                    // Text noch der alte war. Ohne diese Zeile wäre die
+                                    // eingesprochene Notiz beim Verlassen des Screens weg.
+                                    val ergaenzt = appendSpokenNote(notiz, spoken)
+                                    notiz = ergaenzt
+                                    onNotesChange(ergaenzt)
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Notiz gespeichert")
+                                    }
+                                },
+                            )
+                        },
                         // hasFocus statt isFocused: der Modifier sitzt am Container der
                         // TextField-Komponente, der das eigentliche Eingabefeld als Kind hält.
                         modifier = Modifier.onFocusChanged { focusState ->
