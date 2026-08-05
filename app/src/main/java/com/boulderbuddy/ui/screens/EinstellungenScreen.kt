@@ -360,10 +360,12 @@ private fun NameAendernDialog(
         title = { Text("Name") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                // Kein Platzhalter-Beispiel: bei einem Feld, das genau eine offensichtliche
+                // Eingabe hat, erklärt ein „z.B. …" nichts — es schiebt nur einen fremden
+                // Namen ins Feld, den man beim Tippen erst mental wegräumen muss.
                 TextField(
                     value = name,
                     onChange = { name = it },
-                    placeholder = "z.B. Deniz",
                 )
                 Text(
                     text = "Wird auf dem Home-Screen zur Begrüßung genutzt. Leer lassen für eine " +
