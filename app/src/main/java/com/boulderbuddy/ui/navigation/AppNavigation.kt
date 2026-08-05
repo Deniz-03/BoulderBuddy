@@ -5,13 +5,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.window.core.layout.WindowSizeClass
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -25,6 +25,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.boulderbuddy.ui.components.BottomNav
 import com.boulderbuddy.ui.components.BottomNavTab
+import com.boulderbuddy.ui.components.SideNav
+import com.boulderbuddy.ui.theme.Breite
+import com.boulderbuddy.ui.theme.aktuelleBreite
 import com.boulderbuddy.ui.screens.BoulderDetailScreen
 import com.boulderbuddy.ui.screens.BoulderUebersichtScreen
 import com.boulderbuddy.ui.screens.EinstellungenScreen
@@ -78,8 +81,6 @@ const val KAMERA_ERGEBNIS = "kamera_ergebnis_uri"
 
 @Composable
 fun AppNavigation(
-    // Aus MainActivity (currentWindowAdaptiveInfo): steuert Compact vs. Medium/Expanded.
-    windowSizeClass: WindowSizeClass,
     // Optionales Sprungziel vom Homescreen-Widget (7.4c); null = normaler Start (Home).
     initialNavTarget: String? = null,
     // Session-ID zu TARGET_ACTIVE_SESSION; sonst null.
@@ -100,22 +101,26 @@ fun AppNavigation(
         }
     }
 
-    // Ab Medium-Breite (≥ 600 dp) nebeneinander-Layouts (Tablet). Darunter (Compact)
-    // bleibt alles beim bestehenden Phone-Push-Verhalten.
-    val isWideLayout = windowSizeClass.isWidthAtLeastBreakpoint(
-        WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
-    )
+    // Drei Breitenstufen statt eines Booleans (siehe ui/theme/Breite.kt). `Weit` (≥ 840 dp)
+    // schaltet die Zwei-Pane-Layouts, `Mittel` (≥ 600 dp) bereits die seitliche Navigation:
+    // eine unten angeheftete Leiste ist ab dieser Breite weder erreichbar noch sinnvoll.
+    val breite = aktuelleBreite()
+    val isWideLayout = breite == Breite.Weit
 
-    // Aktuelles Ziel beobachten, um den aktiven Tab abzuleiten bzw. die BottomNav
+    // Aktuelles Ziel beobachten, um den aktiven Tab abzuleiten bzw. die Navigation
     // nur auf den 4 Tab-Zielen einzublenden.
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentTab = backStackEntry?.destination.toBottomNavTabOrNull()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // Die Navigation wechselt die Achse, der NavHost bleibt derselbe. Deshalb steckt der
+    // gesamte Graph in einem Lambda statt zweimal im Baum: zwei NavHost-Aufrufe wären zwei
+    // getrennte Back-Stacks, und beim Drehen des Tablets über die 600-dp-Grenze wäre der
+    // Verlauf weg.
+    val inhalt: @Composable (Modifier) -> Unit = { inhaltModifier ->
         NavHost(
             navController = navController,
             startDestination = Home,
-            modifier = Modifier.weight(1f),
+            modifier = inhaltModifier,
             // Kurzer Crossfade (~120 ms): das Default-~700-ms-Fade des NavHost wirkt träge,
             // ein harter Instant-Wechsel lässt kurz alte Komponenten aufblitzen. Der kurze
             // Fade blendet die alte Ansicht sauber aus. Gilt für Push- UND Tab-Wechsel.
@@ -377,15 +382,32 @@ fun AppNavigation(
                 )
             }
         }
+    }
 
-        // BottomNav: nur auf den 4 Tab-Zielen sichtbar.
-        if (currentTab != null) {
+    // Die Navigation ist nur auf den 4 Tab-Zielen sichtbar; Push-Screens (Einstellungen,
+    // Formulare, Kamera) füllen das Fenster allein.
+    when {
+        currentTab == null -> Box(modifier = Modifier.fillMaxSize()) { inhalt(Modifier.fillMaxSize()) }
+
+        // Telefon: Leiste unten, wie bisher.
+        breite == Breite.Kompakt -> Column(modifier = Modifier.fillMaxSize()) {
+            inhalt(Modifier.weight(1f))
             Box(modifier = Modifier.navigationBarsPadding()) {
                 BottomNav(
                     selectedTab = currentTab,
                     onTabSelect = { tab -> navController.navigateToTab(tab) },
                 )
             }
+        }
+
+        // Ab 600 dp: Leiste an die Seite. Die Rail trägt ihre eigene statusBarsPadding, der
+        // Inhalt seine — beide beginnen dadurch auf derselben Höhe unter der Statusleiste.
+        else -> Row(modifier = Modifier.fillMaxSize()) {
+            SideNav(
+                selectedTab = currentTab,
+                onTabSelect = { tab -> navController.navigateToTab(tab) },
+            )
+            inhalt(Modifier.weight(1f))
         }
     }
 }

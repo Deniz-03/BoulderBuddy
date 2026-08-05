@@ -8,7 +8,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,11 +65,11 @@ class MainActivity : ComponentActivity() {
             }
 
             BoulderBuddyTheme(darkTheme = darkTheme) {
-                // WindowSizeClass für adaptive Layouts (Phase 7.1: Tablet). Wird an die
-                // Navigation gereicht, die daraus Compact vs. Medium/Expanded ableitet.
-                val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+                // Die Fensterbreite wird nicht mehr von hier durchgereicht: sie steht über
+                // `aktuelleBreite()` (ui/theme/Breite.kt) überall in der Composition zur
+                // Verfügung. Ein Parameter hätte sie nur bis zur Navigation getragen, während
+                // sie inzwischen auch einzelne Screens und Raster interessiert.
                 AppNavigation(
-                    windowSizeClass = windowSizeClass,
                     initialNavTarget = widgetNavTarget,
                     initialNavSessionId = widgetSessionId,
                 )
