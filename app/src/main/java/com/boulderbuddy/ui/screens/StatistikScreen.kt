@@ -124,9 +124,17 @@ fun StatistikScreen(
                 }
 
                 // --- Quick-Stats ---
+                // Bleibt ganz oben: die drei Kacheln sind keine eigene Auswertung, sondern die
+                // Kurzfassung des ganzen Screens — dieselbe Rolle wie die Stat-Reihe auf Home.
                 item {
                     QuickStatsRow(quickStats)
                 }
+
+                // --- Hangboard-Training ---
+                // Steht bewusst VOR Grade-Verteilung und Aktivität: Hangboard-Training ist
+                // gezieltes Training mit Zielwerten, die anderen beiden sind Rückblicke auf
+                // das, was ohnehin passiert ist. Was man steuert, gehört nach oben.
+                item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
 
                 if (wide) {
                     // Tablet: Grade-Verteilung und Aktivität nebeneinander (top-aligned).
@@ -149,9 +157,8 @@ fun StatistikScreen(
                             )
                         }
                     }
-                    item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
                 } else {
-                    // Phone: alles untereinander (unverändert).
+                    // Phone: alles untereinander.
                     item {
                         GradeDistributionSection(
                             state = state,
@@ -160,7 +167,6 @@ fun StatistikScreen(
                             onSelectSystem = { selectedSystemId = it },
                         )
                     }
-                    item { HangboardSection(state, onOpen = onOpenHangboardHistorie) }
                     item { ActivitySection(activity = activity, range = state.activityRange) }
                 }
             }
