@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -30,6 +31,16 @@ private val BarChartHeight = 160.dp
 // Balken sonst breiter als hoch, und das Verhältnis der Höhen — die eigentliche Aussage des
 // Diagramms — geht neben der Fläche unter.
 private val BarMaxWidth = 56.dp
+
+/**
+ * Testmarke am einzelnen Balken.
+ *
+ * Ein Balken ist eine gefärbte Fläche ohne Text — er hat von sich aus nichts, woran ein Test
+ * ihn greifen könnte. Genau das war das Problem: als er durch eine falsche Modifier-Reihenfolge
+ * auf Breite 0 zusammenfiel, blieb der Build grün, die Tests grün, und das Diagramm war leer.
+ * Die Marke ist der Preis dafür, dass `DiagrammBreiteTest` das messen kann.
+ */
+const val BAR_TEST_TAG = "barchart_bar"
 
 // Ein Balken: Beschriftung + Wert + Farbe (i.d.R. die Routenfarbe des Grades).
 data class BarChartEntry(
@@ -90,7 +101,8 @@ fun BarChart(
                             .fillMaxWidth()
                             .fillMaxHeight(entry.value / maxValue)
                             .clip(MaterialTheme.shapes.extraSmall)
-                            .background(entry.color),
+                            .background(entry.color)
+                            .testTag(BAR_TEST_TAG),
                     )
                 }
                 Text(
