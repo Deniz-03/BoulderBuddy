@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -66,7 +67,11 @@ fun TopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = Dimens.paddingS, vertical = Dimens.paddingM),
+                // Feste Mindesthöhe statt „so hoch wie der Inhalt": siehe Dimens.topBarHoehe.
+                // Das vertikale Padding fällt auf paddingS, damit ein 48-dp-Aktionsicon
+                // innerhalb der 64 dp bleibt statt sie zu sprengen.
+                .heightIn(min = Dimens.topBarHoehe)
+                .padding(horizontal = Dimens.paddingS, vertical = Dimens.paddingS),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (navIcon != null) {

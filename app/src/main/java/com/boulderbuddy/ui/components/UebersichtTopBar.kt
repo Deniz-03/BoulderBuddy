@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
@@ -75,7 +76,9 @@ fun UebersichtTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = Dimens.paddingS, vertical = Dimens.paddingM),
+                // Dieselbe Höhe wie TopBar — im Zwei-Pane-Layout stehen beide nebeneinander.
+                .heightIn(min = Dimens.topBarHoehe)
+                .padding(horizontal = Dimens.paddingS, vertical = Dimens.paddingS),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Klickbarer Dropdown-Titel links (nimmt die Restbreite ein).
