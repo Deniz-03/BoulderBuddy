@@ -100,3 +100,51 @@ Ring links, Presets/Konfiguration rechts. Heute ist der Ring zentriert und der R
 
 S1 und S2 zuerst (Fundament, wirken sofort auf mehrere Screens), dann S3, dann S4/S5 (die
 sichtbarsten Ausreißer), danach S6–S8. S9 begleitend nach jedem Schritt.
+
+---
+
+# Stand nach der Umsetzung (05.08.2026)
+
+**Umgesetzt: S1, S2, S3, S4, S5, S7, S9.** Sechs Commits, JVM-Tests grün, jeder Schritt am
+Pixel-Tablet-Emulator gegengeprüft; Kompakt auf dem Pixel 6a unverändert.
+
+| | vorher | nachher |
+|---|---|---|
+| Schnellaktionen | 410 dp Quadrate, 60 % der Bildhöhe | 160 dp hoch, alles auf einer Seite |
+| Heatmap-Zelle | ~83 dp | 32 dp |
+| Balken | 2 Flächen à 615 dp | 56 dp |
+| Boulder-Raster | 2 Spalten à 615 dp | 3 Spalten à ~330 dp |
+| Einstellungen | Label 0 dp / Wert 1240 dp | 600 dp Spalte, zentriert |
+| Sessions-Chrome | reißt bei 360 dp ab | durchgehend, gleiche Leistenhöhe |
+| Navigation | BottomNav über 1280 dp | Rail ab 600 dp |
+
+## Bewusst nicht umgesetzt
+
+**S6 (Home als mehrspaltiger Feed)** und **S8 (Timer zweispaltig)** — beide gestrichen, nachdem
+das Ergebnis der übrigen Schritte am Gerät zu sehen war:
+
+- Home passt jetzt ohne Scrollen auf eine Seite. Das war der eigentliche Mangel. Eine zweite
+  Spalte würde den freien Platz darunter füllen, aber es gibt nur drei Abschnitte — sie zu
+  verteilen ergäbe zwei halbleere Spalten statt einer gefüllten.
+- Der Timer ist ein Fokus-Screen: ein großer Ring, den man vom Hangboard aus quer durch den
+  Raum liest. Presets daneben würden den Ring verkleinern — der freie Platz ist hier die
+  Gestaltung, nicht ihr Fehlen.
+
+Beides ist eine Einschätzung ohne Gegenprüfung durch Deniz. Wenn der freie Platz stört, sind
+es zwei überschaubare Schritte.
+
+## Was dabei gelernt wurde
+
+**`fillMaxWidth().widthIn(max = …)` wirkt nicht.** `fillMaxWidth` setzt Mindest- *und*
+Höchstbreite auf die Elternbreite; gegen die Mindestbreite kommt ein späteres `widthIn` nicht
+an. Es braucht `wrapContentWidth` dazwischen — das ist der Kern von `Modifier.inhaltsBreite`.
+Der Fehler war beim ersten Anlauf in Heatmap und Balkendiagramm drin und fiel erst am Gerät
+auf: die Deckelung tat schlicht nichts.
+
+**Und die Umkehrung gilt für leere Kästen.** Beim Balken (ein `Box` ohne Inhalt) ließ
+`inhaltsBreite` ihn auf Breite 0 zusammenfallen — er hat keine Eigenbreite, die zu begrenzen
+wäre. Dort muss es `widthIn(max = …).fillMaxWidth()` heißen: erst deckeln, dann die gedeckelte
+Breite ausfüllen. Am Gerät waren die Balken zwischenzeitlich komplett verschwunden.
+
+Beide Male hat kein Test etwas gemerkt, weil beide Male die Werte stimmten und nur das Layout
+sie nicht umsetzte — dieselbe Sorte Befund wie in den fünf Design-Runden davor.
