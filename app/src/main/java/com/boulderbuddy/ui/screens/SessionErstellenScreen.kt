@@ -2,7 +2,7 @@ package com.boulderbuddy.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +28,7 @@ import com.boulderbuddy.ui.components.SelectableChip
 import com.boulderbuddy.ui.components.SpeechToTextButton
 import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.TopBar
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.components.appendSpokenNote
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
@@ -73,6 +74,10 @@ fun SessionErstellenScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Formulare bleiben eine Spalte, egal wie breit das Fenster ist. Ein
+                    // Eingabefeld von 1248 dp ist keine bessere Version eines Feldes von
+                    // 400 dp — der Cursor steht dann irgendwo in einer leeren Fläche.
+                    .inhaltsBreite()
                     .navigationBarsPadding()
                     .padding(
                         horizontal = Dimens.paddingL,   // 16dp – Abstand zum linken/rechten Rand
@@ -104,26 +109,30 @@ fun SessionErstellenScreen(
                             color = BoulderBuddy.colors.textSecondary,
                         )
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
-                            // chunked(2) teilt die Systeme in 2er-Reihen → 2-Spalten-Raster.
-                            state.systems.chunked(2).forEach { rowSystems ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-                                ) {
-                                    rowSystems.forEach { system ->
-                                        SelectableChip(
-                                            label = system.name,
-                                            selected = system.id == effectiveSystemId,
-                                            onClick = { selectedSystemId = system.id },
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                    }
-                                    // Ungerade Reihe: Spacer hält den einzelnen Chip auf halber Breite.
-                                    if (rowSystems.size == 1) {
-                                        Spacer(Modifier.weight(1f))
-                                    }
-                                }
+                        /*
+                         * Chips fließen, sie werden nicht in ein Raster gezwungen.
+                         *
+                         * Vorher: `chunked(2)` + `weight(1f)` — zwei gleich breite Spalten.
+                         * Damit war die Breite eines Chips eine Funktion der Fensterbreite und
+                         * nicht seiner Beschriftung: am Tablet wurde „V-Scale" 615 dp breit,
+                         * und drei Systeme brachen in zwei Zeilen um, obwohl sie nebeneinander
+                         * gepasst hätten.
+                         *
+                         * `FlowRow` legt so viele nebeneinander, wie hineinpassen, und jeder
+                         * ist so breit wie sein Text. Das ist auch die richtige Form für eine
+                         * Auswahl: Chips sind Etiketten, keine Tabellenzellen.
+                         */
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                            verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                        ) {
+                            state.systems.forEach { system ->
+                                SelectableChip(
+                                    label = system.name,
+                                    selected = system.id == effectiveSystemId,
+                                    onClick = { selectedSystemId = system.id },
+                                )
                             }
                         }
                     }

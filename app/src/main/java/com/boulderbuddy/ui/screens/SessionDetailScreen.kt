@@ -36,9 +36,11 @@ import com.boulderbuddy.ui.components.RouteCard
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
+import androidx.compose.foundation.layout.BoxWithConstraints
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.spaltenFuer
 import com.boulderbuddy.ui.viewmodel.HangboardWorkoutUi
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 import kotlinx.coroutines.delay
@@ -138,45 +140,64 @@ fun SessionDetailScreen(
                     }
                 }
 
-                // --- Boulder-Grid (2 Spalten) ---
+                // --- Boulder-Raster ---
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                         SectionHeader(text = "Boulder dieser Session")
 
                         // null = Platzhalter für die AddRouteCard, immer als letzte Kachel.
                         val cells: List<SessionBoulderUi?> = boulders + null
-                        cells.chunked(2).forEach { rowCells ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
-                            ) {
-                                rowCells.forEach { cell ->
-                                    if (cell == null) {
-                                        AddRouteCard(
-                                            onClick = onAddRoute,
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                    } else {
-                                        RouteCard(
-                                            grade = cell.grade,
-                                            name = cell.name,
-                                            meta = "${cell.versuche} Vers.",
-                                            accentColor = cell.accentColor,
-                                            statusIcon = {
-                                                Text(
-                                                    text = cell.status.symbol,
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = statusColorFor(cell.status),
+
+                        /*
+                         * Die Spaltenzahl wird gemessen, nicht angenommen.
+                         *
+                         * Vorher `chunked(2)` — fest. Am Tablet ergab das zwei Karten von je
+                         * 615 dp für „V3 / Dachrinne / 1 Vers.".
+                         *
+                         * Hier steht `BoxWithConstraints` und nicht `aktuelleBreite()`, weil
+                         * dieser Screen im Tablet-Layout **im Detail-Pane** läuft: das Fenster
+                         * meldet dort 1280 dp, verfügbar sind aber nur ~900 dp. Und ein
+                         * `LazyVerticalGrid` wie in der Boulder-Übersicht geht nicht — es säße
+                         * in einem `LazyColumn`-Item, also zwei Lazy-Container derselben Achse.
+                         */
+                        BoxWithConstraints {
+                            val spalten = spaltenFuer(maxWidth)
+                            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                                cells.chunked(spalten).forEach { rowCells ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+                                    ) {
+                                        rowCells.forEach { cell ->
+                                            if (cell == null) {
+                                                AddRouteCard(
+                                                    onClick = onAddRoute,
+                                                    modifier = Modifier.weight(1f),
                                                 )
-                                            },
-                                            onClick = { onOpenBoulder(cell.id) },
-                                            modifier = Modifier.weight(1f),
-                                        )
+                                            } else {
+                                                RouteCard(
+                                                    grade = cell.grade,
+                                                    name = cell.name,
+                                                    meta = "${cell.versuche} Vers.",
+                                                    accentColor = cell.accentColor,
+                                                    statusIcon = {
+                                                        Text(
+                                                            text = cell.status.symbol,
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            color = statusColorFor(cell.status),
+                                                        )
+                                                    },
+                                                    onClick = { onOpenBoulder(cell.id) },
+                                                    modifier = Modifier.weight(1f),
+                                                )
+                                            }
+                                        }
+                                        // Angebrochene Reihe: leere Slots halten die vorhandenen
+                                        // Kacheln auf ihrer Spaltenbreite, statt sie zu strecken.
+                                        repeat(spalten - rowCells.size) {
+                                            Spacer(Modifier.weight(1f))
+                                        }
                                     }
-                                }
-                                // Ungerade Reihe: Spacer hält die einzelne Kachel auf halber Breite.
-                                if (rowCells.size == 1) {
-                                    Spacer(Modifier.weight(1f))
                                 }
                             }
                         }
