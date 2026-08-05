@@ -54,6 +54,7 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.theme.keyForRouteColor
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.theme.routeColorPalette
@@ -166,7 +167,8 @@ fun RouteHinzufuegenScreen(
         content = { _ ->
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    // Formularspalte statt Fensterbreite — siehe SessionErstellenScreen.
+                    .inhaltsBreite()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = Dimens.paddingL, vertical = Dimens.paddingL),

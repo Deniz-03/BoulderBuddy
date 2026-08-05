@@ -42,6 +42,7 @@ import com.boulderbuddy.ui.components.appendSpokenNote
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 import kotlinx.coroutines.launch
 
@@ -103,7 +104,10 @@ fun AlteSessionScreen(
         content = { _ ->
           Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Nachtrag einer Session: überwiegend Notiztext, also Textspaltenbreite.
+                    .inhaltsBreite(),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,

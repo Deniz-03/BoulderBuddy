@@ -58,6 +58,7 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.EinstellungenUiState
 import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 
@@ -138,6 +139,10 @@ fun EinstellungenScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Ohne Begrenzung stand am Tablet das Label „Dark Mode" ganz links und
+                    // sein Schalter 1240 dp weiter rechts. Beide gehören zur selben Zeile,
+                    // aber auf diese Entfernung liest man sie nicht mehr als eine.
+                    .inhaltsBreite()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(vertical = Dimens.paddingL),
