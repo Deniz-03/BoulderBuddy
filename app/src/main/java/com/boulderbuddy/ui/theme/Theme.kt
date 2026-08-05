@@ -2,6 +2,7 @@ package com.boulderbuddy.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -28,8 +29,12 @@ private val LightColorScheme = lightColorScheme(
     onPrimaryContainer = BoulderBuddyOnSurface,
     secondary          = BoulderBuddyTextSecondary,
     onSecondary        = BoulderBuddyOnFillStrong,
+    secondaryContainer   = BoulderBuddySurfaceHigh,
+    onSecondaryContainer = BoulderBuddyOnSurface,
     tertiary           = BoulderBuddyAccentOnSurface,
     onTertiary         = BoulderBuddyOnFillStrong,
+    tertiaryContainer   = BoulderBuddySurfaceHigh,
+    onTertiaryContainer = BoulderBuddyOnSurface,
 
     background   = BoulderBuddySurfaceBackground,
     onBackground = BoulderBuddyOnSurface,
@@ -45,15 +50,23 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerHighest = BoulderBuddySurfaceHighest,
     surfaceVariant          = BoulderBuddySurfaceContainer,
     onSurfaceVariant        = BoulderBuddyTextSecondary,
+    surfaceDim              = BoulderBuddySurfaceHighest,
+    surfaceBright           = BoulderBuddySurfaceLowest,
+    // Siehe Erklärung am DarkColorScheme: `surfaceTint` = `surface` schaltet die tonale
+    // Überlagerung ab, damit Höhe ausschließlich über die Rampe oben ausgedrückt wird.
+    surfaceTint             = BoulderBuddySurfaceBackground,
 
     outline        = BoulderBuddyBorderSubtle,
     outlineVariant = BoulderBuddyBorderSubtle,
 
     inverseSurface   = BoulderBuddyFillStrong,
     inverseOnSurface = BoulderBuddyOnFillStrong,
+    inversePrimary   = BoulderBuddyInversePrimary,
 
-    error     = RouteRed,
-    onError   = BoulderBuddyOnFillStrong,
+    error             = BoulderBuddyError,
+    onError           = BoulderBuddyOnError,
+    errorContainer    = BoulderBuddyErrorContainer,
+    onErrorContainer  = BoulderBuddyOnErrorContainer,
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -63,8 +76,12 @@ private val DarkColorScheme = darkColorScheme(
     onPrimaryContainer = BoulderBuddyDarkOnSurface,
     secondary          = BoulderBuddyDarkTextSecondary,
     onSecondary        = BoulderBuddyDarkOnFillStrong,
+    secondaryContainer   = BoulderBuddyDarkSurfaceHigh,
+    onSecondaryContainer = BoulderBuddyDarkOnSurface,
     tertiary           = BoulderBuddyDarkAccentOnSurface,
     onTertiary         = BoulderBuddyDarkOnFillStrong,
+    tertiaryContainer   = BoulderBuddyDarkSurfaceHigh,
+    onTertiaryContainer = BoulderBuddyDarkOnSurface,
 
     background   = BoulderBuddyDarkBackground,
     onBackground = BoulderBuddyDarkOnSurface,
@@ -78,15 +95,34 @@ private val DarkColorScheme = darkColorScheme(
     surfaceContainerHighest = BoulderBuddyDarkSurfaceHighest,
     surfaceVariant          = BoulderBuddyDarkSurfaceHigh,
     onSurfaceVariant        = BoulderBuddyDarkTextSecondary,
+    surfaceDim              = BoulderBuddyDarkSurfaceLowest,
+    surfaceBright           = BoulderBuddyDarkSurfaceHighest,
+
+    /*
+     * `surfaceTint` = `surface`, und das ist Absicht.
+     *
+     * Material mischt bei `tonalElevation > 0` diese Farbe in die Fläche ein — voreingestellt
+     * ist `primary`. Unser `primary` ist im Dark Mode ein helles Lachs; jede erhöhte Fläche
+     * hätte einen rosa Schleier bekommen, und zwar einen, der mit der Höhe wächst und in
+     * keiner Palettendatei steht. Nicht nachrechenbar, nicht steuerbar.
+     *
+     * Material 3 selbst drückt Höhe inzwischen über die `surfaceContainer*`-Rollen aus, nicht
+     * über die Überlagerung. Wir haben diese Rampe — also schalten wir die Überlagerung ab,
+     * indem der Tint der Fläche gleicht. Damit ist jede Fläche der App ein Wert aus der Datei.
+     */
+    surfaceTint             = BoulderBuddyDarkBackground,
 
     outline        = BoulderBuddyDarkBorderSubtle,
     outlineVariant = BoulderBuddyDarkBorderSubtle,
 
     inverseSurface   = BoulderBuddyDarkFillStrong,
     inverseOnSurface = BoulderBuddyDarkOnFillStrong,
+    inversePrimary   = BoulderBuddyDarkInversePrimary,
 
-    error     = RouteRed,
-    onError   = BoulderBuddyDarkOnFillStrong,
+    error             = BoulderBuddyDarkError,
+    onError           = BoulderBuddyDarkOnError,
+    errorContainer    = BoulderBuddyDarkErrorContainer,
+    onErrorContainer  = BoulderBuddyDarkOnErrorContainer,
 )
 
 private val LightBoulderBuddyColors = BoulderBuddyColors(
@@ -146,7 +182,23 @@ fun BoulderBuddyTheme(
             colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
             typography  = Typography,
             shapes      = BoulderBuddyShapes,
-            content     = content,
-        )
+        ) {
+            /*
+             * DIESE `Surface` IST DER FIX.
+             *
+             * `MaterialTheme` legt nur Farbwerte in den Composition-Baum — gezeichnet hat es
+             * nie etwas. Sichtbar war deshalb der Fenster-Hintergrund der Activity, ein
+             * Fast-Weiß, in beiden Themes. Im Dark Mode stand der cremefarbene Text damit auf
+             * Weiß: 1,21:1. Die Palette war korrekt, sie kam nur nie auf den Bildschirm.
+             *
+             * Hier statt im Scaffold, weil nicht jeder Screen ein Scaffold benutzt: Dialoge,
+             * die Listen-Detail-Ansicht auf dem Tablet und der Kamera-Screen hängen direkt am
+             * Theme. Eine Wurzelfläche deckt sie alle ab.
+             *
+             * `Surface` setzt zugleich `contentColor` auf `onBackground` — womit auch jeder
+             * `Text` ohne ausdrückliche Farbe eine passende bekommt statt Materials Vorgabe.
+             */
+            Surface(color = MaterialTheme.colorScheme.background, content = content)
+        }
     }
 }

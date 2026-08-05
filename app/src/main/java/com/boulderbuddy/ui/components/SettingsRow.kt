@@ -89,7 +89,7 @@ fun SettingsRow(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6, widthDp = 360)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4, widthDp = 360)
 @Composable
 private fun SettingsRowPreview() {
     BoulderBuddyTheme {

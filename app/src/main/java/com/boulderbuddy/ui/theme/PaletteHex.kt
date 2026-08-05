@@ -19,11 +19,36 @@ package com.boulderbuddy.ui.theme
  */
 
 // --- Light: warme Creme-Rampe, hell nach dunkel ------------------------------
+/*
+ * Der Hintergrund lag bei L* 93,6 und das Chrome bei L* 90,3 — 1,08:1. Zwei Flächen, die sich
+ * um so wenig unterscheiden, liest das Auge als eine; die Leisten rahmten den Inhalt nicht,
+ * sie verschwanden in ihm. Jetzt L* 96,9, also 1,18:1 — nach oben statt das Chrome nach unten,
+ * weil das Chrome bereits die Textfarben des Light Mode trägt und jede Verdunklung dort direkt
+ * an den Kontrastschwellen zerrt.
+ *
+ * **Nach oben ist hier fast Schluss, und der Deckel ist die Card.** Sie liegt bei L* 99,3, quasi
+ * auf Weiß — viel Luft hat sie nicht mehr. Je heller der Hintergrund wird, desto schwächer wird
+ * die Stufe zwischen beiden: von 1,16:1 über 1,09:1 auf jetzt 1,06:1. Das ist tragbar, weil die
+ * Card ihre Grenze ohnehin über den Rand zieht und nicht über die Füllung (siehe
+ * `flaechenstufe_istBewusstFeinUndDarfDieSchwelleReissen`) — aber es ist die Zahl, die als
+ * nächstes reißt, nicht irgendeine Textschwelle. Wer hier weiter aufhellen will, muss zuerst
+ * die Card lösen.
+ *
+ * Das Anheben zwingt die zwei Stufen darunter mit: `surfaceContainer` lag bei L* 95,0 und wäre
+ * damit HELLER gewesen als der Hintergrund — eine Rampe, die in der Mitte zurückspringt, ist
+ * keine mehr. Beide Stufen rücken deshalb nach unten und die Reihenfolge stimmt wieder:
+ *
+ *   weiß > Card > Hintergrund > Container > Dialog > Chrome > höchste > Muster
+ *
+ * Das untere Ende ist dabei UNVERÄNDERT geblieben, und zwar nicht aus Bequemlichkeit: die
+ * dritte Textebene hält auf dem Punkte-Muster 4,55:1. Fünf Hundertstel über der Schwelle —
+ * die dunklen Stufen sind ausgereizt, Spielraum gibt es nur nach oben.
+ */
 const val HEX_LIGHT_SURFACE_LOWEST = 0xFFFFFFFF
 const val HEX_LIGHT_CARD = 0xFFFFFDF7          // = surfaceContainerLow
-const val HEX_LIGHT_BACKGROUND = 0xFFF3ECD6    // = surface
-const val HEX_LIGHT_SURFACE_CONTAINER = 0xFFF8F1DC
-const val HEX_LIGHT_SURFACE_HIGH = 0xFFF1E9D0  // Dialoge, Menüs, Bottom-Sheets
+const val HEX_LIGHT_BACKGROUND = 0xFFFCF6E4    // = surface
+const val HEX_LIGHT_SURFACE_CONTAINER = 0xFFF4EDD6
+const val HEX_LIGHT_SURFACE_HIGH = 0xFFEFE7CD  // Dialoge, Menüs, Bottom-Sheets
 const val HEX_LIGHT_SURFACE_HIGHEST = 0xFFE9E0C2
 const val HEX_LIGHT_PATTERN = 0xFFE7DFC3
 
@@ -68,54 +93,68 @@ const val HEX_LIGHT_ON_FILL_STRONG = 0xFFF7F2E2
 const val HEX_LIGHT_ACCENT = 0xFF9C4E37
 const val HEX_LIGHT_ACCENT_ON_SURFACE = 0xFF954E38
 
-// --- Dark: warme, angehobene Rampe -------------------------------------------
+// --- Dark: warmes Anthrazit, gedämpfte Sättigung ------------------------------
 /*
- * Diese Rampe lag bis zum 03.08.2026 rund zehn Helligkeitsstufen tiefer — der Hintergrund
- * war #14110C, in CIE-L* gerechnet 5,2 von 100, also praktisch Schwarz. Auf dem Papier war
- * das die beste Variante: der Primärtext erreichte dort 15,9:1, mehr als im Light Mode.
- * Gelesen hat es sich trotzdem schlechter, und beides hat dieselbe Ursache.
+ * DAS EIGENTLICHE PROBLEM WAR NICHT DIE PALETTE — ES WAR, DASS SIE NIE GEZEICHNET WURDE.
  *
- * HALATION. Auf einem nahezu schwarzen Grund blühen helle Buchstaben aus und werden weich.
- * Der Effekt wird durch hohen Kontrast schlimmer, nicht besser — deshalb sieht die Zahl gut
- * aus, während das Auge sich anstrengt. Ein Kontrastwert kann das nicht abbilden; er kennt
- * nur zwei Farben, nicht die absolute Helligkeit, gegen die sie stehen.
+ * `HEX_DARK_BACKGROUND` stand seit jeher hier, aber kein Composable hat ihn je auf die
+ * Fläche gebracht: das Scaffold zeichnete mit `dotPattern` NUR die Punkte, und `MaterialTheme`
+ * malt von sich aus überhaupt nichts. Sichtbar war deshalb der Fenster-Hintergrund von
+ * `android:Theme.Material.Light` — ein Fast-Weiß (#FAFAFA), in BEIDEN Themes. Der Dark Mode
+ * setzte also seinen cremefarbenen Text auf Weiß: 1,21:1.
  *
- * UND DIE FARBE WAR WEG. Farbigkeit ist bei so geringer Helligkeit physikalisch kaum
- * darstellbar: der Hintergrund hatte eine RGB-Spanne von 8 gegenüber 29 im Light Mode. Von
- * dem warmen Creme, das die App ausmacht, blieb Schwarz übrig.
+ * Der Kontrast-Test war dabei nicht falsch, er war ARGLOS. Er prüfte die Werte, die die
+ * Palette vorsah, und konnte nicht wissen, dass die Fläche darunter eine andere war. Die
+ * einzige Farbe, die das Scaffold tatsächlich auftrug, war die Punktfarbe. Behoben an drei
+ * Stellen: Fenster-Hintergrund (themes.xml + values-night), Wurzel-`Surface` im Theme und
+ * die Grundfläche im Scaffold.
  *
- * Jetzt liegt der Hintergrund bei 14,9 mit einer Spanne von 21. Die Punkte darauf sind
- * wieder ein Muster statt Schwarz auf Schwarz, und das Chrome hat einen eigenen Wert —
- * vorher war es ZEICHENGLEICH MIT DER CARD (beide #201C14), sodass TopBar und Bottom-Nav
- * sich nicht als Rahmen lasen.
+ * ERST DANACH LÄSST SICH ÜBER DIE RAMPE REDEN — und da waren zwei Dinge zu korrigieren.
  *
- * DER PREIS, OFFEN BENANNT: ein angehobener Grund kostet Spielraum nach oben. Damit jede
- * Textebene auf JEDER Fläche 4,5:1 hält, rücken die drei Ebenen enger zusammen — ihre
- * Abstände sind jetzt 9,9 und 10,6 statt 20,3 und 10,2. Die Hierarchie ist dadurch flacher,
- * jede einzelne Ebene aber besser lesbar. Das war die Abwägung.
+ * ZU HELL. Der Hintergrund lag bei L* 14,9. Das war die Antwort auf eine frühere Fassung mit
+ * L* 5,2, die wegen Halation (helle Buchstaben blühen auf nahezu schwarzem Grund aus) zu
+ * Recht verworfen wurde — die Korrektur schoss aber über das Ziel hinaus. L* 11,5 ist die
+ * Höhe, auf der Material 3 seine eigene dunkle Fläche ansetzt: dunkel genug, dass es nach
+ * Dark Mode aussieht, deutlich über der Halations-Zone.
  *
- * Reihenfolge nach wahrgenommener Helligkeit: das Chrome liegt UNTER dem Hintergrund —
- * gespiegelt zum Light Mode, wo es ebenfalls darunter liegt und den Inhalt rahmt.
+ * ZU BUNT. Das ist der Grund, warum es „schmutzig" wirkte. Die Flächen hatten eine Buntheit
+ * von C* 11–13 — im Light Mode bei L* 93 liest sich das als Creme, bei L* 15 als Oliv. Farbe
+ * braucht Helligkeit, um als Farbe gelesen zu werden; unten wird aus Sättigung Schlamm.
+ * Deshalb jetzt die Regel: **große Flächen fast neutral (C* 3,5–8), die Wärme tragen Text,
+ * Rand und Akzent** — die liegen hoch genug, um Buntheit zu vertragen.
+ *
+ * Alle Flächen liegen auf demselben Farbwinkel (H 82°, warmes Gelbbraun). Eine Rampe mit
+ * driftendem Farbton wirkt fleckig, auch wenn jeder Wert für sich stimmt.
+ *
+ * Reihenfolge nach Helligkeit: das Chrome liegt UNTER dem Hintergrund — gespiegelt zum
+ * Light Mode, wo es ebenfalls darunter liegt und den Inhalt rahmt.
  */
-const val HEX_DARK_SURFACE_LOWEST = 0xFF1B170D  // Helligkeit  7,9
-const val HEX_DARK_CHROME = 0xFF221D11          // Helligkeit 11,0 — eigener Wert, nicht = Card
-const val HEX_DARK_BACKGROUND = 0xFF2B2516      // Helligkeit 14,9 = surface
-const val HEX_DARK_SURFACE_LOW = 0xFF322C1B     // Helligkeit 18,2
-const val HEX_DARK_PATTERN = 0xFF36301D         // Helligkeit 20,0 — Punkte, jetzt sichtbar
-const val HEX_DARK_CARD = 0xFF393220            // Helligkeit 21,0 = surfaceContainer
-const val HEX_DARK_SURFACE_HIGH = 0xFF403925    // Helligkeit 24,2 — Dialoge, Menüs
-const val HEX_DARK_SURFACE_HIGHEST = 0xFF473F2B // Helligkeit 26,9 — bindend für alle Texte
+const val HEX_DARK_SURFACE_LOWEST = 0xFF15120C  // L*  5,6
+const val HEX_DARK_CHROME = 0xFF1C1811          // L*  8,5 — eigener Wert, nicht = Card
+const val HEX_DARK_BACKGROUND = 0xFF231E16      // L* 11,6 = surface
+const val HEX_DARK_SURFACE_LOW = 0xFF28231B     // L* 14,0
+const val HEX_DARK_PATTERN = 0xFF2E281F         // L* 16,5 — Punkte
+const val HEX_DARK_CARD = 0xFF302A21            // L* 17,4 = surfaceContainer
+const val HEX_DARK_SURFACE_HIGH = 0xFF373127    // L* 20,7 — Dialoge, Menüs
+const val HEX_DARK_SURFACE_HIGHEST = 0xFF3D362B // L* 23,0 — bindend für alle Texte
 
-// Der Primärtext ist ein warmes Off-White, KEIN Weiß: reines Weiß auf dunklem Grund ist die
-// Halation in Reinform. Die erste Rechnung lief genau dorthin und wurde deshalb verworfen.
-const val HEX_DARK_ON_SURFACE = 0xFFECE5D1      // Helligkeit 91,0
-const val HEX_DARK_TEXT_SECONDARY = 0xFFD3C9AD  // Helligkeit 81,1
-const val HEX_DARK_TEXT_TERTIARY = 0xFFB7AC8E   // Helligkeit 70,5
+/*
+ * Die drei Textebenen. Der Deckel der Flächen-Rampe bestimmt sie: auf L* 23 braucht es für
+ * 4,5:1 mindestens L* 65,5 — die dritte Ebene kann also gar nicht tiefer. Dass die Rampe
+ * jetzt bei 23 endet statt bei 26,9, ist genau deshalb kein Detail: es sind rund vier
+ * Helligkeitsstufen zusätzlicher Spielraum für die Hierarchie.
+ *
+ * Der Primärtext ist ein warmes Off-White, KEIN Weiß — reines Weiß auf dunklem Grund ist die
+ * Halation in Reinform.
+ */
+const val HEX_DARK_ON_SURFACE = 0xFFE6DFCE      // L* 88,9
+const val HEX_DARK_TEXT_SECONDARY = 0xFFC7BDAC  // L* 77,0
+const val HEX_DARK_TEXT_TERTIARY = 0xFFADA28F   // L* 67,1
 
 // Rand: bindend ist die hellste Fläche, nicht die dunkelste.
-const val HEX_DARK_BORDER = 0xFF978B69
+const val HEX_DARK_BORDER = 0xFF918572          // L* 56,1
 
-const val HEX_DARK_ON_CHROME = 0xFFECE5D1
+const val HEX_DARK_ON_CHROME = 0xFFE6DFCE
 
 /**
  * Hier dreht das Paar um: im Dark Mode ist die **Füllung hell** und der Text darauf dunkel.
@@ -124,12 +163,45 @@ const val HEX_DARK_ON_CHROME = 0xFFECE5D1
  * Aktion. Im Dark Mode ziehen die Aufgaben auseinander: ein dunkler Button auf dunklem Grund
  * ist keine primäre Aktion mehr, er verschwindet.
  */
-const val HEX_DARK_FILL_STRONG = 0xFFE7DCBF
-const val HEX_DARK_ON_FILL_STRONG = 0xFF241F12
+const val HEX_DARK_FILL_STRONG = 0xFFE4D9C1     // L* 87,0
+const val HEX_DARK_ON_FILL_STRONG = 0xFF29231A  // L* 14,1
 
 // Zwei Akzentwerte, weil Chrome und Inhaltsflächen verschieden hell sind.
-const val HEX_DARK_ACCENT = 0xFFC8866E
-const val HEX_DARK_ACCENT_ON_SURFACE = 0xFFD9A08C
+const val HEX_DARK_ACCENT = 0xFFD0927B          // L* 66,1 — auf dem Chrome
+const val HEX_DARK_ACCENT_ON_SURFACE = 0xFFD99D88 // L* 69,9 — auf Card und Dialog
+
+/*
+ * --- Fehlerfarben: eigene Werte statt der Route-Farbe -------------------------
+ *
+ * `error` war in beiden Themes `RouteRed` (#E53935). Das ist eine GRIFFFARBE — gewählt, um
+ * auf einem Foto als roter Griff erkennbar zu sein, nicht um als Text zu funktionieren. Als
+ * `error` landet sie aber genau dort: Material setzt die Rolle als Textfarbe von
+ * Fehlermeldungen und Feld-Labels ein. Im Light Mode erreichte sie auf den Inhaltsflächen
+ * 3,2–4,2:1 — durchweg unter der Schwelle, und ausgerechnet an der Stelle, an der Text am
+ * dringendsten gelesen werden muss.
+ *
+ * Dieselbe Verwechslung wie damals bei `surfaceInverse`: eine Farbe, zwei Aufgaben. Deshalb
+ * hier eigene Werte, und die Route-Farben bleiben, wofür sie da sind.
+ */
+const val HEX_LIGHT_ERROR = 0xFFAA3337
+const val HEX_LIGHT_ON_ERROR = 0xFFF7F2E2
+const val HEX_LIGHT_ERROR_CONTAINER = 0xFFFFD5D1
+const val HEX_LIGHT_ON_ERROR_CONTAINER = 0xFF8B272A
+
+const val HEX_DARK_ERROR = 0xFFEB837A
+const val HEX_DARK_ON_ERROR = 0xFF311F1D
+const val HEX_DARK_ERROR_CONTAINER = 0xFF4C2523
+const val HEX_DARK_ON_ERROR_CONTAINER = 0xFFEFC1BC
+
+/**
+ * `inversePrimary` — die Aktion in der Snackbar, die auf der *invertierten* Fläche liegt.
+ *
+ * Eigene Werte, weil die invertierte Fläche die Polarität des Themes umdreht: im Dark Mode
+ * ist `inverseSurface` hell, ein heller Akzent wäre dort unsichtbar. Genau die Falle, in der
+ * der Nav-Akzent schon einmal saß.
+ */
+const val HEX_LIGHT_INVERSE_PRIMARY = 0xFFD99D88
+const val HEX_DARK_INVERSE_PRIMARY = 0xFF8B3D25
 
 // --- Route-Akzente (in beiden Themes gleich) ----------------------------------
 // Reine Wiedererkennung der Grifffarbe, nie Textträger.

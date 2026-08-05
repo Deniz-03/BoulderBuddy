@@ -156,6 +156,46 @@ class PaletteContrastTest {
         // er war vorher ein Alpha-Wert auf der Inhaltsfarbe und lag bei 3,94:1.
     }
 
+    // --- Fehlerfarben --------------------------------------------------------
+
+    @Test
+    fun fehlerfarbe_istLesbarUndKeineRoutefarbe() {
+        // `error` war in beiden Themes RouteRed und erreichte im Light Mode auf den
+        // Inhaltsflächen 3,2–4,2:1. Eine Grifffarbe ist für Fotos gewählt, nicht für Text —
+        // Material setzt `error` aber genau als Textfarbe ein.
+        lightFlaechen.forEach { (name, flaeche) ->
+            pruefe("Light: Fehlertext auf $name", HEX_LIGHT_ERROR, flaeche, TEXT)
+        }
+        darkFlaechen.forEach { (name, flaeche) ->
+            pruefe("Dark: Fehlertext auf $name", HEX_DARK_ERROR, flaeche, TEXT)
+        }
+        pruefe("Light: onError auf error", HEX_LIGHT_ON_ERROR, HEX_LIGHT_ERROR, TEXT)
+        pruefe("Dark: onError auf error", HEX_DARK_ON_ERROR, HEX_DARK_ERROR, TEXT)
+        pruefe(
+            "Light: onErrorContainer auf errorContainer",
+            HEX_LIGHT_ON_ERROR_CONTAINER, HEX_LIGHT_ERROR_CONTAINER, TEXT,
+        )
+        pruefe(
+            "Dark: onErrorContainer auf errorContainer",
+            HEX_DARK_ON_ERROR_CONTAINER, HEX_DARK_ERROR_CONTAINER, TEXT,
+        )
+    }
+
+    @Test
+    fun snackbarAktion_haeltAufDerInvertiertenFlaeche() {
+        // `inversePrimary` liegt auf `inverseSurface` — und die dreht die Polarität des
+        // Themes um. Ein heller Akzent, der auf den Inhaltsflächen des Dark Mode stimmt,
+        // steht dort auf einer HELLEN Fläche.
+        pruefe(
+            "Light: inversePrimary auf inverseSurface",
+            HEX_LIGHT_INVERSE_PRIMARY, HEX_LIGHT_FILL_STRONG, TEXT,
+        )
+        pruefe(
+            "Dark: inversePrimary auf inverseSurface",
+            HEX_DARK_INVERSE_PRIMARY, HEX_DARK_FILL_STRONG, TEXT,
+        )
+    }
+
     @Test
     fun markenakzent_haeltAufDenInhaltsflaechen() {
         // Beschriftung von Textbuttons in Dialogen. Eigener Wert, weil Dialoge nicht auf
@@ -214,6 +254,65 @@ class PaletteContrastTest {
             .isGreaterThan(1.05)
         // Und die Kante trägt zusätzlich der Rand — dass er auf dem Chrome 3:1 hält, prüft
         // `rand_haeltAufJederFlaeche`, weil das Chrome in der Flächenliste steht.
+    }
+
+    // --- Die Fläche, die tatsächlich gezeichnet wird -------------------------
+
+    @Test
+    fun fensterHintergrund_stimmtMitDerPaletteUeberein() {
+        /*
+         * Der teuerste Fehler dieses Designsystems steckte nicht in einer Farbe, sondern
+         * darin, dass die geprüften Farben nie auf den Bildschirm kamen: kein Composable
+         * trug die Grundfläche auf, sichtbar war der Fenster-Hintergrund der Activity —
+         * ein Fast-Weiß, in BEIDEN Themes. Der Dark-Mode-Text stand damit auf Weiß, 1,21:1,
+         * während dieser Test durchlief und 12:1 bescheinigte.
+         *
+         * Gezeichnet wird die Fläche jetzt in Compose. Der Fenster-Hintergrund deckt nur
+         * noch den Moment davor ab — aber er ist eine ZWEITE Quelle für dieselbe Farbe,
+         * und zwei Quellen laufen auseinander. Deshalb hier abgeglichen.
+         *
+         * Was dieser Test NICHT kann: prüfen, dass ein Composable die Farbe wirklich
+         * aufträgt. Das braucht einen gerenderten Frame und gehört in einen
+         * Instrumentierungstest.
+         */
+        assertThat(farbeAusRessource("values")).isEqualTo(HEX_LIGHT_BACKGROUND)
+        assertThat(farbeAusRessource("values-night")).isEqualTo(HEX_DARK_BACKGROUND)
+    }
+
+    private fun farbeAusRessource(ordner: String): Long {
+        val datei = java.io.File("src/main/res/$ordner/colors.xml")
+            .takeIf { it.exists() }
+            ?: java.io.File("app/src/main/res/$ordner/colors.xml")
+        val treffer = Regex("""<color name="window_background">#([0-9A-Fa-f]{8})</color>""")
+            .find(datei.readText())
+        assertWithMessage("window_background fehlt in res/$ordner/colors.xml")
+            .that(treffer).isNotNull()
+        return treffer!!.groupValues[1].toLong(16)
+    }
+
+    @Test
+    fun darkRampe_istMonotonUndWirklichDunkel() {
+        // Die Rampe muss durchgehend steigen — eine Stufe, die zurückspringt, macht aus
+        // „höher liegend" ein zufälliges Muster. Und sie muss unten dunkel genug anfangen:
+        // ein Hintergrund oberhalb von L* ~20 sieht nicht mehr nach Dark Mode aus, sondern
+        // nach einem hellen Theme, dem jemand die Helligkeit weggenommen hat.
+        val rampe = listOf(
+            "tiefste" to HEX_DARK_SURFACE_LOWEST,
+            "Chrome" to HEX_DARK_CHROME,
+            "Hintergrund" to HEX_DARK_BACKGROUND,
+            "niedrig" to HEX_DARK_SURFACE_LOW,
+            "Muster" to HEX_DARK_PATTERN,
+            "Card" to HEX_DARK_CARD,
+            "Dialog" to HEX_DARK_SURFACE_HIGH,
+            "höchste" to HEX_DARK_SURFACE_HIGHEST,
+        )
+        rampe.zipWithNext().forEach { (unten, oben) ->
+            assertWithMessage("Dark: ${oben.first} muss heller sein als ${unten.first}")
+                .that(kontrastVerhaeltnis(oben.second, 0xFF000000))
+                .isGreaterThan(kontrastVerhaeltnis(unten.second, 0xFF000000))
+        }
+        // Gegen Weiß gemessen: je größer der Wert, desto dunkler die Fläche.
+        assertThat(kontrastVerhaeltnis(HEX_DARK_BACKGROUND, 0xFFFFFFFF)).isGreaterThan(14.0)
     }
 
     // --- Die Formel selbst ---------------------------------------------------

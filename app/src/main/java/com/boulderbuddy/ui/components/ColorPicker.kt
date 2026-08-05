@@ -80,7 +80,7 @@ private fun ColorSwatch(
     )
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun ColorPickerPreview() {
     BoulderBuddyTheme {

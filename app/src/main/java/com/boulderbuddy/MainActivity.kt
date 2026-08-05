@@ -1,12 +1,15 @@
 package com.boulderbuddy
 
+import android.graphics.Color.TRANSPARENT
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.boulderbuddy.ui.navigation.AppNavigation
@@ -22,6 +25,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Randlos schon vor dem ersten Frame — sonst springt das Layout sichtbar, sobald der
+        // Effekt in der Composition greift. Die Icon-Helligkeit stellt dieser Aufruf noch
+        // nach dem System ein; korrigiert wird sie unten, sobald das App-Theme feststeht.
         enableEdgeToEdge()
         // Optionales Sprungziel aus dem Homescreen-Widget (7.4c); nur beim Start-Intent.
         val widgetNavTarget = intent?.getStringExtra(WidgetIntent.EXTRA_NAV_TARGET)
@@ -33,6 +39,32 @@ class MainActivity : ComponentActivity() {
             // Dark-Mode-Override aus den Einstellungen; null = dem System folgen (7.4a).
             val darkModeOverride by themeViewModel.darkModeOverride.collectAsStateWithLifecycle()
             val darkTheme = darkModeOverride ?: isSystemInDarkTheme()
+
+            /*
+             * Die Icons der Status- und Navigationsleiste müssen dem THEME DER APP folgen,
+             * nicht dem des Systems.
+             *
+             * `enableEdgeToEdge()` ohne Argumente entscheidet anhand der Ressourcen-
+             * Konfiguration — und die kennt nur den System-Schalter. Steht das System auf
+             * hell und der App-Schalter oben auf dunkel, zeichnet Android dunkle Icons auf
+             * unser dunkles Chrome. Sie verschwinden schlicht.
+             *
+             * Deshalb hier statt einmalig in `onCreate`: `darkTheme` ist erst in der
+             * Composition bekannt und kann sich zur Laufzeit ändern. Der Effekt läuft bei
+             * jedem Wechsel neu.
+             */
+            DisposableEffect(darkTheme) {
+                enableEdgeToEdge(
+                    statusBarStyle = SystemBarStyle.auto(
+                        TRANSPARENT, TRANSPARENT,
+                    ) { darkTheme },
+                    navigationBarStyle = SystemBarStyle.auto(
+                        TRANSPARENT, TRANSPARENT,
+                    ) { darkTheme },
+                )
+                onDispose {}
+            }
+
             BoulderBuddyTheme(darkTheme = darkTheme) {
                 // WindowSizeClass für adaptive Layouts (Phase 7.1: Tablet). Wird an die
                 // Navigation gereicht, die daraus Compact vs. Medium/Expanded ableitet.

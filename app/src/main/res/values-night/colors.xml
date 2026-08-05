@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- = HEX_DARK_BACKGROUND in PaletteHex.kt. Siehe values/colors.xml. -->
+    <color name="window_background">#FF231E16</color>
+</resources>

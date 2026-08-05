@@ -23,6 +23,11 @@ val BoulderBuddyFillStrong        = Color(HEX_LIGHT_FILL_STRONG)
 val BoulderBuddyOnFillStrong      = Color(HEX_LIGHT_ON_FILL_STRONG)
 val BoulderBuddyAccent            = Color(HEX_LIGHT_ACCENT)
 val BoulderBuddyAccentOnSurface   = Color(HEX_LIGHT_ACCENT_ON_SURFACE)
+val BoulderBuddyError             = Color(HEX_LIGHT_ERROR)
+val BoulderBuddyOnError           = Color(HEX_LIGHT_ON_ERROR)
+val BoulderBuddyErrorContainer    = Color(HEX_LIGHT_ERROR_CONTAINER)
+val BoulderBuddyOnErrorContainer  = Color(HEX_LIGHT_ON_ERROR_CONTAINER)
+val BoulderBuddyInversePrimary    = Color(HEX_LIGHT_INVERSE_PRIMARY)
 
 // --- Dark: warmes Fast-Schwarz ------------------------------------------------
 val BoulderBuddyDarkSurfaceLowest   = Color(HEX_DARK_SURFACE_LOWEST)
@@ -42,6 +47,11 @@ val BoulderBuddyDarkFillStrong      = Color(HEX_DARK_FILL_STRONG)
 val BoulderBuddyDarkOnFillStrong    = Color(HEX_DARK_ON_FILL_STRONG)
 val BoulderBuddyDarkAccent          = Color(HEX_DARK_ACCENT)
 val BoulderBuddyDarkAccentOnSurface = Color(HEX_DARK_ACCENT_ON_SURFACE)
+val BoulderBuddyDarkError           = Color(HEX_DARK_ERROR)
+val BoulderBuddyDarkOnError         = Color(HEX_DARK_ON_ERROR)
+val BoulderBuddyDarkErrorContainer  = Color(HEX_DARK_ERROR_CONTAINER)
+val BoulderBuddyDarkOnErrorContainer = Color(HEX_DARK_ON_ERROR_CONTAINER)
+val BoulderBuddyDarkInversePrimary  = Color(HEX_DARK_INVERSE_PRIMARY)
 
 /**
  * Heller Inhalt auf dunkler Markenfläche — nur noch als M3-`onPrimary` in Gebrauch.

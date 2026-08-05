@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,6 +30,15 @@ fun BoulderBuddyScaffold(
     Column(
         modifier = modifier
             .fillMaxSize()
+            // Erst die Grundfläche, dann die Punkte darauf. Vorher stand hier nur
+            // `dotPattern` — die Punktfarbe war damit die EINZIGE Farbe, die das Scaffold
+            // je auftrug, und darunter lag der Fenster-Hintergrund der Activity (ein
+            // Fast-Weiß). Im Dark Mode ergab das helle Schrift auf hellem Grund.
+            //
+            // Die Wurzel-`Surface` in `BoulderBuddyTheme` deckt denselben Fall inzwischen
+            // ab; hier steht es trotzdem, damit das Scaffold für sich genommen stimmt —
+            // ein Punktmuster ohne definierten Untergrund ist kein vollständiges Bauteil.
+            .background(BoulderBuddy.colors.surfaceBackground)
             .dotPattern(dotColor = BoulderBuddy.colors.surfacePattern),
     ) {
         if (topBar != null) {
@@ -53,7 +63,7 @@ fun BoulderBuddyScaffold(
 
 // --- Previews ---
 
-@Preview(name = "Scaffold – vollständig", showBackground = true, backgroundColor = 0xFFF3ECD6)
+@Preview(name = "Scaffold – vollständig", showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun BoulderBuddyScaffoldFullPreview() {
     BoulderBuddyTheme {
@@ -93,7 +103,7 @@ private fun BoulderBuddyScaffoldFullPreview() {
     }
 }
 
-@Preview(name = "Scaffold – nur Content", showBackground = true, backgroundColor = 0xFFF3ECD6)
+@Preview(name = "Scaffold – nur Content", showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun BoulderBuddyScaffoldContentOnlyPreview() {
     BoulderBuddyTheme {

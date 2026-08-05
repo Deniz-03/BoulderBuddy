@@ -1,5 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.BoulderBuddy" parent="android:Theme.Material.Light.NoActionBar" />
+    <!--
+        Das Fenster-Theme. Es zeichnet, BEVOR Compose überhaupt läuft — und sein
+        Hintergrund war bisher Materials Vorgabe, ein Fast-Weiß (#FAFAFA).
+
+        Das war nicht nur ein Startbild-Detail: da im Compose-Baum niemand die Grundfläche
+        auftrug, blieb genau dieses Weiß der sichtbare Hintergrund der ganzen App — in
+        beiden Themes. Der Dark Mode setzte seinen cremefarbenen Text darauf: 1,21:1.
+
+        Behoben ist das jetzt in Compose (Wurzel-`Surface` im Theme). Hier steht der
+        passende Wert trotzdem, aus zwei Gründen: kein weißer Blitz zwischen Fenster und
+        erstem Frame, und keine weiße Kante, falls eine Fläche das Fenster nicht ganz
+        ausfüllt.
+
+        Kein `DayNight`-Elternteil: `android:Theme.Material.DayNight` gibt es erst ab API 29,
+        die App beginnt bei 26. Die Umschaltung leistet stattdessen die Farbressource, die
+        in `values-night` einen zweiten Wert hat — das funktioniert auf jeder Fassung.
+
+        Wichtig: `values-night` folgt dem SYSTEM. Der In-App-Schalter aus den Einstellungen
+        kann davon abweichen; deshalb ist das hier die Absicherung für den Moment vor dem
+        ersten Frame, nicht die Quelle der Wahrheit. Die ist die Palette.
+    -->
+    <style name="Theme.BoulderBuddy" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
 </resources>
