@@ -3,11 +3,17 @@ package com.boulderbuddy.ui.navigation
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,6 +32,7 @@ import androidx.navigation.toRoute
 import com.boulderbuddy.ui.components.BottomNav
 import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.SideNav
+import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.Breite
 import com.boulderbuddy.ui.theme.aktuelleBreite
 import com.boulderbuddy.ui.screens.BoulderDetailScreen
@@ -400,14 +407,43 @@ fun AppNavigation(
             }
         }
 
-        // Ab 600 dp: Leiste an die Seite. Die Rail trägt ihre eigene statusBarsPadding, der
-        // Inhalt seine — beide beginnen dadurch auf derselben Höhe unter der Statusleiste.
-        else -> Row(modifier = Modifier.fillMaxSize()) {
-            SideNav(
-                selectedTab = currentTab,
-                onTabSelect = { tab -> navController.navigateToTab(tab) },
+        /*
+         * Ab 600 dp: Leiste an die Seite — und die Statusleiste bekommt ein eigenes,
+         * durchgehendes Band darüber.
+         *
+         * Vorher reichten Rail und Inhalt jeweils bis ganz nach oben und trugen ihr eigenes
+         * `statusBarsPadding()`. Die senkrechte Trennlinie der Rail lief damit **bis in die
+         * Statusleiste hinein**, und die Systemsymbole des Geräts standen teils links davon,
+         * teils rechts — die Uhr im 80 dp schmalen Rail-Streifen, dicht an der Kante. Das
+         * sieht aus wie ein Zufall, weil es einer ist: die Statusleiste kennt unser Layout
+         * nicht und verteilt ihre Symbole über die volle Fensterbreite.
+         *
+         * Jetzt liegt über beiden Spalten ein Band in Chrome-Farbe, so hoch wie die
+         * Statusleiste. Darunter beginnen Rail und Inhalt gemeinsam; keine senkrechte Kante
+         * schneidet mehr durch die Systemsymbole.
+         *
+         * `consumeWindowInsets` sorgt dafür, dass das Band nicht doppelt gezahlt wird: TopBar
+         * und SideNav setzen selbst `statusBarsPadding()`, und das wird dadurch zu 0.
+         * Am Telefon (Kompakt) ändert sich nichts — der Zweig oben ist unberührt.
+         */
+        else -> Column(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsTopHeight(WindowInsets.statusBars)
+                    .background(BoulderBuddy.colors.surfaceChrome),
             )
-            inhalt(Modifier.weight(1f))
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .consumeWindowInsets(WindowInsets.statusBars),
+            ) {
+                SideNav(
+                    selectedTab = currentTab,
+                    onTabSelect = { tab -> navController.navigateToTab(tab) },
+                )
+                inhalt(Modifier.weight(1f))
+            }
         }
     }
 }

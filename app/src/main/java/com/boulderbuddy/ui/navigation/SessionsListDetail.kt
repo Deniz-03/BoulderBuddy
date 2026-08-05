@@ -14,6 +14,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.dp
+import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.TopBar
@@ -57,8 +61,27 @@ fun SessionsListDetail(
         scope.launch { navigator.navigateBack() }
     }
 
+    // Vor dem Zeichenblock lesen: der DrawScope ist kein Composable und kommt ans Theme nicht heran.
+    val randfarbe = BoulderBuddy.colors.borderSubtle
+
+    /*
+     * DIE LÜCKE ZWISCHEN DEN PANES WIRD AUF EINE LINIE REDUZIERT.
+     *
+     * `ListDetailPaneScaffold` setzt die beiden Spalten voreingestellt mit 24 dp Abstand
+     * nebeneinander. Durch diesen Spalt sieht man den Fensterhintergrund — und weil er auch
+     * durch das Chrome-Band oben läuft, wirkt die obere Leiste wie eingekerbt statt wie eine
+     * durchgehende Leiste. Genau das liest sich als „unfertig": eine Fläche, in der ein Stück
+     * fehlt, ohne dass die Lücke etwas bedeutet.
+     *
+     * Der Abstand fällt deshalb auf 0, und die Trennung übernimmt eine 1-dp-Linie in
+     * `borderSubtle` — dieselbe Sprache, die die App überall sonst benutzt: unter der TopBar,
+     * über der BottomNav, rechts neben der SideNav. Ein Spalt trennt durch Abwesenheit, eine
+     * Linie durch eine Kante; das ganze Designsystem hier ist auf Kanten aufgebaut.
+     */
+    val direktive = navigator.scaffoldDirective.copy(horizontalPartitionSpacerSize = 0.dp)
+
     ListDetailPaneScaffold(
-        directive = navigator.scaffoldDirective,
+        directive = direktive,
         value = navigator.scaffoldValue,
         listPane = {
             AnimatedPane {
@@ -78,16 +101,33 @@ fun SessionsListDetail(
         },
         detailPane = {
             AnimatedPane {
-                val selectedId = navigator.currentDestination?.contentKey
-                if (selectedId != null) {
-                    SessionRoute(
-                        sessionId = selectedId,
-                        onBack = { scope.launch { navigator.navigateBack() } },
-                        onOpenBoulder = onOpenBoulder,
-                        onAddRoute = onAddRoute,
-                    )
-                } else {
-                    SessionDetailPlaceholder()
+                // Die Trennlinie sitzt am linken Rand des Detail-Panes und wird ÜBER den
+                // Inhalt gezeichnet — `drawWithContent` nach `drawContent()`, aus demselben
+                // Grund wie bei TopBar und SideNav: die Flächen der Screens darin würden eine
+                // dahinter gezeichnete Linie überdecken.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .drawWithContent {
+                            drawContent()
+                            val staerke = 1.dp.toPx()
+                            drawRect(
+                                color = randfarbe,
+                                size = Size(staerke, size.height),
+                            )
+                        },
+                ) {
+                    val selectedId = navigator.currentDestination?.contentKey
+                    if (selectedId != null) {
+                        SessionRoute(
+                            sessionId = selectedId,
+                            onBack = { scope.launch { navigator.navigateBack() } },
+                            onOpenBoulder = onOpenBoulder,
+                            onAddRoute = onAddRoute,
+                        )
+                    } else {
+                        SessionDetailPlaceholder()
+                    }
                 }
             }
         },
