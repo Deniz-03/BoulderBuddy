@@ -20,6 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.PillShape
 
 // Einzelner Chip einer Single-Select-Gruppe. Im Gegensatz zum FilterChip kennzeichnet
 // die Selektion eine *gewählte* Option (nicht einen aktiven Filter): gefüllt-invers
@@ -34,7 +35,7 @@ fun SelectableChip(
     Surface(
         onClick = onClick,
         modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = PillShape,
         color = if (selected) BoulderBuddy.colors.fillStrong else BoulderBuddy.colors.surfaceCard,
         border = if (selected) null else BorderStroke(Dimens.borderSubtle, BoulderBuddy.colors.borderSubtle),
     ) {
@@ -85,7 +86,7 @@ fun SelectableChipGroup(
 // wie auf dem Handy umbricht.
 // widthDp simuliert die Handy-Breite, damit FlowRow in der Preview wie auf dem
 // Gerät ins 2×2-Raster umbricht (in Annotationen sind Konstanten unvermeidbar).
-@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6, widthDp = 300)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4, widthDp = 300)
 @Composable
 private fun SelectableChipGroupPreview() {
     BoulderBuddyTheme {
