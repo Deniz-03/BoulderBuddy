@@ -28,11 +28,18 @@ enum class RecognitionMode {
     SERVICE,
 
     /**
-     * Kein direkt ansprechbarer Erkenner vorhanden → Rückfall auf den System-`RecognizerIntent`
-     * (Google-Spracheingabe-Dialog). Fremde UI, dafür braucht die App kein `RECORD_AUDIO`,
-     * weil die Erkenner-App die Aufnahme selbst verantwortet.
+     * Kein ansprechbarer Erkenner vorhanden. Die Spracheingabe sagt das und hört auf.
+     *
+     * Hier stand `INTENT_FALLBACK`: der Rückfall auf den System-`RecognizerIntent`, also
+     * Googles eigenen Sprachdialog. Der lief in **fremdem Prozess** und nahm dort selbst auf —
+     * und kam damit ohne unser `RECORD_AUDIO` aus. Das war als Freundlichkeit gedacht und war
+     * in Wahrheit eine Hintertür: wer die Mikrofon-Freigabe bewusst verweigert hat, bekam die
+     * Funktion trotzdem, nur über einen anderen Weg. Eine Ablehnung, die nichts ablehnt, ist
+     * keine Entscheidung mehr.
+     *
+     * Deshalb endet die Kette jetzt hier, mit einer Meldung statt eines Umwegs.
      */
-    INTENT_FALLBACK,
+    NICHT_MOEGLICH,
 }
 
 /**
@@ -50,7 +57,7 @@ fun pickRecognitionMode(
 ): RecognitionMode = when {
     sdkInt >= ON_DEVICE_MIN_SDK && onDeviceAvailable -> RecognitionMode.ON_DEVICE
     serviceAvailable -> RecognitionMode.SERVICE
-    else -> RecognitionMode.INTENT_FALLBACK
+    else -> RecognitionMode.NICHT_MOEGLICH
 }
 
 /** `SpeechRecognizer.createOnDeviceSpeechRecognizer` existiert erst ab Android 12. */
@@ -79,9 +86,49 @@ enum class SpeechFailure(val message: String, val retryable: Boolean) {
      */
     KEIN_NETZ("Diese Spracherkennung braucht Internet und findet gerade keins.", retryable = true),
 
+    /**
+     * Der Erkenner läuft, kann diese **Sprache** aber nicht — der häufigste Grund dafür, dass
+     * die On-Device-Erkennung sofort abbricht, obwohl alles andere stimmt.
+     *
+     * `isOnDeviceRecognitionAvailable()` sagt nur, dass es den Dienst gibt; ob das Sprachpaket
+     * für `de-DE` heruntergeladen ist, sagt es nicht. Vorher fiel dieser Fall unter
+     * [NICHT_VERFUEGBAR] („auf diesem Gerät nicht verfügbar") — eine Diagnose, die auf ein
+     * fehlendes Sprachpaket schlicht nicht zutrifft und in die Irre führt.
+     */
+    SPRACHE_FEHLT("Für diese Sprache fehlt das Erkennungsmodell.", retryable = false),
+
     /** Kein Erkenner ansprechbar, Modell fehlt oder der Dienst ist abgestürzt. */
     NICHT_VERFUEGBAR("Spracheingabe ist auf diesem Gerät nicht verfügbar.", retryable = false),
 }
+
+/**
+ * Sagt dieser Grund „**nicht ich**" statt „nicht jetzt"?
+ *
+ * Trennt die beiden Sorten Scheitern, die vorher in einen Topf fielen: ein Erkenner, der diese
+ * Sprache nicht kann oder gar nicht erst anspringt, ist mit einem zweiten Versuch nicht zu
+ * retten — ein **anderer** Erkenner aber möglicherweise schon. Genau dort saß der Fehler: die
+ * Kette On-Device → Dienst → System-Dialog verzweigte nur beim *Erzeugen* des Erkenners.
+ * Sprang der On-Device-Erkenner an und gab erst beim Zuhören auf, wurde die Dienst-Stufe
+ * übersprungen und der Nutzer landete unvermittelt im System-Dialog.
+ */
+fun andererErkennerKoennteHelfen(grund: SpeechFailure): Boolean = when (grund) {
+    SpeechFailure.NICHT_VERFUEGBAR, SpeechFailure.SPRACHE_FEHLT -> true
+    else -> false
+}
+
+/*
+ * Hier stand `brauchtSystemDialog()` — die Weiche, die bei drei Gründen ungefragt in Googles
+ * Sprachdialog sprang. Sie ist ersatzlos entfallen, und zwar nicht, weil sie falsch
+ * funktionierte, sondern weil sie das Falsche tat:
+ *
+ * Der System-Dialog nimmt in fremdem Prozess auf und braucht unser `RECORD_AUDIO` nicht. Wer
+ * die Mikrofon-Freigabe verweigert hatte, bekam die Spracheingabe damit trotzdem — nur mit
+ * anderer Oberfläche. Aus Nutzersicht ist das kein Rückfall, sondern eine Umgehung der eigenen
+ * Entscheidung.
+ *
+ * Ein nicht behebbarer Grund führt jetzt zu dem, was er ist: einer Meldung. `retryable`
+ * unterscheidet weiterhin, ob der Dialog „Nochmal" anbietet oder nur „Schließen".
+ */
 
 /**
  * Übersetzt einen `SpeechRecognizer.ERROR_*`-Code in einen [SpeechFailure].
@@ -105,7 +152,68 @@ fun speechFailureFor(errorCode: Int): SpeechFailure = when (errorCode) {
     SpeechRecognizer.ERROR_NETWORK_TIMEOUT,
     -> SpeechFailure.KEIN_NETZ
 
+    /*
+     * Die Sprach-Codes (ab API 33). Sie fielen vorher in den `else`-Zweig und damit auf
+     * NICHT_VERFUEGBAR — die Meldung „auf diesem Gerät nicht verfügbar" für ein Gerät, dem
+     * nur das deutsche Sprachpaket fehlt.
+     *
+     * Als `static final int` setzt der Compiler sie ein; auf älteren Geräten kommen die Codes
+     * schlicht nie an. Deshalb ist der Zugriff auch bei minSdk 26 gefahrlos — dieselbe
+     * Überlegung, aus der diese Datei überhaupt ohne Android-Objekte auskommt.
+     */
+    LANGUAGE_NOT_SUPPORTED,
+    LANGUAGE_UNAVAILABLE,
+    CANNOT_CHECK_SUPPORT,
+    -> SpeechFailure.SPRACHE_FEHLT
+
     else -> SpeechFailure.NICHT_VERFUEGBAR
+}
+
+// Zahlenwerte statt `SpeechRecognizer.ERROR_*`, weil die Konstanten erst ab API 33 in der
+// Klasse stehen: der Compiler kann nur einsetzen, was er beim Übersetzen sieht. Die Werte sind
+// Teil der öffentlichen API und liegen fest.
+private const val LANGUAGE_NOT_SUPPORTED = 12
+private const val LANGUAGE_UNAVAILABLE = 13
+private const val CANNOT_CHECK_SUPPORT = 14
+
+/**
+ * Verlauf eines angestoßenen Modell-Downloads.
+ *
+ * **Warum das überhaupt die App macht:** Das Erkennungsmodell gehört nicht zur App, sondern zum
+ * Erkennungsdienst des Systems — es ist pro Sprache dreistellig viele Megabyte groß, wird von
+ * allen Apps auf dem Gerät geteilt und liegt nicht in unserer Hand. Mitliefern könnten wir es
+ * also nicht, und bis Android 12 konnten wir es nicht einmal anfordern: der Nutzer musste es in
+ * den Systemeinstellungen finden.
+ *
+ * Seit Android 13 gibt es `SpeechRecognizer.triggerModelDownload()` — eine **Bitte** an den
+ * Dienst, nicht mehr. Ob und wann er sie erfüllt (Netz, Akku, Speicherplatz), entscheidet er.
+ * Auf Android 13 gibt es dazu nicht einmal einen Rückkanal, deshalb [Angestossen]; erst
+ * Android 14 meldet Fortschritt und Ergebnis.
+ */
+sealed interface ModellDownload {
+    /** Angestoßen, ohne Rückmeldung — Android 13 kennt keinen Listener. */
+    data object Angestossen : ModellDownload
+
+    /** Läuft, mit Fortschritt in Prozent (ab Android 14). */
+    data class Laeuft(val prozent: Int) : ModellDownload
+
+    data object Fertig : ModellDownload
+
+    data object Gescheitert : ModellDownload
+}
+
+/** Der Satz, der während bzw. nach einem Modell-Download im Dialog steht. */
+fun modellHinweis(download: ModellDownload): String = when (download) {
+    ModellDownload.Angestossen ->
+        "Download angestoßen. Das Gerät lädt im Hintergrund — das kann ein paar Minuten dauern."
+
+    is ModellDownload.Laeuft -> "Modell wird geladen… ${download.prozent} %"
+
+    ModellDownload.Fertig -> "Modell geladen."
+
+    ModellDownload.Gescheitert ->
+        "Der Download hat nicht geklappt. In den Systemeinstellungen unter Spracheingabe lässt " +
+            "sich das Sprachpaket von Hand nachladen."
 }
 
 /**

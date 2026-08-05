@@ -1,13 +1,10 @@
 package com.boulderbuddy.ui.components
 
 import android.Manifest
-import android.app.Activity
-import android.content.ActivityNotFoundException
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
+// Nur noch für den KDoc-Verweis unten: der Intent-Weg selbst ist entfallen.
 import android.speech.RecognizerIntent
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
@@ -26,11 +23,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.boulderbuddy.data.speech.ModellDownload
 import com.boulderbuddy.data.speech.RecognitionMode
 import com.boulderbuddy.data.speech.SpeechFailure
 import com.boulderbuddy.data.speech.SpeechInputState
 import com.boulderbuddy.data.speech.SpeechRecognitionClient
 import com.boulderbuddy.data.speech.SystemSpeechRecognitionClient
+import com.boulderbuddy.data.speech.modellHinweis
 import com.boulderbuddy.ui.theme.BoulderBuddy
 
 /**
@@ -38,16 +37,21 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
  *
  * Spricht den `SpeechRecognizer` direkt an und zeigt eine eigene Aufnahme-UI
  * ([SpeechInputDialog]) — mit Live-Text beim Sprechen statt eines fremden, stummen Dialogs.
- * Bevorzugt wird das On-Device-Modell, damit gesprochene Notizen das Gerät nicht verlassen.
+ * Bevorzugt wird das On-Device-Modell, damit gesprochene Notizen das Gerät nicht verlassen;
+ * gibt es keins, übernimmt der installierte Erkennungsdienst.
  *
- * **Fallback-Kette**, absichtlich dreistufig, weil jede Stufe an einer anderen Stelle scheitern
- * kann:
- * 1. On-Device-Erkenner (ab Android 12, wenn ein Modell da ist)
- * 2. installierter Erkennungsdienst mit der Bitte um Offline-Verarbeitung
- * 3. System-[RecognizerIntent] (Google-Dialog) — greift, wenn es gar keinen direkt ansprechbaren
- *    Erkenner gibt, wenn der Nutzer die Mikrofon-Freigabe verweigert oder wenn der direkte Weg
- *    zur Laufzeit aufgibt. Diese Stufe braucht **kein** `RECORD_AUDIO`, weil die Erkenner-App
- *    selbst aufnimmt — deshalb bleibt sie ein echter Rückfall und nicht nur eine Fehlermeldung.
+ * **Was hier bewusst NICHT mehr passiert: der Rückfall auf den System-[RecognizerIntent].**
+ *
+ * Die Kette hatte eine dritte Stufe — Googles Sprachdialog, angeworfen sobald der direkte Weg
+ * aufgab. Sie war als Freundlichkeit gemeint und war eine Hintertür: dieser Dialog nimmt in
+ * fremdem Prozess auf und braucht unser `RECORD_AUDIO` nicht. Wer die Mikrofon-Freigabe
+ * verweigert hatte, bekam die Funktion also trotzdem, nur mit anderer Oberfläche. Eine
+ * Ablehnung, die nichts ablehnt, ist keine Entscheidung — und ein Nutzer, der das bemerkt, hat
+ * allen Grund, dem Rest der App auch zu misstrauen.
+ *
+ * Zweiter, kleinerer Grund: der Sprung war unsichtbar. Wer auf das Mikrofon tippte, stand
+ * unvermittelt in einem fremden Dialog, ohne je zu erfahren, dass und warum der eigene Weg
+ * gescheitert war. Jetzt steht der Grund im Dialog, und wiederholbare Fehler bieten „Nochmal".
  *
  * Das erkannte Ergebnis geht über [onResult] zurück (der Aufrufer entscheidet anhängen/ersetzen).
  *
@@ -57,7 +61,8 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 fun SpeechToTextButton(
     onResult: (String) -> Unit,
     modifier: Modifier = Modifier,
-    prompt: String = "Notiz einsprechen…",
+    // `prompt` ist mit dem Intent-Weg entfallen — die Beschriftung setzte den Text im
+    // Google-Dialog. Unser eigener Dialog beschriftet sich selbst.
     languageTag: String = "de-DE",
     client: SpeechRecognitionClient? = null,
 ) {
@@ -78,53 +83,28 @@ fun SpeechToTextButton(
         state = SpeechInputState.Idle
     }
 
-    val intentLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val spoken = result.data
-                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-                ?.firstOrNull()
-                ?.trim()
-            if (!spoken.isNullOrEmpty()) onResult(spoken)
-        }
-    }
-
-    fun starteIntentFallback() {
-        beenden()
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(
-                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
-            )
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
-            putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
-        }
-        try {
-            intentLauncher.launch(intent)
-        } catch (_: ActivityNotFoundException) {
-            // Letzte Stufe gescheitert: kein Spracheingabe-Dienst installiert (z.B. Emulator
-            // ohne Google-Apps). Mehr als der Hinweis bleibt hier nicht.
-            Toast.makeText(
-                context,
-                SpeechFailure.NICHT_VERFUEGBAR.message,
-                Toast.LENGTH_SHORT,
-            ).show()
-        }
-    }
-
     fun starteErkennung() {
         state = SpeechInputState.Vorbereiten
         versuch++
     }
 
+    /** Beendet den Versuch mit einer Meldung im eigenen Dialog. */
+    fun melde(grund: SpeechFailure) {
+        versuch = 0
+        state = SpeechInputState.Fehler(grund)
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        // Abgelehnt heißt nicht „geht nicht": der System-Dialog nimmt in seinem eigenen Prozess
-        // auf und kommt ohne unsere Freigabe aus. Also dorthin ausweichen, statt zu blockieren.
-        if (granted) starteErkennung() else starteIntentFallback()
+        // Abgelehnt heißt jetzt abgelehnt. Vorher wich diese Zeile auf den System-Dialog aus,
+        // der ohne unsere Freigabe aufnimmt — die Ablehnung hatte damit keine Wirkung.
+        if (granted) starteErkennung() else melde(SpeechFailure.KEINE_BERECHTIGUNG)
     }
+
+    // Verlauf eines angeforderten Sprachmodells. `null` = nichts angefordert.
+    var download by remember { mutableStateOf<ModellDownload?>(null) }
+    var ladeVersuch by remember { mutableIntStateOf(0) }
 
     if (versuch > 0) {
         LaunchedEffect(versuch) {
@@ -133,17 +113,33 @@ fun SpeechToTextButton(
         }
     }
 
-    // Scheitert der direkte Weg grundsätzlich (kein Erkenner erreichbar, Freigabe trotz Abfrage
-    // nicht wirksam), ist der System-Dialog die richtige Antwort — nicht eine Sackgasse im
-    // eigenen Dialog. Wiederholbare Fehler bleiben dagegen im Dialog mit „Nochmal".
-    val grund = (state as? SpeechInputState.Fehler)?.grund
-    LaunchedEffect(grund) {
-        if (grund == SpeechFailure.NICHT_VERFUEGBAR || grund == SpeechFailure.KEINE_BERECHTIGUNG) {
-            starteIntentFallback()
+    if (ladeVersuch > 0) {
+        LaunchedEffect(ladeVersuch) {
+            recognition.ladeModell(languageTag).collect { download = it }
         }
     }
 
+    // Hier saß der `LaunchedEffect`, der bei drei Fehlergründen ungefragt den System-Dialog
+    // startete. Ersatzlos entfallen: der Fehler bleibt jetzt stehen, wo er entstanden ist, und
+    // wird gelesen. Was der Dialog daraus macht, hängt an `SpeechFailure.retryable`.
+
     if (state != SpeechInputState.Idle) {
+        // Fehlt nur das Sprachpaket, ist das kein Grund aufzugeben: seit Android 13 lässt es
+        // sich anfordern. Der Nutzer soll dafür nicht die Systemeinstellungen durchsuchen
+        // müssen — das war bis hierher die einzige Antwort auf diesen Fehler.
+        val fehlendesModell = (state as? SpeechInputState.Fehler)?.grund == SpeechFailure.SPRACHE_FEHLT
+        val aktion = when {
+            download == ModellDownload.Fertig ->
+                DialogAktion("Nochmal") { download = null; starteErkennung() }
+
+            download != null -> null
+
+            fehlendesModell && recognition.kannModellLaden() ->
+                DialogAktion("Modell laden") { ladeVersuch++ }
+
+            else -> null
+        }
+
         SpeechInputDialog(
             state = state,
             onUebernehmen = { text ->
@@ -151,18 +147,21 @@ fun SpeechToTextButton(
                 beenden()
             },
             onWiederholen = { starteErkennung() },
-            onAbbrechen = { beenden() },
+            onAbbrechen = { download = null; beenden() },
+            hinweis = download?.let(::modellHinweis),
+            zusatzAktion = aktion,
         )
     }
 
     IconButton(
         onClick = {
-            if (recognition.mode() == RecognitionMode.INTENT_FALLBACK) {
-                starteIntentFallback()
-            } else if (hatMikrofonFreigabe(context)) {
-                starteErkennung()
-            } else {
-                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            when {
+                recognition.mode() == RecognitionMode.NICHT_MOEGLICH ->
+                    melde(SpeechFailure.NICHT_VERFUEGBAR)
+
+                hatMikrofonFreigabe(context) -> starteErkennung()
+
+                else -> permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
         },
         modifier = modifier.size(40.dp),

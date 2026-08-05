@@ -41,12 +41,20 @@ import com.boulderbuddy.ui.theme.Dimens
  *
  * Der Dialog ist zustandslos: [state] kommt von außen, alle Aktionen gehen als Callback zurück.
  */
+/** Eine zusätzliche Schaltfläche, die der Aufrufer situativ einhängt (z.B. „Modell laden"). */
+data class DialogAktion(val beschriftung: String, val onClick: () -> Unit)
+
 @Composable
 fun SpeechInputDialog(
     state: SpeechInputState,
     onUebernehmen: (String) -> Unit,
     onWiederholen: () -> Unit,
     onAbbrechen: () -> Unit,
+    // Überschreibt den Statussatz. Trägt den Verlauf des Modell-Downloads, der kein
+    // Erkennungszustand ist und deshalb nicht in `SpeechInputState` gehört.
+    hinweis: String? = null,
+    // Verdrängt die Standard-Schaltfläche, solange gesetzt.
+    zusatzAktion: DialogAktion? = null,
 ) {
     val fehler = (state as? SpeechInputState.Fehler)?.grund
     val teiltext = when (state) {
@@ -68,7 +76,7 @@ fun SpeechInputDialog(
                 MikrofonIndikator(state)
 
                 Text(
-                    text = fehler?.message ?: statusText(state),
+                    text = hinweis ?: fehler?.message ?: statusText(state),
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textSecondary,
                     textAlign = TextAlign.Center,
@@ -93,19 +101,35 @@ fun SpeechInputDialog(
             }
         },
         confirmButton = {
-            // Bei einem wiederholbaren Fehler ist der zweite Versuch die naheliegende Aktion;
-            // sonst zählt, ob überhaupt etwas Übernehmbares dasteht.
-            if (fehler != null && fehler.retryable) {
-                TextButton(onClick = onWiederholen) { Text("Nochmal") }
-            } else {
-                TextButton(
+            when {
+                zusatzAktion != null -> TextButton(onClick = zusatzAktion.onClick) {
+                    Text(zusatzAktion.beschriftung)
+                }
+
+                // Wiederholbarer Fehler: der zweite Versuch ist die naheliegende Aktion.
+                fehler != null && fehler.retryable ->
+                    TextButton(onClick = onWiederholen) { Text("Nochmal") }
+
+                // Endgültiger Fehler ohne gerettetes Halbergebnis. Hier stand ein
+                // ausgegrautes „Übernehmen" neben „Abbrechen" — zwei Schaltflächen, von denen
+                // die eine nicht geht und die andere nichts abbricht. Seit die Spracheingabe
+                // bei so einem Fehler stehen bleibt statt in den System-Dialog zu springen,
+                // ist das der sichtbare Normalfall und nicht mehr ein Randfall.
+                fehler != null && teiltext.isBlank() -> Unit
+
+                else -> TextButton(
                     onClick = { onUebernehmen(teiltext) },
                     enabled = teiltext.isNotBlank(),
                 ) { Text("Übernehmen") }
             }
         },
         dismissButton = {
-            TextButton(onClick = onAbbrechen) { Text("Abbrechen") }
+            // „Schließen", wenn es nichts abzubrechen gibt: die Erkennung läuft dann nicht
+            // mehr, und „Abbrechen" würde eine laufende Aufnahme suggerieren.
+            val abbrechbar = fehler == null && state !is SpeechInputState.Fertig
+            TextButton(onClick = onAbbrechen) {
+                Text(if (abbrechbar) "Abbrechen" else "Schließen")
+            }
         },
     )
 }
@@ -168,7 +192,7 @@ private val RING_MAX = 28.dp
 private const val RING_ALPHA = 0.35f
 private val TEILTEXT_HOEHE = 64.dp
 
-@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun SpeechInputDialogHoertPreview() {
     BoulderBuddyTheme {
@@ -181,7 +205,7 @@ private fun SpeechInputDialogHoertPreview() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF3ECD6)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun SpeechInputDialogFehlerPreview() {
     BoulderBuddyTheme {
@@ -190,6 +214,21 @@ private fun SpeechInputDialogFehlerPreview() {
             onUebernehmen = {},
             onWiederholen = {},
             onAbbrechen = {},
+        )
+    }
+}
+
+// Der Fall, der diese App tatsächlich lahmgelegt hat: Erkenner da, deutsches Sprachpaket nicht.
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
+@Composable
+private fun SpeechInputDialogModellFehltPreview() {
+    BoulderBuddyTheme {
+        SpeechInputDialog(
+            state = SpeechInputState.Fehler(SpeechFailure.SPRACHE_FEHLT),
+            onUebernehmen = {},
+            onWiederholen = {},
+            onAbbrechen = {},
+            zusatzAktion = DialogAktion("Modell laden") {},
         )
     }
 }

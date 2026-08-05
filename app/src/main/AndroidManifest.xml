@@ -8,8 +8,10 @@
     <!--
       Spracheingabe in Notizfeldern (Weg A): Die App spricht den SpeechRecognizer direkt an und
       zeigt eine eigene Aufnahme-UI. Damit nimmt sie selbst auf und braucht RECORD_AUDIO.
-      Wird die Freigabe verweigert, fällt SpeechToTextButton auf den System-RecognizerIntent
-      zurück — der läuft in der Erkenner-App und kommt ohne diese Permission aus.
+
+      Wird die Freigabe verweigert, ist die Spracheingabe aus — es gibt keinen zweiten Weg mehr.
+      Der frühere Rückfall auf den System-RecognizerIntent lief in der Erkenner-App und kam ohne
+      diese Permission aus; er machte die Ablehnung damit wirkungslos.
     -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -26,14 +28,15 @@
 
     <!--
       Package Visibility (ab API 30): ohne diese Abfrage meldet SpeechRecognizer.isRecognitionAvailable()
-      false und der Intent-Fallback findet keine Ziel-Activity, obwohl ein Erkenner installiert ist.
+      false, obwohl ein Erkennungsdienst installiert ist — die Spracheingabe hielte sich dann für
+      unmöglich.
+
+      Die zweite Abfrage auf android.speech.action.RECOGNIZE_SPEECH ist mit dem Intent-Fallback
+      entfallen: die App startet keine fremde Spracheingabe-Activity mehr.
     -->
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
-        </intent>
-        <intent>
-            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>
     </queries>
 
