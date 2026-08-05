@@ -9,6 +9,7 @@ import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
+import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,6 +64,12 @@ fun SessionsListDetail(
 
     // Vor dem Zeichenblock lesen: der DrawScope ist kein Composable und kommt ans Theme nicht heran.
     val randfarbe = BoulderBuddy.colors.borderSubtle
+
+    // Stehen Liste und Detail nebeneinander? Auf schmalen Fenstern zeigt das Scaffold nur
+    // einen der beiden Panes — dann ist der Detail-Bereich über die Liste gelegt und braucht
+    // seinen Zurück-Weg.
+    val beidePanesSichtbar =
+        navigator.scaffoldValue[ListDetailPaneScaffoldRole.List] == PaneAdaptedValue.Expanded
 
     /*
      * DIE LÜCKE ZWISCHEN DEN PANES WIRD AUF EINE LINIE REDUZIERT.
@@ -121,7 +128,24 @@ fun SessionsListDetail(
                     if (selectedId != null) {
                         SessionRoute(
                             sessionId = selectedId,
-                            onBack = { scope.launch { navigator.navigateBack() } },
+                            /*
+                             * Kein Zurück-Pfeil, solange die Liste daneben steht.
+                             *
+                             * Er führte dort in den Leerzustand des Detail-Panes — also einen
+                             * Schritt in eine Ansicht, die weniger zeigt als die aktuelle,
+                             * ohne dass der Nutzer irgendwo „hergekommen" wäre. Ein
+                             * Zurück-Pfeil verspricht eine vorige Ansicht; die gibt es hier
+                             * nicht.
+                             *
+                             * Wird das Fenster schmal (Telefon, geteilter Bildschirm), klappt
+                             * das Scaffold auf **einen** Pane um — dann ist der Detail-Bereich
+                             * tatsächlich über die Liste gelegt, und der Pfeil kommt zurück.
+                             */
+                            onBack = if (beidePanesSichtbar) {
+                                null
+                            } else {
+                                { scope.launch { navigator.navigateBack() } }
+                            },
                             onOpenBoulder = onOpenBoulder,
                             onAddRoute = onAddRoute,
                         )

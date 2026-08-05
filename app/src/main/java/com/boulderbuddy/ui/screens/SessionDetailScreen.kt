@@ -64,7 +64,10 @@ fun SessionDetailScreen(
     hangboardWorkouts: List<HangboardWorkoutUi> = emptyList(),
     // Navigations-Callbacks (Phase 2). onAddRoute ist von SessionRoute bereits an die
     // sessionId dieser Session gebunden.
-    onBack: () -> Unit = {},
+    // `null` = es gibt von hier keinen Weg zurück, also auch keinen Pfeil. Genau der Fall im
+    // Zwei-Pane-Layout des Tablets: die Liste steht daneben, ein Zurück führte nur in den
+    // Leerzustand des Detail-Panes.
+    onBack: (() -> Unit)? = {},
     onOpenBoulder: (Int) -> Unit = {},
     onAddRoute: () -> Unit = {},
     onEndSession: () -> Unit = {},
@@ -94,13 +97,15 @@ fun SessionDetailScreen(
             TopBar(
                 title = gym,
                 subtitle = "● Läuft · $elapsed h",
-                navIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
-                            tint = BoulderBuddy.colors.onChrome,
-                        )
+                navIcon = onBack?.let { zurueck ->
+                    {
+                        IconButton(onClick = zurueck) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Zurück",
+                                tint = BoulderBuddy.colors.onChrome,
+                            )
+                        }
                     }
                 },
             )

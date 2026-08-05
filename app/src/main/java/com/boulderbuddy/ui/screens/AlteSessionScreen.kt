@@ -68,7 +68,8 @@ fun AlteSessionScreen(
     // Schreibt die geänderte Session-Notiz zurück (beim Verlassen des Feldes).
     onNotesChange: (String) -> Unit = {},
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
-    onBack: () -> Unit = {},
+    // `onBack = null` = kein Weg zurück, also kein Pfeil — siehe SessionDetailScreen.
+    onBack: (() -> Unit)? = {},
     onOpenBoulder: (Int) -> Unit = {},
 ) {
     // Session-Notiz: nachträglich editierbar (die Reflexion schreibt man meist nach der
@@ -90,13 +91,15 @@ fun AlteSessionScreen(
             TopBar(
                 title = gym,
                 subtitle = dateSubtitle,
-                navIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
-                            tint = BoulderBuddy.colors.onChrome,
-                        )
+                navIcon = onBack?.let { zurueck ->
+                    {
+                        IconButton(onClick = zurueck) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Zurück",
+                                tint = BoulderBuddy.colors.onChrome,
+                            )
+                        }
                     }
                 },
             )
