@@ -31,7 +31,9 @@ class AbgleichDateien @Inject constructor(
     private val datenbank: BoulderBuddyDatabase,
 ) {
 
-    private val standDatei: File get() = context.getDatabasePath(BoulderBuddyDatabase.NAME)
+    /** Die Datenbankdatei selbst — die, um die es beim Abgleich geht. */
+    val standDatei: File get() = context.getDatabasePath(BoulderBuddyDatabase.NAME)
+
     private val ordner: File get() = File(context.filesDir, "abgleich")
 
     val basisDatei: File get() = File(ordner, "basis.db")

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.Watch
@@ -87,6 +88,9 @@ fun EinstellungenScreen(
     // Öffnet den experimentellen Ghost-Climber-Flow (Phase 7.5) — bewusst hier statt
     // im MVP-Kernfluss verankert (Plan A.4).
     onOpenGhostClimber: () -> Unit = {},
+    // Oeffnet "Geraete abgleichen" (Sync-Plan S7). Steht bei den Daten, nicht unter
+    // Experimental: es geht um den eigenen Bestand, nicht um eine Spielerei.
+    onOpenAbgleich: () -> Unit = {},
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
@@ -248,6 +252,12 @@ fun EinstellungenScreen(
                         icon = Icons.Outlined.FileDownload,
                         label = "Sessions exportieren (CSV)",
                         onClick = { exportLauncher.launch("boulderbuddy_sessions.csv") },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Sync,
+                        label = "Geräte abgleichen",
+                        subtitle = "Phone und Tablet auf denselben Stand bringen",
+                        onClick = onOpenAbgleich,
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Person,

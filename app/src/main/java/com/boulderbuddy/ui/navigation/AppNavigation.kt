@@ -37,6 +37,7 @@ import com.boulderbuddy.ui.theme.Breite
 import com.boulderbuddy.ui.theme.aktuelleBreite
 import com.boulderbuddy.ui.screens.BoulderDetailRoute
 import com.boulderbuddy.ui.screens.BoulderUebersichtScreen
+import com.boulderbuddy.ui.screens.AbgleichScreen
 import com.boulderbuddy.ui.screens.EinstellungenScreen
 import com.boulderbuddy.ui.screens.GhostClimberScreen
 import com.boulderbuddy.ui.screens.HangboardHistorieScreen
@@ -49,6 +50,7 @@ import com.boulderbuddy.ui.screens.SessionRoute
 import com.boulderbuddy.ui.screens.SessionUebersichtScreen
 import com.boulderbuddy.ui.screens.StatistikScreen
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtViewModel
+import com.boulderbuddy.ui.viewmodel.AbgleichViewModel
 import com.boulderbuddy.ui.viewmodel.EinstellungenViewModel
 import com.boulderbuddy.ui.viewmodel.GhostClimberViewModel
 import com.boulderbuddy.ui.viewmodel.HangboardHistorieViewModel
@@ -241,6 +243,24 @@ fun AppNavigation(
                     exportMessage = exportMessage,
                     onExportMessageShown = viewModel::consumeExportMessage,
                     onOpenGhostClimber = { navController.navigate(GhostClimber) },
+                    onOpenAbgleich = { navController.navigate(Abgleich) },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable<Abgleich> {
+                val viewModel: AbgleichViewModel = hiltViewModel()
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+                AbgleichScreen(
+                    state = state,
+                    abgabeName = viewModel.abgabeName(),
+                    onGibAb = viewModel::gibAb,
+                    onLieseEin = viewModel::lieseEin,
+                    onEntscheideKonflikt = viewModel::entscheideKonflikt,
+                    onUebernimmFremden = viewModel::uebernimmFremdenStand,
+                    onBehalteEigenen = viewModel::behalteEigenenStand,
+                    onAbbrechen = viewModel::brichAb,
+                    onRueckgaengig = viewModel::machRueckgaengig,
+                    onMeldungGesehen = viewModel::meldungGesehen,
                     onBack = { navController.popBackStack() },
                 )
             }

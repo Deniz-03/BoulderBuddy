@@ -139,6 +139,54 @@ class AbgleichTest {
             .isEqualTo(Lage.KeinGemeinsamerStand)
     }
 
+    @Test
+    fun der_dateiweg_erkennt_dass_die_gegenseite_einen_schritt_weiter_ist() {
+        // Über die Datei läuft der Abgleich zwangsläufig in zwei Durchgängen: erst liest
+        // ein Gerät ein und rechnet (Generation 4), dann das andere. Beim zweiten Durchgang
+        // steht hier noch Generation 3 — das ist kein Auseinanderlaufen, sondern der
+        // Normalfall dieses Weges.
+        val meine = StandMeta(generation = 3, erzeugtVon = "phone", basiertAuf = 2)
+        val fremde = StandMeta(generation = 4, erzeugtVon = "tablet", basiertAuf = 3)
+
+        assertThat(lage(meine, fremde)).isEqualTo(Lage.GegenseiteWeiter(4))
+        // Und andersherum: die eingelesene Datei ist älter als der eigene Stand.
+        assertThat(lage(fremde, meine)).isEqualTo(Lage.IchBinWeiter)
+    }
+
+    @Test
+    fun zwei_durchgaenge_ueber_die_datei_bringen_beide_geraete_zusammen() {
+        // Der vollständige Datei-Weg: Phone gibt ab, Tablet liest ein und rechnet, dann
+        // gibt das Tablet ab und das Phone liest ein. Danach müssen beide gleich sein.
+        val basis = stand(
+            "gym" to mapOf(1 to gym("Halle Nord")),
+        )
+        val phone = stand(
+            "gym" to mapOf(1 to gym("Halle Nord")),
+            "session" to mapOf(2 to session(1, 100)),
+        )
+        val tablet = stand(
+            "gym" to mapOf(1 to gym("Halle Nord")),
+            "ghost_analysis" to mapOf(1_000_001 to ghost("ghost/a.json", "ghost/b.json")),
+        )
+
+        // Durchgang 1: das Tablet liest die Datei des Phones ein und rechnet.
+        val amTablet = anwenden(abgleich(basis, tablet, phone), Seite.MEINS)
+        val tabletNachher = wendeAn(tablet, amTablet.fuerMich)
+
+        // Das Phone weiß davon noch nichts — seine Basis ist unverändert die alte.
+        // Durchgang 2: das Phone liest die Datei des Tablets ein.
+        val amPhone = anwenden(abgleich(basis, phone, tabletNachher), Seite.MEINS)
+        val phoneNachher = wendeAn(phone, amPhone.fuerMich)
+
+        for (tabelle in STAND_TABELLEN) {
+            assertThat(phoneNachher.zeilen(tabelle.name))
+                .isEqualTo(tabletNachher.zeilen(tabelle.name))
+        }
+        // Beide haben beides — niemand hat etwas verloren.
+        assertThat(phoneNachher.zeile("session", 2)).isNotNull()
+        assertThat(phoneNachher.zeile("ghost_analysis", 1_000_001)).isNotNull()
+    }
+
     // -- Ablauf 4: beide ergänzen, beides bleibt ---------------------------
 
     @Test

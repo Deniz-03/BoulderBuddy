@@ -14,17 +14,27 @@ import com.boulderbuddy.data.db.entity.StandMetaEntity
  */
 
 /**
+ * Wie eine Abfrage ausgeführt wird.
+ *
+ * Bewusst eine Funktion statt eines Datenbank-Typs: gelesen wird sowohl aus der eigenen
+ * Room-Datenbank als auch aus einer **fremden Datei**, die gerade übertragen wurde. Letztere
+ * darf auf keinen Fall über Room geöffnet werden — Room würde ihre Schema-Version prüfen und
+ * gegebenenfalls migrieren, also die Datei verändern, die man nur ansehen wollte.
+ */
+typealias Abfrage = (String) -> Cursor
+
+/**
  * Liest einen vollständigen Stand.
  *
  * Gelesen werden **nur die Spalten aus [STAND_TABELLEN]**. Das ist keine Sparsamkeit,
  * sondern die Umsetzung von E15: was hier nicht ankommt, kann auch nicht versehentlich in
  * einen Vergleich geraten.
  */
-fun liesStand(db: SupportSQLiteDatabase): Stand {
+fun liesStand(abfrage: Abfrage): Stand {
     val tabellen = STAND_TABELLEN.associate { tabelle ->
         val spalten = listOf("id") + tabelle.spalten
         val zeilen = HashMap<Int, Zeile>()
-        db.query("SELECT ${spalten.joinToString(", ") { "`$it`" }} FROM `${tabelle.name}`")
+        abfrage("SELECT ${spalten.joinToString(", ") { "`$it`" }} FROM `${tabelle.name}`")
             .use { cursor ->
                 while (cursor.moveToNext()) {
                     val id = cursor.getInt(0)
@@ -37,6 +47,8 @@ fun liesStand(db: SupportSQLiteDatabase): Stand {
     }
     return Stand(tabellen)
 }
+
+fun liesStand(db: SupportSQLiteDatabase): Stand = liesStand { db.query(it) }
 
 private fun feldAus(cursor: Cursor, spalte: Int): Feld = when (cursor.getType(spalte)) {
     Cursor.FIELD_TYPE_NULL -> Feld.Leer
@@ -120,8 +132,8 @@ fun schreibeStandMeta(db: SupportSQLiteDatabase, meta: StandMetaEntity) {
     db.insert("stand_meta", CONFLICT_REPLACE, werte)
 }
 
-fun liesStandMeta(db: SupportSQLiteDatabase): StandMeta? =
-    db.query("SELECT generation, erzeugtVon, basiertAuf FROM stand_meta LIMIT 1").use { c ->
+fun liesStandMeta(abfrage: Abfrage): StandMeta? =
+    abfrage("SELECT generation, erzeugtVon, basiertAuf FROM stand_meta LIMIT 1").use { c ->
         if (!c.moveToFirst()) return null
         StandMeta(
             generation = c.getLong(0),
@@ -129,6 +141,22 @@ fun liesStandMeta(db: SupportSQLiteDatabase): StandMeta? =
             basiertAuf = if (c.isNull(2)) null else c.getLong(2),
         )
     }
+
+fun liesStandMeta(db: SupportSQLiteDatabase): StandMeta? = liesStandMeta { db.query(it) }
+
+/**
+ * Schema-Version einer Datei, ohne sie zu öffnen wie eine eigene Datenbank.
+ *
+ * Room legt seine Version in `PRAGMA user_version` ab. Das ist die einzige Auskunft, die man
+ * einer fremden Standdatei entlocken darf, bevor feststeht, ob man sie überhaupt lesen
+ * kann (E7).
+ */
+fun liesSchemaVersion(abfrage: Abfrage): Int =
+    abfrage("PRAGMA user_version").use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+
+/** Wie viele Zeilen je Tabelle — für die Erstbegegnungs-Frage mit Zahlen (E10). */
+fun zaehleZeilen(abfrage: Abfrage, tabelle: String): Int =
+    abfrage("SELECT COUNT(*) FROM `$tabelle`").use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
 
 /**
  * Stellt `sqlite_sequence` je Tabelle auf das eigene Band zurück (E8).

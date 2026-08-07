@@ -51,6 +51,11 @@ object GhostClimber       // -> GhostClimberScreen
 @Serializable
 object HangboardHistorie  // -> HangboardHistorieScreen
 
+// Geräte abgleichen (Sync-Plan S7): Push-Ziel aus den Einstellungen. Bewusst kein Tab —
+// es ist eine Wartungsaufgabe, keine tägliche.
+@Serializable
+object Abgleich           // -> AbgleichScreen
+
 // -----------------------------------------------------------------------------
 // Push-Ziele MIT Argument:
 // -----------------------------------------------------------------------------

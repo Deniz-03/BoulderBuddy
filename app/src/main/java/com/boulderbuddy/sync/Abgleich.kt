@@ -60,8 +60,27 @@ sealed interface Lage {
     data class GemeinsamerStand(val generation: Long, val erzeugtVon: String) : Lage
 
     /**
-     * Beide haben abgeglichen, aber nicht miteinander — oder einer hat zwischendurch einen
-     * Stand über den Datei-Weg (S8) eingespielt. `basis.db` beschriebe dann nicht den
+     * Der fremde Stand ist aus meinem hervorgegangen: die Gegenseite hat bereits
+     * abgeglichen, ich noch nicht. **Mein `basis.db` ist trotzdem der richtige gemeinsame
+     * Vorfahr** — der Vergleich läuft also ganz normal, nur die Herkunft übernehme ich
+     * anschließend unverändert von drüben (E3).
+     *
+     * Über Nearby kommt das nicht vor: dort rechnet ein Gerät und beide wenden gleichzeitig
+     * an. Über den Datei-Weg (S8) ist es der **Normalfall**, denn dort läuft der Abgleich
+     * zwangsläufig in zwei Durchgängen — erst liest das eine Gerät die Datei des anderen,
+     * dann umgekehrt.
+     */
+    data class GegenseiteWeiter(val fremdeGeneration: Long) : Lage
+
+    /**
+     * Der fremde Stand ist ein Vorfahr meines eigenen — die Datei ist älter als das, was
+     * hier schon steht. Einlesen wäre kein Fehler, aber sinnlos; sinnvoll ist der
+     * umgekehrte Weg.
+     */
+    data object IchBinWeiter : Lage
+
+    /**
+     * Beide haben abgeglichen, aber nicht miteinander. `basis.db` beschriebe dann nicht den
      * gemeinsamen Stand, und ein Zeilenabgleich verglich gegen die falsche Vergangenheit.
      */
     data object KeinGemeinsamerStand : Lage
@@ -74,11 +93,16 @@ sealed interface Lage {
  * Auch nicht über `geaendertSeitAbgleich`: der Schalter ist ein Hinweis fürs UI und kann
  * schlicht falsch stehen (Ablauf 35). Ob und wer etwas geändert hat, sagt allein der
  * Vergleich mit der Basis — siehe [Abgleichplan.veraenderung].
+ *
+ * `basiertAuf` hält nur die Vorgänger-Generation fest, nicht die ganze Ahnenreihe. Für zwei
+ * Geräte genügt das; bei dreien wäre eine Basis je Gegenstelle nötig (O3).
  */
 fun lage(meine: StandMeta?, fremde: StandMeta?): Lage = when {
     meine == null || fremde == null -> Lage.Erstbegegnung
     meine.generation == fremde.generation && meine.erzeugtVon == fremde.erzeugtVon ->
         Lage.GemeinsamerStand(meine.generation, meine.erzeugtVon)
+    fremde.basiertAuf == meine.generation -> Lage.GegenseiteWeiter(fremde.generation)
+    meine.basiertAuf == fremde.generation -> Lage.IchBinWeiter
     else -> Lage.KeinGemeinsamerStand
 }
 
