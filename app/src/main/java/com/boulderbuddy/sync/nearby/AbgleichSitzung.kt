@@ -15,8 +15,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -32,7 +30,7 @@ sealed interface Sitzungsstand {
 
     /**
      * Beide Geräte zeigen dieselbe vierstellige Zahl. Stimmen sie nicht überein, ist es
-     * nicht das richtige Gerät — das ist der einzige Schutz davor, den Stand versehentlich
+     * nicht das richtige Gerät — der einzige Schutz davor, den eigenen Stand versehentlich
      * einem fremden Tablet zu geben.
      */
     data class Bestaetigen(val name: String, val zahl: String) : Sitzungsstand
@@ -52,16 +50,15 @@ sealed interface Sitzungsstand {
 }
 
 /**
- * Ein Abgleich über Nearby, von Anfang bis Ende (Sync-Plan S5).
+ * Ein Abgleich über Nearby, von Anfang bis Ende (Sync-Plan S4/S5).
  *
  * Bewusst als **linearer** Ablauf geschrieben und nicht als Zustandsautomat: der Funkweg ist
- * der einzige Teil dieses Features, der sich ohne zwei echte Geräte nicht prüfen lässt.
- * Wenn ich ihn nicht testen kann, soll er wenigstens von oben nach unten lesbar sein —
- * `warteAuf(...)` hält den Ablauf an, statt ihn über ein Dutzend Rückrufe zu verstreuen.
+ * der einzige Teil dieses Features, der sich ohne zwei echte Geräte nicht prüfen lässt. Wenn
+ * ich ihn nicht testen kann, soll er wenigstens von oben nach unten lesbar sein.
  *
- * Die Reihenfolge folgt dem Plan: Vorprüfungen → Hash-Listen → fehlende Medien →
- * **zuletzt** der Stand. Zuletzt deshalb, weil ein Abbruch vor dem Stand folgenlos ist:
- * herumliegende Medien kosten Platz, ein halb angewendeter Stand kostet Daten.
+ * Die Reihenfolge folgt dem Plan: Vorprüfungen → Hash-Listen → fehlende Medien → **zuletzt**
+ * der Stand. Zuletzt deshalb, weil ein Abbruch davor folgenlos ist: herumliegende Medien
+ * kosten Platz, ein halb angewendeter Stand kostet Daten.
  */
 @Singleton
 class AbgleichSitzung @Inject constructor(
@@ -78,12 +75,17 @@ class AbgleichSitzung @Inject constructor(
     private val _stand = MutableStateFlow<Sitzungsstand>(Sitzungsstand.Untaetig)
     val stand: StateFlow<Sitzungsstand> = _stand.asStateFlow()
 
-    /** Antworten des Nutzers, auf die der Ablauf wartet. */
     private var bestaetigung: CompletableDeferred<Boolean>? = null
     private var konfliktAntwort: CompletableDeferred<Seite>? = null
     private var erstbegegnungAntwort: CompletableDeferred<Boolean>? = null
 
-    private var offenerEndpunkt: String? = null
+    /**
+     * Buchführung über Dateien. Ankündigung (BYTES) und Datei (FILE) kommen als getrennte
+     * Payloads und in beliebiger Reihenfolge an — erst beides zusammen ergibt „Datei X der
+     * Art Y ist da".
+     */
+    private val ankuendigungen = mutableMapOf<Long, Nachricht.DateiFolgt>()
+    private val angekommene = mutableMapOf<Long, File>()
 
     fun bestaetigeVerbindung(ja: Boolean) {
         bestaetigung?.complete(ja)
@@ -107,12 +109,19 @@ class AbgleichSitzung @Inject constructor(
      *
      * @param hatGedrueckt ob der Nutzer auf **diesem** Gerät gestartet hat. Bestimmt
      *   zusammen mit der Geräte-ID, wer rechnet (E12).
-     * @param anzeigename was das andere Gerät sieht.
      */
     suspend fun fuehre(hatGedrueckt: Boolean, anzeigename: String) {
+        // Zustand zurücksetzen, BEVOR irgendjemand mitliest: das Ergebnis des letzten Laufs
+        // steht hier noch, und der Foreground Service liest den Zustand mit, um sich am Ende
+        // zu beenden. Bliebe „fertig" stehen, hörte er sofort wieder auf — der zweite
+        // Abgleich käme nie zustande.
+        _stand.value = Sitzungsstand.Untaetig
+        ankuendigungen.clear()
+        angekommene.clear()
+
         try {
             // Vor allem anderen: alle Medien gehören der App und heißen nach ihrem Inhalt.
-            // Sonst tauschen die Geräte gleich Namenslisten aus, die nichts bedeuten (E5).
+            // Sonst tauschen die Geräte Namenslisten aus, die nichts bedeuten (E5).
             _stand.value = Sitzungsstand.Laeuft("Medien werden vorbereitet …")
             medienUmzug.stelleSicher()
 
@@ -120,9 +129,8 @@ class AbgleichSitzung @Inject constructor(
             verbindung.starte(anzeigename)
 
             val endpunkt = verbindeMitBestaetigung()
-            offenerEndpunkt = endpunkt
 
-            val meinHallo = baueHallo(hatGedrueckt)
+            val meinHallo = abgleicher.beschreibeMich(hatGedrueckt, identitaet.eigeneId())
             verbindung.sende(endpunkt, meinHallo)
             _stand.value = Sitzungsstand.Laeuft("Geräte gleichen ab …")
             val fremdesHallo = warteAufNachricht<Nachricht.Hallo>()
@@ -133,34 +141,23 @@ class AbgleichSitzung @Inject constructor(
                     // das Warten auf einen Abbruch, der nie kommt.
                     verbindung.sende(endpunkt, Nachricht.Abbruch(ergebnis.grund))
                     beende(ergebnis.grund)
-                    return
                 }
 
-                is Handschlag.Bereit -> tauscheAus(
-                    endpunkt = endpunkt,
-                    ichRechne = ergebnis.ichRechne,
-                    meinHallo = meinHallo,
-                    fremdesHallo = fremdesHallo,
-                )
+                is Handschlag.Bereit -> tauscheAus(endpunkt, ergebnis.ichRechne, fremdesHallo)
             }
         } catch (e: Exception) {
             beende(e.message ?: "Der Abgleich ist fehlgeschlagen.")
         } finally {
             verbindung.beende()
             dateien.raeumeEmpfangenesAuf()
-            offenerEndpunkt = null
         }
     }
 
     /** Warten, bis der Nutzer die vierstellige Zahl bestätigt hat und die Verbindung steht. */
     private suspend fun verbindeMitBestaetigung(): String {
         while (true) {
-            val ereignis = withTimeout(SUCHE_ZEITLIMIT) {
-                verbindung.ereignisse.first {
-                    it is Funkereignis.BestaetigungNoetig ||
-                        it is Funkereignis.Verbunden ||
-                        it is Funkereignis.Fehlgeschlagen
-                }
+            val ereignis = warteBis(SUCHE_ZEITLIMIT) {
+                it is Funkereignis.BestaetigungNoetig || it is Funkereignis.Verbunden
             }
             when (ereignis) {
                 is Funkereignis.BestaetigungNoetig -> {
@@ -177,7 +174,6 @@ class AbgleichSitzung @Inject constructor(
                 }
 
                 is Funkereignis.Verbunden -> return ereignis.endpunkt
-                is Funkereignis.Fehlgeschlagen -> error(ereignis.grund)
                 else -> Unit
             }
         }
@@ -191,54 +187,51 @@ class AbgleichSitzung @Inject constructor(
     private suspend fun tauscheAus(
         endpunkt: String,
         ichRechne: Boolean,
-        meinHallo: Nachricht.Hallo,
         fremdesHallo: Nachricht.Hallo,
     ) {
-        // 1. Hash-Listen tauschen. Beide schicken, beide warten — die Reihenfolge ist egal,
-        //    weil niemand auf die Antwort des anderen wartet, um zu senden.
+        // 1. Hash-Listen tauschen. Beide schicken, beide warten.
         val meineMedien = medien.vorhandeneNamen()
         verbindung.sende(endpunkt, Nachricht.Medienliste(meineMedien.toList()))
         val fremdeMedien = warteAufNachricht<Nachricht.Medienliste>().namen
 
-        // 2. Fehlende Medien schicken. Vor dem Stand: bricht es hier ab, liegen ein paar
-        //    Dateien zu viel herum — mehr nicht.
+        // 2. Fehlende Medien schicken, dann „fertig" — auch wenn keins zu schicken war.
         val zuSchicken = fehlendeMedien(meineMedien, fremdeMedien)
-        val zuEmpfangen = fehlendeMedien(fremdeMedien, meineMedien)
         zuSchicken.forEachIndexed { i, name ->
             _stand.value = Sitzungsstand.Laeuft(
                 "Videos und Fotos werden übertragen …",
                 anteil = (i + 1f) / zuSchicken.size,
             )
             val datei = medien.datei(name)
+            // Eine inzwischen gelöschte Datei lässt den Abgleich durchlaufen, statt ihn
+            // anzuhalten: der Empfänger zählt nichts mit, er wartet auf das „fertig".
             if (datei.exists()) verbindung.sendeDatei(endpunkt, datei, DateiArt.MEDIUM, name)
         }
         verbindung.sende(endpunkt, Nachricht.Fertig)
 
-        // 3. Die fehlenden Medien der Gegenseite entgegennehmen.
-        empfangeMedien(zuEmpfangen.size)
+        // 3. Auf das „fertig" der Gegenseite warten. Was bis dahin an Medien eintrifft,
+        //    landet nebenbei in der Buchführung — gezählt wird bewusst nichts.
+        _stand.value = Sitzungsstand.Laeuft("Videos und Fotos werden empfangen …")
+        warteAufNachricht<Nachricht.Fertig>()
 
         // 4. Zuletzt der Stand.
         _stand.value = Sitzungsstand.Laeuft("Stand wird abgeglichen …")
         if (ichRechne) {
-            val fremdeDatei = empfangeDatei(DateiArt.STAND)
-            rechneUndVerteile(endpunkt, fremdeDatei, meinHallo, fremdesHallo)
+            val fremdeDatei = holeDatei(DateiArt.STAND)
+            rechneUndVerteile(endpunkt, fremdeDatei, fremdesHallo)
         } else {
-            val eigene = dateien.kopiereStand(
-                File(dateien.empfangsOrdner(), "abgabe.db"),
-            )
+            val eigene = dateien.kopiereStand(File(dateien.empfangsOrdner(), "abgabe.db"))
             verbindung.sendeDatei(endpunkt, eigene, DateiArt.STAND)
-            wendeFremdesErgebnisAn(endpunkt)
+            wendeFremdesErgebnisAn(endpunkt, fremdesHallo)
         }
     }
 
     /**
-     * Das rechnende Gerät: vergleichen, gegebenenfalls fragen, anwenden — und der
-     * Gegenseite das Ergebnis schicken.
+     * Das rechnende Gerät: vergleichen, gegebenenfalls fragen, anwenden — und der Gegenseite
+     * das Ergebnis schicken.
      */
     private suspend fun rechneUndVerteile(
         endpunkt: String,
         fremdeDatei: File,
-        meinHallo: Nachricht.Hallo,
         fremdesHallo: Nachricht.Hallo,
     ) {
         when (val vorschlag = abgleicher.pruefe(fremdeDatei)) {
@@ -263,15 +256,19 @@ class AbgleichSitzung @Inject constructor(
                     Nachricht.ErstbegegnungEntschieden(meinStandGewinnt = !fremderGewinnt),
                 )
                 if (fremderGewinnt) {
-                    // Hier wird die Datei ersetzt — danach ist die App bis zum Neustart
-                    // nicht benutzbar, weil Room noch die alte Datei hält (E10).
-                    abgleicher.uebernimmGanz(vorschlag)
+                    // Der fremde Stand gilt. Die Herkunft trägt die ID der GEGENSEITE — nur
+                    // so bekommen beide Geräte verschiedene Nummernfenster (E8, korrigiert).
+                    abgleicher.uebernimmGanz(vorschlag, herkunftVon = fremdesHallo.geraeteId)
                     _stand.value = Sitzungsstand.Fertig(Bilanz.NICHTS, neustartNoetig = true)
                 } else {
                     val eigene = dateien.kopiereStand(
                         File(dateien.empfangsOrdner(), "abgabe.db"),
                     )
                     verbindung.sendeDatei(endpunkt, eigene, DateiArt.STAND)
+                    abgleicher.merkeErstbegegnungGewonnen(fremdesHallo.geraeteId)
+                    // Warten, bis drüben angewendet ist — sonst reißt der Abbau der
+                    // Verbindung die Übertragung mittendrin ab.
+                    warteAufNachricht<Nachricht.Fertig>()
                     _stand.value = Sitzungsstand.Fertig(Bilanz.NICHTS)
                 }
             }
@@ -304,117 +301,138 @@ class AbgleichSitzung @Inject constructor(
                 verbindung.sendeDatei(endpunkt, datei, DateiArt.ANWEISUNGEN)
 
                 val bilanz = abgleicher.fuehreZusammen(vorschlag, wahl)
+
+                // Erst abbauen, wenn drüben bestätigt ist. `beende()` ruft stopAllEndpoints
+                // und löscht den Empfangsordner — beides würde eine noch laufende
+                // Übertragung abschneiden.
+                warteAufNachricht<Nachricht.Fertig>()
                 _stand.value = Sitzungsstand.Fertig(bilanz)
             }
         }
     }
 
     /** Das andere Gerät: das fertige Ergebnis entgegennehmen und anwenden. */
-    private suspend fun wendeFremdesErgebnisAn(endpunkt: String) {
-        val ereignis = withTimeout(UEBERTRAGUNG_ZEITLIMIT) {
-            verbindung.ereignisse.first {
-                (it is Funkereignis.NachrichtDa &&
-                    (it.nachricht is Nachricht.Abbruch ||
-                        it.nachricht is Nachricht.Fertig ||
-                        it.nachricht is Nachricht.ErstbegegnungEntschieden)) ||
-                    it is Funkereignis.DateiDa
-            }
+    private suspend fun wendeFremdesErgebnisAn(endpunkt: String, fremdesHallo: Nachricht.Hallo) {
+        // Bewusst über die Buchführung geprüft und nicht über das gerade eingetroffene
+        // Ereignis: Ankündigung und Datei kommen als getrennte Payloads und in beliebiger
+        // Reihenfolge. Käme die Datei zuerst, wüsste man bei ihrem Eintreffen noch nicht,
+        // was sie ist — und bei der späteren Ankündigung läge sie schon zu lange zurück.
+        val ereignis = warteBis(UEBERTRAGUNG_ZEITLIMIT) { e ->
+            (e is Funkereignis.NachrichtDa &&
+                (e.nachricht is Nachricht.Fertig ||
+                    e.nachricht is Nachricht.ErstbegegnungEntschieden)) ||
+                fertigeDatei(DateiArt.ANWEISUNGEN) != null
         }
+        val anweisungsDatei = fertigeDatei(DateiArt.ANWEISUNGEN)
 
         when {
-            ereignis is Funkereignis.NachrichtDa &&
-                ereignis.nachricht is Nachricht.Abbruch -> {
-                beende((ereignis.nachricht as Nachricht.Abbruch).grund)
-            }
-
-            ereignis is Funkereignis.NachrichtDa &&
-                ereignis.nachricht is Nachricht.Fertig -> {
+            ereignis is Funkereignis.NachrichtDa && ereignis.nachricht is Nachricht.Fertig ->
                 _stand.value = Sitzungsstand.Fertig(Bilanz.NICHTS)
-            }
 
             ereignis is Funkereignis.NachrichtDa &&
                 ereignis.nachricht is Nachricht.ErstbegegnungEntschieden -> {
                 val entscheidung = ereignis.nachricht as Nachricht.ErstbegegnungEntschieden
                 if (entscheidung.meinStandGewinnt) {
-                    // Der Stand des anderen Geräts gilt — seine Datei kommt gleich.
-                    val datei = empfangeDatei(DateiArt.STAND)
+                    // Der Stand der Gegenseite gilt — ihre Datei kommt gleich.
+                    val datei = holeDatei(DateiArt.STAND)
                     val vorschlag = abgleicher.pruefe(datei)
                     if (vorschlag is Abgleichvorschlag.Erstbegegnung) {
-                        abgleicher.uebernimmGanz(vorschlag)
+                        abgleicher.uebernimmGanz(
+                            vorschlag,
+                            herkunftVon = fremdesHallo.geraeteId,
+                        )
+                        verbindung.sende(endpunkt, Nachricht.Fertig)
                         _stand.value =
                             Sitzungsstand.Fertig(Bilanz.NICHTS, neustartNoetig = true)
                     } else {
+                        verbindung.sende(
+                            endpunkt,
+                            Nachricht.Abbruch("Der empfangene Stand passt nicht."),
+                        )
                         beende("Der empfangene Stand passt nicht zur Erstbegegnung.")
                     }
                 } else {
-                    // Der eigene Stand gilt; die Gegenseite übernimmt ihn.
+                    // Der eigene Stand gilt. Auch dann braucht dieses Gerät eine Herkunft,
+                    // sonst wäre der nächste Abgleich wieder eine Erstbegegnung und beide
+                    // Geräte fielen aufs selbe Nummernfenster zurück.
+                    abgleicher.merkeErstbegegnungGewonnen(fremdesHallo.geraeteId)
+                    verbindung.sende(endpunkt, Nachricht.Fertig)
                     _stand.value = Sitzungsstand.Fertig(Bilanz.NICHTS)
                 }
             }
 
-            ereignis is Funkereignis.DateiDa -> {
-                val paket = json.decodeFromString<Anweisungspaket>(ereignis.datei.readText())
+            anweisungsDatei != null -> {
                 _stand.value = Sitzungsstand.Laeuft("Wird angewendet …")
+                val paket = json.decodeFromString<Anweisungspaket>(anweisungsDatei.readText())
                 val bilanz = abgleicher.wendeFremdesPaketAn(paket)
+                // Die Bestätigung ist keine Höflichkeit: die Gegenseite baut die Verbindung
+                // erst danach ab. Ohne sie schnitte sie eine noch laufende Übertragung ab.
+                verbindung.sende(endpunkt, Nachricht.Fertig)
                 _stand.value = Sitzungsstand.Fertig(bilanz)
             }
         }
     }
 
-    private suspend fun empfangeMedien(anzahl: Int) {
-        if (anzahl == 0) {
-            // Trotzdem auf das „fertig" der Gegenseite warten — sonst überholt der Stand
-            // die Medien und die Zuordnung gerät durcheinander.
-            warteAufNachricht<Nachricht.Fertig>()
-            return
+    /** Eine Datei der gewünschten Art — egal, ob sie vor oder nach ihrer Ankündigung ankam. */
+    private suspend fun holeDatei(art: DateiArt): File {
+        fertigeDatei(art)?.let { return it }
+        warteBis(UEBERTRAGUNG_ZEITLIMIT) { fertigeDatei(art) != null }
+        return fertigeDatei(art) ?: error("Die erwartete Datei ist nicht angekommen.")
+    }
+
+    private fun fertigeDatei(art: DateiArt): File? = ankuendigungen.values
+        .firstOrNull { it.art == art && angekommene.containsKey(it.payloadId) }
+        ?.let { angekommene[it.payloadId] }
+
+    private suspend inline fun <reified T : Nachricht> warteAufNachricht(): T {
+        val ereignis = warteBis(UEBERTRAGUNG_ZEITLIMIT) {
+            it is Funkereignis.NachrichtDa && it.nachricht is T
         }
-        var empfangen = 0
-        while (empfangen < anzahl) {
-            val ereignis = withTimeout(UEBERTRAGUNG_ZEITLIMIT) {
-                verbindung.ereignisse.first {
-                    it is Funkereignis.DateiDa ||
-                        (it is Funkereignis.NachrichtDa && it.nachricht is Nachricht.Abbruch)
+        return (ereignis as Funkereignis.NachrichtDa).nachricht as T
+    }
+
+    /**
+     * Zieht Ereignisse aus der Warteschlange, bis [passt] zutrifft.
+     *
+     * Die Buchführung über Dateien läuft dabei nebenher — deshalb ist es egal, in welcher
+     * Reihenfolge Ankündigung und Datei eintreffen, und es geht nichts verloren, während
+     * gerade auf etwas anderes gewartet wird. Abbruch, Verbindungsverlust und Fehler brechen
+     * hier zentral ab, statt an jeder Wartestelle einzeln behandelt zu werden.
+     */
+    private suspend fun warteBis(
+        zeitlimit: Long,
+        passt: (Funkereignis) -> Boolean,
+    ): Funkereignis = withTimeout(zeitlimit) {
+        while (true) {
+            val ereignis = verbindung.naechstes()
+
+            when {
+                ereignis is Funkereignis.NachrichtDa &&
+                    ereignis.nachricht is Nachricht.Abbruch ->
+                    error((ereignis.nachricht as Nachricht.Abbruch).grund)
+
+                ereignis is Funkereignis.Fehlgeschlagen -> error(ereignis.grund)
+
+                ereignis is Funkereignis.Getrennt ->
+                    error("Die Verbindung zum anderen Gerät ist abgerissen.")
+
+                ereignis is Funkereignis.NachrichtDa &&
+                    ereignis.nachricht is Nachricht.DateiFolgt -> {
+                    val a = ereignis.nachricht as Nachricht.DateiFolgt
+                    ankuendigungen[a.payloadId] = a
                 }
+
+                ereignis is Funkereignis.DateiDa ->
+                    angekommene[ereignis.payloadId] = ereignis.datei
+
+                else -> Unit
             }
-            if (ereignis is Funkereignis.NachrichtDa) {
-                error((ereignis.nachricht as Nachricht.Abbruch).grund)
-            }
-            empfangen++
-            _stand.value = Sitzungsstand.Laeuft(
-                "Videos und Fotos werden empfangen …",
-                anteil = empfangen.toFloat() / anzahl,
-            )
+
+            if (passt(ereignis)) return@withTimeout ereignis
         }
-        warteAufNachricht<Nachricht.Fertig>()
+        @Suppress("UNREACHABLE_CODE")
+        error("unerreichbar")
     }
-
-    private suspend fun empfangeDatei(art: DateiArt): File {
-        // Die Ankündigung nennt die Payload-Nummer; die Datei kommt getrennt davon an.
-        val ankuendigung = withTimeout(UEBERTRAGUNG_ZEITLIMIT) {
-            verbindung.ereignisse
-                .filterIsInstance<Funkereignis.NachrichtDa>()
-                .first { it.nachricht is Nachricht.DateiFolgt &&
-                    (it.nachricht as Nachricht.DateiFolgt).art == art }
-        }
-        val erwartet = (ankuendigung.nachricht as Nachricht.DateiFolgt).payloadId
-        val datei = withTimeout(UEBERTRAGUNG_ZEITLIMIT) {
-            verbindung.ereignisse
-                .filterIsInstance<Funkereignis.DateiDa>()
-                .first { it.payloadId == erwartet }
-        }
-        return datei.datei
-    }
-
-    private suspend inline fun <reified T : Nachricht> warteAufNachricht(): T =
-        withTimeout(UEBERTRAGUNG_ZEITLIMIT) {
-            verbindung.ereignisse
-                .filterIsInstance<Funkereignis.NachrichtDa>()
-                .first { it.nachricht is T }
-                .nachricht as T
-        }
-
-    private suspend fun baueHallo(hatGedrueckt: Boolean): Nachricht.Hallo =
-        abgleicher.beschreibeMich(hatGedrueckt, identitaet.eigeneId())
 
     private fun beende(grund: String) {
         _stand.value = Sitzungsstand.Abgebrochen(grund)

@@ -165,16 +165,23 @@ class Abgleicher @Inject constructor(
                         return@withContext Abgleichvorschlag.NichtsZuTun
                     }
 
-                    // Die Herkunft bestimmt, wer rechnet — und beide übernehmen sie
-                    // unverändert (E3). Beim Datei-Weg rechnet, wer einliest.
-                    val vorige = meineMeta?.generation ?: 0
-                    val fremdeGen = fremdeMeta?.generation ?: 0
+                    // Die Herkunft beschreibt den GEMEINSAMEN Stand — nach dem Abgleich
+                    // müssen beide Geräte dieselben drei Werte tragen (E3, Ablauf 32).
+                    //
+                    // Daraus folgen zwei verschiedene Fälle, und sie zu vermischen kostet
+                    // Daten: Bei `GegenseiteWeiter` hat die Gegenseite den Stand bereits
+                    // gerechnet und trägt schon die neue Herkunft. Würde hier eine WEITERE
+                    // Generation vergeben, stünden hinterher zwei Geräte mit gleichen Daten
+                    // und verschiedener Herkunft da — und der nächste Abgleich läse daraus
+                    // „auseinandergelaufen" und böte eine Erstbegegnung an, also den Verlust
+                    // eines der beiden Stände.
+                    val herkunft = neueHerkunft(wo, meineMeta, fremdeMeta, ich)
                     Abgleichvorschlag.Zusammenfuehren(
                         plan = plan,
                         neueMeta = StandMetaEntity(
-                            generation = maxOf(vorige, fremdeGen) + 1,
-                            erzeugtVon = ich,
-                            basiertAuf = vorige,
+                            generation = herkunft.generation,
+                            erzeugtVon = herkunft.erzeugtVon,
+                            basiertAuf = herkunft.basiertAuf,
                         ),
                     )
                 }
@@ -195,7 +202,10 @@ class Abgleicher @Inject constructor(
         wahl: Seite,
     ): Bilanz = withContext(Dispatchers.IO) {
         val anweisungen = anwenden(vorschlag.plan, wahl)
-        val band = identitaet.identitaet.first().band ?: 0
+        // Das Band folgt aus der NEUEN Herkunft, nicht aus einem gespeicherten Wert: dieses
+        // Gerät hat gerechnet, also steht seine ID in `erzeugtVon` — es zählt im unteren
+        // Fenster weiter, die Gegenseite im oberen (E8, korrigiert).
+        val band = NummernBand.ausHerkunft(vorschlag.neueMeta.erzeugtVon, identitaet.eigeneId())
 
         dateien.merkeAlsVorher()
         wendeAn(eigeneDb, anweisungen.fuerMich, vorschlag.neueMeta, band)
@@ -210,10 +220,17 @@ class Abgleicher @Inject constructor(
      * Danach ist die App **nicht mehr benutzbar**, bis der Prozess neu startet — Room hält
      * noch die alte Datei offen. Der Aufrufer muss neu starten.
      */
-    suspend fun uebernimmGanz(vorschlag: Abgleichvorschlag.Erstbegegnung) =
+    suspend fun uebernimmGanz(
+        vorschlag: Abgleichvorschlag.Erstbegegnung,
+        /**
+         * Geräte-ID der Seite, deren Stand gewinnt. Über Nearby ist sie aus dem Handschlag
+         * bekannt; über die Datei nicht — dort trägt der Empfänger sich selbst ein und
+         * bekommt beim nächsten Durchgang das richtige Band (siehe [NummernBand.ausHerkunft]).
+         */
+        herkunftVon: String? = null,
+    ) =
         withContext(Dispatchers.IO) {
             val ich = identitaet.eigeneId()
-            val band = NummernBand.bandFuer(ich, vorschlag.fremdeGeraeteId)
             val fremdeMeta = oeffneNurLesend(vorschlag.datei).use { f ->
                 liesStandMeta { sql -> f.rawQuery(sql, null) }
             }
@@ -229,7 +246,7 @@ class Abgleicher @Inject constructor(
                 null,
                 SQLiteDatabase.OPEN_READWRITE,
             ).use { db ->
-                val meta = fremdeMeta ?: StandMeta(1, vorschlag.fremdeGeraeteId, null)
+                val meta = fremdeMeta ?: StandMeta(1, herkunftVon ?: ich, null)
                 db.execSQL(
                     "INSERT OR REPLACE INTO stand_meta (id, generation, erzeugtVon, basiertAuf) " +
                         "VALUES (?, ?, ?, ?)",
@@ -242,11 +259,30 @@ class Abgleicher @Inject constructor(
                 )
             }
 
-            identitaet.koppele(vorschlag.fremdeGeraeteId, band)
+            identitaet.koppele(vorschlag.fremdeGeraeteId)
             // Das Gedächtnis ist ab jetzt genau der übernommene Stand.
             dateien.basisDatei.delete()
             vorschlag.datei.copyTo(dateien.basisDatei, overwrite = true)
         }
+
+    /**
+     * Die **Gewinner**-Seite einer Erstbegegnung: der eigene Stand bleibt, bekommt aber eine
+     * Herkunft, damit beide Geräte danach dieselbe tragen (E3).
+     *
+     * Ohne das stünde der Gewinner ohne `stand_meta` da — der nächste Abgleich läse wieder
+     * „Erstbegegnung", und beim Nummernband fiele er auf 0 zurück, dasselbe Fenster wie der
+     * Verlierer (Ablauf 7).
+     */
+    suspend fun merkeErstbegegnungGewonnen(partnerId: String) = withContext(Dispatchers.IO) {
+        val ich = identitaet.eigeneId()
+        schreibeStandMeta(
+            eigeneDb,
+            StandMetaEntity(generation = 1, erzeugtVon = ich, basiertAuf = null),
+        )
+        identitaet.koppele(partnerId)
+        // Ab jetzt ist genau dieser Stand der gemeinsame — also auch das Gedächtnis.
+        dateien.merkeAlsBasis()
+    }
 
     /**
      * Nimmt zurück, was der letzte Abgleich auf **diesem** Gerät geändert hat (E13).
@@ -258,7 +294,10 @@ class Abgleicher @Inject constructor(
      */
     suspend fun machRueckgaengig(): Boolean = withContext(Dispatchers.IO) {
         if (!dateien.kannRueckgaengig()) return@withContext false
-        val band = identitaet.identitaet.first().band ?: 0
+        val band = NummernBand.ausHerkunft(
+            liesStandMeta(eigeneDb)?.erzeugtVon,
+            identitaet.eigeneId(),
+        )
         val vorher = oeffneNurLesend(dateien.vorherDatei).use { v ->
             liesStand { sql -> v.rawQuery(sql, null) }
         }
@@ -306,12 +345,14 @@ class Abgleicher @Inject constructor(
      * wo Einigkeit herrscht (E3, Ablauf 32).
      */
     suspend fun wendeFremdesPaketAn(paket: Anweisungspaket): Bilanz = withContext(Dispatchers.IO) {
-        val band = identitaet.identitaet.first().band ?: 0
         val meta = StandMetaEntity(
             generation = paket.generation,
             erzeugtVon = paket.erzeugtVon,
             basiertAuf = paket.basiertAuf,
         )
+        // Gerechnet hat die Gegenseite, also steht dort ihre ID — dieses Gerät zählt im
+        // oberen Fenster weiter. Beide kommen so ohne Absprache auf verschiedene Bänder.
+        val band = NummernBand.ausHerkunft(meta.erzeugtVon, identitaet.eigeneId())
 
         dateien.merkeAlsVorher()
         wendeAn(eigeneDb, paket.operationen, meta, band)

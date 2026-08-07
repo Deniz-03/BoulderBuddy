@@ -53,14 +53,35 @@ class AbgleichService : Service() {
         val name = intent?.getStringExtra(EXTRA_NAME) ?: Build.MODEL
 
         // Den Zustand mitlesen, um die Meldung aktuell zu halten und am Ende aufzuhören.
+        //
+        // `lief` ist kein Schnörkel: die Sitzung ist ein Singleton und trägt noch das
+        // Ergebnis des letzten Abgleichs. Der Sammler startet, bevor `fuehre` den Zustand
+        // zurücksetzt, sähe also sofort „fertig" und beendete den Dienst — der zweite
+        // Abgleich käme nie zustande. Erst wenn ein laufender Zustand gesehen wurde, zählt
+        // ein Endzustand als Ende.
         bereich.launch {
+            var lief = false
             sitzung.stand.collectLatest { stand ->
                 when (stand) {
-                    is Sitzungsstand.Fertig, is Sitzungsstand.Abgebrochen -> hoereAuf()
-                    is Sitzungsstand.Laeuft -> zeige(stand.was)
-                    is Sitzungsstand.Suche -> zeige(getString(R.string.abgleich_suche))
-                    is Sitzungsstand.Bestaetigen ->
+                    is Sitzungsstand.Fertig, is Sitzungsstand.Abgebrochen ->
+                        if (lief) hoereAuf()
+
+                    is Sitzungsstand.Laeuft -> {
+                        lief = true
+                        zeige(stand.was)
+                    }
+
+                    is Sitzungsstand.Suche -> {
+                        lief = true
+                        zeige(getString(R.string.abgleich_suche))
+                    }
+
+                    is Sitzungsstand.Bestaetigen -> {
+                        lief = true
                         zeige(getString(R.string.abgleich_bestaetigen))
+                    }
+
+                    is Sitzungsstand.Untaetig -> lief = true
                     else -> Unit
                 }
             }

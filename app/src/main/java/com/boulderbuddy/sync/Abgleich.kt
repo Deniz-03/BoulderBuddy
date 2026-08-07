@@ -106,6 +106,29 @@ fun lage(meine: StandMeta?, fremde: StandMeta?): Lage = when {
     else -> Lage.KeinGemeinsamerStand
 }
 
+/**
+ * Welche Herkunft der Stand nach dem Abgleich trägt (E3).
+ *
+ * **Beide Geräte müssen hinterher dieselben drei Werte tragen** — sonst läse die nächste
+ * Lagebestimmung „auseinandergelaufen", wo Einigkeit herrscht (Ablauf 32), böte eine
+ * Erstbegegnung an und kostete einen der beiden Stände.
+ *
+ * Daraus folgen zwei Fälle, und sie zu vermischen ist genau der Fehler:
+ *
+ * - [Lage.GegenseiteWeiter]: die Gegenseite hat bereits gerechnet und trägt die neue
+ *   Herkunft schon. Sie wird **unverändert übernommen**, nicht fortgezählt.
+ * - sonst: dieses Gerät rechnet, also entsteht hier eine neue Generation mit der eigenen ID.
+ */
+fun neueHerkunft(wo: Lage, meine: StandMeta?, fremde: StandMeta?, ich: String): StandMeta =
+    when {
+        wo is Lage.GegenseiteWeiter && fremde != null -> fremde
+        else -> StandMeta(
+            generation = (meine?.generation ?: 0) + 1,
+            erzeugtVon = ich,
+            basiertAuf = meine?.generation,
+        )
+    }
+
 // ---------------------------------------------------------------------------
 // 3. Vergleich
 // ---------------------------------------------------------------------------

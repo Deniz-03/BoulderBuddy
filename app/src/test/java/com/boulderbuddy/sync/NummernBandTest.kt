@@ -12,17 +12,45 @@ import org.junit.Test
 class NummernBandTest {
 
     @Test
-    fun beide_geraete_kommen_unabhaengig_auf_dieselbe_bandvergabe() {
+    fun das_rechnende_geraet_zaehlt_unten_weiter_das_andere_oben() {
         val phone = "11111111-aaaa"
         val tablet = "99999999-zzzz"
+        // Gerechnet hat das Phone, also steht seine ID in der gemeinsamen Herkunft.
+        val erzeugtVon = phone
 
-        // Jedes Gerät rechnet für sich — herauskommen muss eine Aufteilung, keine Doppelung.
-        val ausSichtDesPhones = NummernBand.bandFuer(phone, tablet)
-        val ausSichtDesTablets = NummernBand.bandFuer(tablet, phone)
+        assertThat(NummernBand.ausHerkunft(erzeugtVon, phone)).isEqualTo(0)
+        assertThat(NummernBand.ausHerkunft(erzeugtVon, tablet)).isEqualTo(1)
+    }
 
-        assertThat(ausSichtDesPhones).isEqualTo(0)
-        assertThat(ausSichtDesTablets).isEqualTo(1)
-        assertThat(ausSichtDesPhones).isNotEqualTo(ausSichtDesTablets)
+    @Test
+    fun die_baender_folgen_aus_der_herkunft_ohne_dass_ein_geraet_die_fremde_id_kennt() {
+        // Der Fehler, den das ersetzt: frueher kam das Band aus dem Vergleich der beiden
+        // Geraete-IDs. Ueber den Datei-Weg kennt aber nur die einlesende Seite beide — die
+        // abgebende blieb ohne Band und fiel auf 0 zurueck. Bei jeder zweiten Paarung landeten
+        // damit BEIDE im selben Fenster (Ablauf 7).
+        //
+        // `erzeugtVon` steht dagegen auf beiden Geraeten gleich in `stand_meta`, und jedes
+        // kennt seine eigene ID. Mehr braucht es nicht — und zwar fuer JEDE Paarung.
+        val paare = listOf(
+            "aaa" to "zzz",
+            "zzz" to "aaa",
+            "m" to "m2",
+            "00000000-0000" to "ffffffff-ffff",
+        )
+
+        for ((a, b) in paare) {
+            for (rechner in listOf(a, b)) {
+                val bandA = NummernBand.ausHerkunft(rechner, a)
+                val bandB = NummernBand.ausHerkunft(rechner, b)
+                assertThat(bandA).isNotEqualTo(bandB)
+            }
+        }
+    }
+
+    @Test
+    fun ein_geraet_ohne_herkunft_faengt_unten_an() {
+        // Noch nie abgeglichen: es gibt keine Gegenseite, also auch keine Kollision.
+        assertThat(NummernBand.ausHerkunft(null, "aaa")).isEqualTo(0)
     }
 
     @Test

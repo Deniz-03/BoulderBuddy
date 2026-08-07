@@ -4,7 +4,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -56,21 +55,32 @@ object NummernBand {
     fun versatz(band: Int): Int = band * FENSTER
 
     /**
-     * Wer welches Band bekommt, folgt allein aus den beiden Geräte-IDs: die kleinere ID
-     * bekommt Band 0. Beide Geräte rechnen das getrennt aus und kommen aufs selbe Ergebnis
-     * — deshalb muss die Vergabe nirgends übertragen und nirgends in der DB festgehalten
-     * werden (siehe [com.boulderbuddy.data.db.entity.StandMetaEntity]).
+     * Wer welches Band bekommt, folgt aus der **Herkunft des gemeinsamen Standes**: das
+     * Gerät, das ihn gerechnet hat, zählt im unteren Fenster weiter, das andere im oberen.
+     *
+     * Der frühere Weg — die beiden Geräte-IDs vergleichen — funktionierte nur über Nearby.
+     * Über den Datei-Weg kennt nur die einlesende Seite beide IDs; die abgebende erfährt die
+     * fremde ID nie und blieb ohne Band, fiel also auf 0 zurück. Bei jeder zweiten
+     * Gerätepaarung landeten damit **beide** im selben Fenster — genau die ID-Kollision aus
+     * Ablauf 7, gegen die die Bänder gebaut wurden.
+     *
+     * `erzeugtVon` steht dagegen in `stand_meta`, ist auf beiden Geräten gleich (E3) und
+     * jedes Gerät kennt seine eigene ID. Beide rechnen also getrennt und kommen zwangsläufig
+     * auf verschiedene Bänder — ohne dass irgendetwas übertragen oder gespeichert werden
+     * muss.
+     *
+     * Ein Gerät ohne Herkunft hat noch nie abgeglichen und fängt bei 0 an. Trifft es auf ein
+     * zweites in derselben Lage, greift die Erstbegegnung: danach hat genau eines von beiden
+     * ein `erzeugtVon`, das nicht seine eigene ID ist.
      */
-    fun bandFuer(eigeneId: String, fremdeId: String): Int =
-        if (eigeneId < fremdeId) 0 else 1
+    fun ausHerkunft(erzeugtVon: String?, meineId: String): Int =
+        if (erzeugtVon == null || erzeugtVon == meineId) 0 else 1
 }
 
 /** Was dieses Gerät über sich selbst weiß — nie Teil des abgeglichenen Standes. */
 data class Identitaet(
     /** Dauerhafte, zufällige ID dieses Geräts. Entscheidet Rollen und Band. */
     val geraeteId: String,
-    /** `null` = noch nie abgeglichen. Sonst 0 oder 1 (siehe [NummernBand]). */
-    val band: Int?,
     /** Geräte-ID der Gegenstelle des letzten Abgleichs; `null` = noch keine. */
     val partnerId: String?,
     /**
@@ -81,7 +91,7 @@ data class Identitaet(
      */
     val geaendertSeitAbgleich: Boolean,
 ) {
-    val hatAbgeglichen: Boolean get() = band != null
+    val hatAbgeglichen: Boolean get() = partnerId != null
 }
 
 /**
@@ -101,7 +111,6 @@ class GeraeteIdentitaet @Inject constructor(
     val identitaet: Flow<Identitaet> = dataStore.data.map { prefs ->
         Identitaet(
             geraeteId = prefs[KEY_GERAETE_ID].orEmpty(),
-            band = prefs[KEY_BAND],
             partnerId = prefs[KEY_PARTNER_ID],
             geaendertSeitAbgleich = prefs[KEY_GEAENDERT] ?: false,
         )
@@ -125,12 +134,13 @@ class GeraeteIdentitaet @Inject constructor(
         return id
     }
 
-    /** Hält nach dem ersten Abgleich fest, mit wem und in welchem Band. */
-    suspend fun koppele(partnerId: String, band: Int) {
-        dataStore.edit { prefs ->
-            prefs[KEY_PARTNER_ID] = partnerId
-            prefs[KEY_BAND] = band
-        }
+    /**
+     * Hält fest, mit wem zuletzt abgeglichen wurde. **Ohne Band** — das leitet sich aus der
+     * Herkunft ab ([NummernBand.ausHerkunft]) und wird deshalb nirgends gespeichert, wo es
+     * veralten könnte.
+     */
+    suspend fun koppele(partnerId: String) {
+        dataStore.edit { prefs -> prefs[KEY_PARTNER_ID] = partnerId }
     }
 
     /**
@@ -140,7 +150,6 @@ class GeraeteIdentitaet @Inject constructor(
     suspend fun loeseKopplung() {
         dataStore.edit { prefs ->
             prefs.remove(KEY_PARTNER_ID)
-            prefs.remove(KEY_BAND)
         }
     }
 
@@ -150,7 +159,6 @@ class GeraeteIdentitaet @Inject constructor(
 
     private companion object {
         val KEY_GERAETE_ID = stringPreferencesKey("geraete_id")
-        val KEY_BAND = intPreferencesKey("nummern_band")
         val KEY_PARTNER_ID = stringPreferencesKey("partner_geraete_id")
         val KEY_GEAENDERT = booleanPreferencesKey("geaendert_seit_abgleich")
     }

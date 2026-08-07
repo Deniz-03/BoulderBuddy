@@ -15,10 +15,8 @@ import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.serialization.json.Json
 import java.io.File
 import javax.inject.Inject
@@ -75,12 +73,23 @@ class NearbyVerbindung @Inject constructor(
     private val client by lazy { Nearby.getConnectionsClient(context) }
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val _ereignisse = MutableSharedFlow<Funkereignis>(
-        replay = 0,
-        extraBufferCapacity = 64,
-        onBufferOverflow = BufferOverflow.SUSPEND,
-    )
-    val ereignisse: SharedFlow<Funkereignis> = _ereignisse.asSharedFlow()
+    /**
+     * Ereignisse als **Warteschlange**, nicht als `SharedFlow`.
+     *
+     * Ein `SharedFlow` mit `replay = 0` liefert nur an, wer gerade zuhört. Die Sitzung wartet
+     * aber mit `first { … }`, und das bestellt zwischen zwei Aufrufen ab — jedes Ereignis in
+     * so einer Lücke wäre verloren. Genau das passiert im Normalfall: während dieses Gerät
+     * seinen eigenen Handschlag baut (Checkpoint plus DB-Lesen), trifft der Handschlag der
+     * Gegenseite ein und fiele ins Leere. Der Abgleich wartete danach bis zum Zeitlimit auf
+     * eine Nachricht, die längst da war.
+     *
+     * Ein Kanal puffert dagegen: Nichts geht verloren, und die Sitzung liest in ihrem Tempo.
+     * Genau ein Leser (die Sitzung) — mehr braucht es nicht.
+     */
+    private var kanal = Channel<Funkereignis>(Channel.UNLIMITED)
+
+    /** Nimmt das nächste Ereignis; wartet, wenn gerade keins da ist. */
+    suspend fun naechstes(): Funkereignis = kanal.receive()
 
     /** Was gerade an Dateien unterwegs ist — Payload-Nummer → Zieldatei. */
     private val laufendeDateien = mutableMapOf<Long, Payload>()
@@ -94,6 +103,10 @@ class NearbyVerbindung @Inject constructor(
      *   der Nutzer soll erkennen, mit wem er sich verbindet.
      */
     fun starte(anzeigename: String) {
+        // Frischer Kanal je Sitzung: Reste eines abgebrochenen Laufs wuerden sonst als
+        // Antworten des neuen durchgehen.
+        kanal.close()
+        kanal = Channel(Channel.UNLIMITED)
         eigenerName = anzeigename
         val optionen = Strategy.P2P_POINT_TO_POINT
 
@@ -258,7 +271,7 @@ class NearbyVerbindung @Inject constructor(
     }
 
     private fun melde(ereignis: Funkereignis) {
-        _ereignisse.tryEmit(ereignis)
+        kanal.trySend(ereignis)
     }
 
     private fun werbenFehler(fehler: Exception): String =

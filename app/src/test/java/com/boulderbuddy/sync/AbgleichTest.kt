@@ -154,6 +154,62 @@ class AbgleichTest {
     }
 
     @Test
+    fun beim_zweiten_durchgang_wird_die_herkunft_uebernommen_statt_fortgezaehlt() {
+        // Der Fehler, der den Datei-Weg unbrauchbar machte: Phone gibt ab (Generation 5),
+        // Tablet rechnet und steht auf 6/Tablet. Liest das Phone die Datei des Tablets ein,
+        // DARF es keine Generation 7 vergeben — sonst tragen zwei Geräte mit identischen
+        // Daten verschiedene Herkunft, und der nächste Abgleich liest daraus
+        // „auseinandergelaufen" und bietet eine Erstbegegnung an. Also Datenverlust.
+        val amPhone = StandMeta(generation = 5, erzeugtVon = "phone", basiertAuf = 4)
+        val amTablet = StandMeta(generation = 6, erzeugtVon = "tablet", basiertAuf = 5)
+
+        val wo = lage(amPhone, amTablet)
+        assertThat(wo).isEqualTo(Lage.GegenseiteWeiter(6))
+
+        val herkunft = neueHerkunft(wo, amPhone, amTablet, ich = "phone")
+        assertThat(herkunft).isEqualTo(amTablet)
+
+        // Und damit steht der nächste Abgleich auf „einig", nicht auf „Erstbegegnung".
+        assertThat(lage(herkunft, amTablet)).isEqualTo(Lage.GemeinsamerStand(6, "tablet"))
+    }
+
+    @Test
+    fun beim_ersten_durchgang_entsteht_eine_neue_generation() {
+        val meine = StandMeta(generation = 5, erzeugtVon = "tablet", basiertAuf = 4)
+        val fremde = StandMeta(generation = 5, erzeugtVon = "tablet", basiertAuf = 4)
+
+        val herkunft = neueHerkunft(lage(meine, fremde), meine, fremde, ich = "phone")
+
+        assertThat(herkunft)
+            .isEqualTo(StandMeta(generation = 6, erzeugtVon = "phone", basiertAuf = 5))
+    }
+
+    @Test
+    fun nach_drei_durchgaengen_ueber_die_datei_sind_beide_noch_einig() {
+        // Der Ablauf, an dem der Fehler aufgefallen ist — jetzt bis zum dritten Durchgang
+        // durchgespielt, weil er erst dort zuschlug.
+        var phone = StandMeta(generation = 5, erzeugtVon = "alt", basiertAuf = 4)
+        var tablet = phone
+
+        // Durchgang 1: Tablet liest die Datei des Phones ein und rechnet.
+        tablet = neueHerkunft(lage(tablet, phone), tablet, phone, ich = "tablet")
+        // Durchgang 2: Phone liest die Datei des Tablets ein.
+        phone = neueHerkunft(lage(phone, tablet), phone, tablet, ich = "phone")
+
+        assertThat(phone).isEqualTo(tablet)
+        assertThat(lage(phone, tablet)).isInstanceOf(Lage.GemeinsamerStand::class.java)
+
+        // Durchgang 3: und wieder von vorn — kein Auseinanderlaufen.
+        tablet = neueHerkunft(lage(tablet, phone), tablet, phone, ich = "tablet")
+        phone = neueHerkunft(lage(phone, tablet), phone, tablet, ich = "phone")
+
+        assertThat(phone).isEqualTo(tablet)
+        // Und die Bänder bleiben dabei getrennt.
+        assertThat(NummernBand.ausHerkunft(phone.erzeugtVon, "phone"))
+            .isNotEqualTo(NummernBand.ausHerkunft(tablet.erzeugtVon, "tablet"))
+    }
+
+    @Test
     fun zwei_durchgaenge_ueber_die_datei_bringen_beide_geraete_zusammen() {
         // Der vollständige Datei-Weg: Phone gibt ab, Tablet liest ein und rechnet, dann
         // gibt das Tablet ab und das Phone liest ein. Danach müssen beide gleich sein.
