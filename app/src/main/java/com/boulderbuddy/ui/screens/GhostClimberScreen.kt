@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.screens
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +35,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.GhostAnchorEditor
@@ -344,9 +346,25 @@ private fun VideoSlotPicker(
     onAufnehmen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let { onSelected(it.toString()) } }
+    ) { uri ->
+        uri?.let {
+            // Dauerhaften Lesezugriff sichern, damit die URI Prozess-Neustarts überlebt —
+            // wie in RouteHinzufuegenScreen. Fehlte das hier (und es fehlte), überlebten
+            // Galerie-Videos im Ghost-Flow schon auf EINEM Gerät keinen Neustart
+            // zuverlässig, und der Medien-Umzug aus Sync-Plan S3 scheiterte ausgerechnet
+            // an abgelaufenen Berechtigungen.
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            onSelected(it.toString())
+        }
+    }
 
     var zeigeQuellenwahl by rememberSaveable { mutableStateOf(false) }
 

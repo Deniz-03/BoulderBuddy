@@ -22,7 +22,8 @@ class GhostArtifactStore @Inject constructor(
     @ApplicationContext context: Context,
 ) {
 
-    private val dir = File(context.filesDir, "ghost")
+    private val filesDir = context.filesDir
+    private val dir = File(filesDir, ORDNER)
     private val json = Json { ignoreUnknownKeys = true }
 
     suspend fun savePoseTrack(track: GhostPoseTrack) = withContext(Dispatchers.IO) {
@@ -32,20 +33,34 @@ class GhostArtifactStore @Inject constructor(
 
     /** Gecachte Pose-Spur oder null (nicht vorhanden/nicht mehr lesbar). */
     suspend fun loadPoseTrack(videoUri: String): GhostPoseTrack? =
-        loadPoseTrackFromPath(poseTrackFile(videoUri).absolutePath)
+        loadPoseTrackFromPath(poseTrackPath(videoUri))
 
-    /** Pose-Spur direkt über ihren Dateipfad — für gespeicherte Analysen (M5),
-     *  deren Pfade in der DB stehen und auch nach Tuning-Änderungen gültig bleiben. */
+    /**
+     * Pose-Spur über den Pfad, wie er in der DB steht — für gespeicherte Analysen (M5).
+     *
+     * Erwartet den **relativen** Pfad aus [poseTrackPath] und löst ihn erst hier gegen den
+     * `filesDir` dieses Geräts auf. Ein absoluter Pfad wird noch akzeptiert, damit eine
+     * `vorher.db` aus der Zeit vor Schema v7 nicht zum Absturz führt.
+     */
     suspend fun loadPoseTrackFromPath(path: String): GhostPoseTrack? =
         withContext(Dispatchers.IO) {
-            val file = File(path)
+            val file = if (path.startsWith("/")) File(path) else File(filesDir, path)
             if (!file.exists()) return@withContext null
             // Defektes/verändertes Schema → wie "kein Cache" behandeln, neu analysieren.
             runCatching { json.decodeFromString<GhostPoseTrack>(file.readText()) }.getOrNull()
         }
 
-    /** Dateipfad der (gecachten) Pose-Spur eines Videos — wird in der DB referenziert (M5). */
-    fun poseTrackPath(videoUri: String): String = poseTrackFile(videoUri).absolutePath
+    /**
+     * Pfad der (gecachten) Pose-Spur eines Videos, **relativ zu `filesDir`** — genau so
+     * landet er in der DB (M5).
+     *
+     * Absolut wäre er gerätelokal, und eine gerätelokale Spalte in einer verglichenen Zeile
+     * macht aus jeder Analyse einen Dauerkonflikt: nach dem Übernehmen trüge dieselbe
+     * Analyse auf beiden Geräten einen anderen Wert, und der nächste Abgleich fände
+     * „gleiche Nummer, verschiedener Inhalt" — jedes Mal, für immer (Sync-Plan Ablauf 31,
+     * E15). Auf zwei Emulatoren fiele das nie auf, weil beide `/data/user/0/…` benutzen.
+     */
+    fun poseTrackPath(videoUri: String): String = "$ORDNER/${poseTrackFile(videoUri).name}"
 
     // Abtastrate UND Pipeline-Marker stecken im Cache-Schlüssel: ändert sich
     // GhostTuning.POSE_SAMPLE_FPS oder die Pose-Pipeline (Modell/Filter-Semantik),
@@ -90,4 +105,9 @@ class GhostArtifactStore @Inject constructor(
         MessageDigest.getInstance("SHA-1")
             .digest(value.toByteArray())
             .joinToString("") { "%02x".format(it) }
+
+    companion object {
+        /** Unterordner in `filesDir`; zugleich das Präfix der relativen Pfade in der DB. */
+        const val ORDNER = "ghost"
+    }
 }
