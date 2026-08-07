@@ -10,6 +10,26 @@
     -->
     <color name="window_background">#FFFCF6E4</color>
 
+    <!--
+        Farben des Homescreen-Widgets. Dieselben Werte wie PaletteHex.kt; die Zuordnung steht
+        in BoulderWidget.kt und WidgetPaletteTest hält beide Seiten zusammen.
+
+        Warum das Widget seine Farben aus RESSOURCEN zieht und nicht aus den Kotlin-Konstanten,
+        wie es der Rest der App tut: ein Widget zeichnet nicht selbst. Es liefert RemoteViews,
+        die der Launcher auflöst — und zwar mit DESSEN Konfiguration. Nur so schaltet das
+        Widget beim System-Theme-Wechsel sofort mit; ein fester Farbwert aus dem App-Prozess
+        bliebe stehen, bis die Widget-Daten zufällig neu emittieren.
+
+        Dieselbe Abwägung wie oben bei window_background, aus demselben Grund: die Farbe wird
+        außerhalb von Compose gebraucht.
+    -->
+    <color name="widget_bg">#FFFCF6E4</color>          <!-- HEX_LIGHT_BACKGROUND -->
+    <color name="widget_ink">#FF23211B</color>         <!-- HEX_LIGHT_ON_SURFACE -->
+    <color name="widget_secondary">#FF574E31</color>   <!-- HEX_LIGHT_TEXT_SECONDARY -->
+    <color name="widget_fill">#FF262521</color>        <!-- HEX_LIGHT_FILL_STRONG -->
+    <color name="widget_on_fill">#FFF7F2E2</color>     <!-- HEX_LIGHT_ON_FILL_STRONG -->
+    <color name="widget_fill_muted">#FFE9E0C2</color>  <!-- HEX_LIGHT_SURFACE_HIGHEST -->
+
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>

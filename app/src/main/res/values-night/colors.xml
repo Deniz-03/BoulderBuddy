@@ -2,4 +2,12 @@
 <resources>
     <!-- = HEX_DARK_BACKGROUND in PaletteHex.kt. Siehe values/colors.xml. -->
     <color name="window_background">#FF231E16</color>
+
+    <!-- Dunkle Fassung der Widget-Farben; Begründung und Zuordnung in values/colors.xml. -->
+    <color name="widget_bg">#FF231E16</color>          <!-- HEX_DARK_BACKGROUND -->
+    <color name="widget_ink">#FFE6DFCE</color>         <!-- HEX_DARK_ON_SURFACE -->
+    <color name="widget_secondary">#FFC7BDAC</color>   <!-- HEX_DARK_TEXT_SECONDARY -->
+    <color name="widget_fill">#FFE4D9C1</color>        <!-- HEX_DARK_FILL_STRONG -->
+    <color name="widget_on_fill">#FF29231A</color>     <!-- HEX_DARK_ON_FILL_STRONG -->
+    <color name="widget_fill_muted">#FF3D362B</color>  <!-- HEX_DARK_SURFACE_HIGHEST -->
 </resources>

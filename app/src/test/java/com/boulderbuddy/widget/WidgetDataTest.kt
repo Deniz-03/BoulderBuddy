@@ -13,6 +13,47 @@ import org.junit.Test
  */
 class WidgetDataTest {
 
+    /**
+     * Ohne gesetzten Schalter muss die **automatische** Palette gewählt werden.
+     *
+     * Der Unterschied ist nicht kosmetisch: nur die Auto-Palette besteht aus Farbressourcen,
+     * die der Launcher live gegen sein `values-night` auflöst. Ein fester Farbwert bliebe
+     * beim System-Theme-Wechsel stehen — genau der Fehler, der am Gerät sichtbar war, als
+     * alles ringsum dunkel wurde und das Widget cremefarben blieb.
+     */
+    @Test
+    fun `ohne gesetzten Schalter folgt das Widget dem System`() {
+        assertThat(paletteFuer(null)).isEqualTo(paletteFuer(null))
+        assertThat(paletteFuer(null)).isNotEqualTo(paletteFuer(true))
+        assertThat(paletteFuer(null)).isNotEqualTo(paletteFuer(false))
+    }
+
+    @Test
+    fun `der gesetzte Schalter waehlt einen festen, vom System unabhaengigen Satz`() {
+        assertThat(paletteFuer(true)).isNotEqualTo(paletteFuer(false))
+    }
+
+    @Test
+    fun `der Dark-Mode-Schalter steht in den Widget-Daten, auch ohne aktive Session`() {
+        // Der Leerzustand ist ein eigener Rückgabepfad in buildWidgetData — er hat das
+        // Theme-Feld beim ersten Anlauf schlicht fallen lassen.
+        val leer = buildWidgetData(
+            routes = emptyList(),
+            active = null,
+            gyms = emptyList(),
+            darkModeOverride = true,
+        )
+        assertThat(leer.darkModeOverride).isTrue()
+
+        val mitSession = buildWidgetData(
+            routes = emptyList(),
+            active = SessionEntity(id = 7, gymId = 1, date = 0L),
+            gyms = emptyList(),
+            darkModeOverride = true,
+        )
+        assertThat(mitSession.darkModeOverride).isTrue()
+    }
+
     @Test
     fun `ohne aktive Session fuehrt das Widget in den Anlege-Flow`() {
         val data = WidgetData(hasActiveSession = false, totalTops = 12)
