@@ -27,6 +27,59 @@
         android:required="false" />
 
     <!--
+      Geräte-Abgleich über Nearby Connections (Sync-Plan S4).
+
+      Die Aufteilung ist nicht willkürlich, sondern folgt drei Android-Umbrüchen. Die passende
+      Laufzeit-Liste je Version steht in NearbyBerechtigungen.kt — wer hier etwas ändert, ändert
+      sie dort mit.
+
+      Ab Android 12 sind die Bluetooth-Rechte aufgeteilt und laufzeitpflichtig; davor genügen
+      BLUETOOTH/BLUETOOTH_ADMIN als Installationsrechte.
+    -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+
+    <!--
+      Ab Android 13 ersetzt NEARBY_WIFI_DEVICES den Standort. `neverForLocation` ist die
+      Zusicherung an das System UND an den Nutzer: die App leitet aus den gefundenen Geräten
+      keinen Standort ab. Ohne dieses Flag verlangte Android weiterhin die Standortfreigabe.
+    -->
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="tiramisu" />
+
+    <!--
+      Bis Android 12 verlangt Nearby den genauen Standort — für einen Abgleich zwischen zwei
+      eigenen Geräten schwer zu erklären, aber es gibt keinen anderen Weg. `maxSdkVersion`
+      begrenzt es auf die Versionen, die es wirklich brauchen; ab 13 wird es nicht mehr
+      angefragt. Die Begründung steht in NearbyBerechtigungen.begruendung().
+    -->
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="32" />
+
+    <!--
+      Die erste Übertragung kann Gigabyte umfassen. Ohne Foreground Service bricht sie ab,
+      sobald der Bildschirm ausgeht — mitten in einem Abgleich das schlechteste Ergebnis.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+        tools:targetApi="34" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
       Package Visibility (ab API 30): ohne diese Abfrage meldet SpeechRecognizer.isRecognitionAvailable()
       false, obwohl ein Erkennungsdienst installiert ist — die Spracheingabe hielte sich dann für
       unmöglich.
@@ -88,6 +141,16 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/boulder_widget_info" />
         </receiver>
+
+        <!--
+          Haelt den Geraete-Abgleich am Leben (Sync-Plan S5). `dataSync`, weil genau das
+          passiert: Daten zwischen zwei Geraeten uebertragen. Ohne den Dienst bricht die
+          erste Uebertragung ab, sobald der Bildschirm ausgeht — mitten in den Videos.
+        -->
+        <service
+            android:name="com.boulderbuddy.sync.nearby.AbgleichService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <!-- Empfängt fertige Hangboard-Durchläufe von der Wear-App (Phase 7.2, Data Layer). -->
         <service

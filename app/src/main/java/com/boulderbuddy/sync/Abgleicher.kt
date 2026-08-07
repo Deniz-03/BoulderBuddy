@@ -4,6 +4,8 @@ import android.database.sqlite.SQLiteDatabase
 import com.boulderbuddy.data.db.BoulderBuddyDatabase
 import com.boulderbuddy.data.db.dao.SessionDao
 import com.boulderbuddy.data.db.entity.StandMetaEntity
+import com.boulderbuddy.sync.nearby.Anweisungspaket
+import com.boulderbuddy.sync.nearby.Nachricht
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -31,7 +33,11 @@ sealed interface Abgleichvorschlag {
      */
     data class Zusammenfuehren(
         val plan: Abgleichplan,
-        internal val neueMeta: StandMetaEntity,
+        /**
+         * Die Herkunft, die **beide** Geräte anschließend tragen. Öffentlich, weil das
+         * rechnende Gerät sie der Gegenseite mitschicken muss — unverändert (E3, Ablauf 32).
+         */
+        val neueMeta: StandMetaEntity,
     ) : Abgleichvorschlag {
         val konflikte: List<Konflikt> get() = plan.konflikte
     }
@@ -263,6 +269,65 @@ class Abgleicher @Inject constructor(
 
     /** Der eigene Stand als Datei, fertig zum Abgeben. */
     suspend fun gibStandAb(nach: File): File = dateien.kopiereStand(nach)
+
+    /**
+     * Alles, was die Gegenseite über dieses Gerät wissen muss, um den Handschlag zu prüfen
+     * und die Rolle zu bestimmen (S5).
+     *
+     * In **einer** Nachricht, damit beide Seiten gleichzeitig entscheiden können und niemand
+     * auf eine Rückfrage wartet.
+     */
+    suspend fun beschreibeMich(hatGedrueckt: Boolean, geraeteId: String): Nachricht.Hallo =
+        withContext(Dispatchers.IO) {
+            dateien.checkpoint()
+            val meta = liesStandMeta(eigeneDb)
+            Nachricht.Hallo(
+                geraeteId = geraeteId,
+                schemaVersion = liesSchemaVersion { eigeneDb.query(it) },
+                laufendeSession = sessionDao.observeActive().first() != null,
+                generation = meta?.generation,
+                erzeugtVon = meta?.erzeugtVon,
+                basiertAuf = meta?.basiertAuf,
+                hatGedrueckt = hatGedrueckt,
+                standGroesse = dateien.standDatei.length(),
+                freierPlatz = dateien.freierPlatz(),
+            )
+        }
+
+    /**
+     * Wendet das fertige Ergebnis des **anderen** Geräts an (E12, Ablauf 17).
+     *
+     * Dieses Gerät rechnet dabei nichts nach. Beide rechnen zu lassen hieße, sich darauf zu
+     * verlassen, dass zweimal dasselbe herauskommt — bei gleichem Code stimmt das auch, bis
+     * es einmal nicht stimmt und zwei Geräte mit verschiedenen Daten dastehen.
+     *
+     * Die Herkunft wird **unverändert** übernommen: sie beschreibt den gemeinsamen Stand, und
+     * ein eigenes `erzeugtVon` ließe die nächste Lagebestimmung „auseinandergelaufen" lesen,
+     * wo Einigkeit herrscht (E3, Ablauf 32).
+     */
+    suspend fun wendeFremdesPaketAn(paket: Anweisungspaket): Bilanz = withContext(Dispatchers.IO) {
+        val band = identitaet.identitaet.first().band ?: 0
+        val meta = StandMetaEntity(
+            generation = paket.generation,
+            erzeugtVon = paket.erzeugtVon,
+            basiertAuf = paket.basiertAuf,
+        )
+
+        dateien.merkeAlsVorher()
+        wendeAn(eigeneDb, paket.operationen, meta, band)
+        dateien.merkeAlsBasis()
+
+        // Die Bilanz wird hier aus den Operationen abgelesen, nicht mitgeschickt: was
+        // „abgegeben" wurde, weiß nur die Gegenseite, und Konflikte hat sie entschieden.
+        // Lieber eine ehrlich unvollständige Bilanz als eine erfundene vollständige.
+        Bilanz(
+            uebernommen = paket.operationen.count { it !is Operation.Loeschen },
+            abgegeben = 0,
+            geloescht = paket.operationen.count { it is Operation.Loeschen },
+            konfliktVerluste = 0,
+            bezuegeGeloest = 0,
+        )
+    }
 
     private fun oeffneNurLesend(datei: File): SQLiteDatabase =
         SQLiteDatabase.openDatabase(datei.path, null, SQLiteDatabase.OPEN_READONLY)

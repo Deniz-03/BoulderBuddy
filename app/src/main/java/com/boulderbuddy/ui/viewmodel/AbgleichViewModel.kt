@@ -12,6 +12,9 @@ import com.boulderbuddy.sync.MedienUmzug
 import com.boulderbuddy.sync.AbgleichDateien
 import com.boulderbuddy.sync.Seite
 import com.boulderbuddy.sync.StandDatei
+import com.boulderbuddy.sync.nearby.AbgleichService
+import com.boulderbuddy.sync.nearby.AbgleichSitzung
+import com.boulderbuddy.sync.nearby.Sitzungsstand
 import com.boulderbuddy.widget.refreshBoulderWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +60,15 @@ class AbgleichViewModel @Inject constructor(
     private val dateien: AbgleichDateien,
     private val medienUmzug: MedienUmzug,
     private val identitaet: GeraeteIdentitaet,
+    private val sitzung: AbgleichSitzung,
 ) : AndroidViewModel(application) {
+
+    /**
+     * Der Funkweg läuft im Foreground Service, nicht hier — dieses ViewModel stirbt mit dem
+     * Screen, die Übertragung darf das nicht. Der Zustand kommt deshalb aus der Sitzung
+     * selbst, die ein Singleton ist.
+     */
+    val funkStand: StateFlow<Sitzungsstand> = sitzung.stand
 
     private val _uiState = MutableStateFlow(AbgleichUiState())
     val uiState: StateFlow<AbgleichUiState> = _uiState.asStateFlow()
@@ -67,6 +78,42 @@ class AbgleichViewModel @Inject constructor(
     }
 
     fun abgabeName(): String = standDatei.abgabeName(System.currentTimeMillis())
+
+    /** Startet den Abgleich über Nearby. Die Berechtigungen holt der Screen vorher ein. */
+    fun starteFunkAbgleich() {
+        AbgleichService.starte(
+            context = getApplication(),
+            hatGedrueckt = true,
+            anzeigename = android.os.Build.MODEL,
+        )
+    }
+
+    fun bestaetigeVerbindung(ja: Boolean) {
+        sitzung.bestaetigeVerbindung(ja)
+        if (!ja) AbgleichService.stoppe(getApplication())
+    }
+
+    fun beantworteFunkKonflikt(wahl: Seite) = sitzung.beantworteKonflikt(wahl)
+
+    fun beantworteFunkErstbegegnung(fremderGewinnt: Boolean) =
+        sitzung.beantworteErstbegegnung(fremderGewinnt)
+
+    fun brichFunkAbgleichAb() {
+        sitzung.brichAb()
+        AbgleichService.stoppe(getApplication())
+    }
+
+    /**
+     * Nach einem Funk-Abgleich: Widget auffrischen und den Rückgängig-Knopf freischalten.
+     * Läuft hier statt in der Sitzung, weil beides zum Bildschirm gehört, nicht zum Abgleich.
+     */
+    fun funkAbgleichAbgeschlossen() {
+        viewModelScope.launch {
+            refreshBoulderWidget(getApplication())
+            identitaet.setzeGeaendert(false)
+            _uiState.update { it.copy(kannRueckgaengig = dateien.kannRueckgaengig()) }
+        }
+    }
 
     /**
      * Gibt den eigenen Stand als Datei ab.

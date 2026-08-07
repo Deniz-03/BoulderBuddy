@@ -108,8 +108,10 @@ class AbgleichDateien @Inject constructor(
      * liegt kurzzeitig neben dem eigenen Stand, und Nearby legt zusätzlich seine eigene
      * Kopie der Payload ab.
      */
-    fun genugPlatz(bedarfBytes: Long): Boolean =
-        context.filesDir.usableSpace > bedarfBytes * 2
+    fun genugPlatz(bedarfBytes: Long): Boolean = freierPlatz() > bedarfBytes * 2
+
+    /** Freier Speicher dort, wo Stand und Medien liegen. */
+    fun freierPlatz(): Long = context.filesDir.usableSpace
 
     /** Räumt liegengebliebene Empfangsdateien weg — auch nach einem Abbruch (Ablauf 27). */
     fun raeumeEmpfangenesAuf() {

@@ -1,16 +1,30 @@
 package com.boulderbuddy.sync
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
 /**
  * Ein Wert in einer Zelle. Bewusst ein eigener Typ statt `Any?`: SQLite liefert `Long`,
  * `Double`, `String` oder NULL, und `1L == 1` ist in Kotlin `false`. Ein Vergleich, der
  * gelegentlich an einem Zahlentyp scheitert, meldete Konflikte, die es nicht gibt.
  */
+@Serializable
 sealed interface Feld {
     /** SQL NULL. Unterscheidet sich von „Spalte nicht vorhanden". */
+    @Serializable
+    @SerialName("leer")
     data object Leer : Feld
 
+    @Serializable
+    @SerialName("text")
     data class Text(val wert: String) : Feld
+
+    @Serializable
+    @SerialName("zahl")
     data class Zahl(val wert: Long) : Feld
+
+    @Serializable
+    @SerialName("komma")
     data class Komma(val wert: Double) : Feld
 }
 
@@ -86,22 +100,29 @@ data class Konflikt(
 )
 
 /** Eine anzuwendende Änderung. Gilt immer für genau ein Gerät. */
+@Serializable
 sealed interface Operation {
     val tabelle: String
     val id: Int
 
+    @Serializable
+    @SerialName("einfuegen")
     data class Einfuegen(
         override val tabelle: String,
         override val id: Int,
         val zeile: Zeile,
     ) : Operation
 
+    @Serializable
+    @SerialName("aendern")
     data class Aendern(
         override val tabelle: String,
         override val id: Int,
         val zeile: Zeile,
     ) : Operation
 
+    @Serializable
+    @SerialName("loeschen")
     data class Loeschen(
         override val tabelle: String,
         override val id: Int,
@@ -114,6 +135,7 @@ sealed interface Operation {
  * Löschungen stehen ausdrücklich drin: verschwindet etwas kommentarlos, wirkt das wie ein
  * Fehler (Ablauf 3).
  */
+@Serializable
 data class Bilanz(
     /** Zeilen, die auf dieses Gerät gekommen sind. */
     val uebernommen: Int,

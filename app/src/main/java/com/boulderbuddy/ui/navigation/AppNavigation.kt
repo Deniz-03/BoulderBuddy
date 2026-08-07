@@ -250,9 +250,17 @@ fun AppNavigation(
             composable<Abgleich> {
                 val viewModel: AbgleichViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
+                val funkStand by viewModel.funkStand.collectAsStateWithLifecycle()
                 AbgleichScreen(
                     state = state,
                     abgabeName = viewModel.abgabeName(),
+                    funkStand = funkStand,
+                    onStarteFunk = viewModel::starteFunkAbgleich,
+                    onBestaetigeVerbindung = viewModel::bestaetigeVerbindung,
+                    onFunkKonflikt = viewModel::beantworteFunkKonflikt,
+                    onFunkErstbegegnung = viewModel::beantworteFunkErstbegegnung,
+                    onFunkAbbrechen = viewModel::brichFunkAbgleichAb,
+                    onFunkFertig = viewModel::funkAbgleichAbgeschlossen,
                     onGibAb = viewModel::gibAb,
                     onLieseEin = viewModel::lieseEin,
                     onEntscheideKonflikt = viewModel::entscheideKonflikt,

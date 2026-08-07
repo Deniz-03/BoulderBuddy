@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -26,6 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,6 +40,8 @@ import com.boulderbuddy.sync.Bilanz
 import com.boulderbuddy.sync.Konflikt
 import com.boulderbuddy.sync.KonfliktArt
 import com.boulderbuddy.sync.Seite
+import com.boulderbuddy.sync.nearby.NearbyBerechtigungen
+import com.boulderbuddy.sync.nearby.Sitzungsstand
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SectionHeader
@@ -57,6 +64,15 @@ fun AbgleichScreen(
     state: AbgleichUiState = AbgleichUiState(),
     // Dateiname, den der Speichern-Dialog vorschlägt.
     abgabeName: String = "BoulderBuddy-Stand.db",
+    // Zustand des Funkwegs; kommt aus der Sitzung, nicht aus dem ViewModel — die Uebertragung
+    // laeuft im Foreground Service weiter, auch wenn dieser Screen verschwindet.
+    funkStand: Sitzungsstand = Sitzungsstand.Untaetig,
+    onStarteFunk: () -> Unit = {},
+    onBestaetigeVerbindung: (Boolean) -> Unit = {},
+    onFunkKonflikt: (Seite) -> Unit = {},
+    onFunkErstbegegnung: (Boolean) -> Unit = {},
+    onFunkAbbrechen: () -> Unit = {},
+    onFunkFertig: () -> Unit = {},
     onGibAb: (Uri) -> Unit = {},
     onLieseEin: (Uri) -> Unit = {},
     onEntscheideKonflikt: (Seite) -> Unit = {},
@@ -77,6 +93,38 @@ fun AbgleichScreen(
     val einlesen = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let(onLieseEin) }
+
+    // Ohne die Freigaben findet Nearby gar nichts. Die noetigen unterscheiden sich je
+    // Android-Version — die Liste kommt deshalb aus NearbyBerechtigungen, nicht von hier.
+    var zeigeBegruendung by remember { mutableStateOf(false) }
+    val rechteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { ergebnis ->
+        if (ergebnis.values.all { it }) onStarteFunk()
+    }
+    val rechteAnfordern: () -> Unit = { zeigeBegruendung = true }
+
+    if (zeigeBegruendung) {
+        AlertDialog(
+            onDismissRequest = { zeigeBegruendung = false },
+            title = { Text("Das andere Gerät finden") },
+            // Ein Systemdialog aus dem Nichts beantwortet niemand mit Ja — erst recht nicht
+            // "Standort erlauben?" bei einem Abgleich zwischen zwei eigenen Geraeten.
+            text = { Text(NearbyBerechtigungen.begruendung(android.os.Build.VERSION.SDK_INT)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    zeigeBegruendung = false
+                    rechteLauncher.launch(
+                        NearbyBerechtigungen.fuer(android.os.Build.VERSION.SDK_INT)
+                            .toTypedArray(),
+                    )
+                }) { Text("Weiter") }
+            },
+            dismissButton = {
+                TextButton(onClick = { zeigeBegruendung = false }) { Text("Abbrechen") }
+            },
+        )
+    }
 
     LaunchedEffect(state.meldung) {
         state.meldung?.let {
@@ -115,20 +163,68 @@ fun AbgleichScreen(
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
             ) {
                 Text(
-                    text = "Phone und Tablet auf denselben Stand bringen. " +
-                        "Gib den Stand auf einem Gerät ab und lies ihn auf dem anderen ein — " +
-                        "danach dasselbe in die andere Richtung, dann sind beide gleich.",
+                    text = "Phone und Tablet auf denselben Stand bringen. Beides bleibt " +
+                        "erhalten — was auf einem Gerät dazugekommen ist, kommt aufs andere.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textSecondary,
                 )
 
-                if (state.laeuft) {
+                // Fortschritt: entweder der Datei-Weg (im ViewModel) oder der Funkweg (in
+                // der Sitzung). Beide gleichzeitig gibt es nicht.
+                val funkText = when (funkStand) {
+                    is Sitzungsstand.Suche -> "Suche das andere Gerät …"
+                    is Sitzungsstand.Laeuft -> funkStand.was
+                    else -> null
+                }
+                val funkAnteil = (funkStand as? Sitzungsstand.Laeuft)?.anteil
+
+                if (state.laeuft || funkText != null) {
                     Text(
-                        text = state.schritt ?: "Einen Moment …",
+                        text = funkText ?: state.schritt ?: "Einen Moment …",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    if (funkAnteil != null) {
+                        LinearProgressIndicator(
+                            progress = { funkAnteil },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    TextButton(onClick = onFunkAbbrechen) { Text("Abbrechen") }
                 }
+
+                if (funkStand is Sitzungsstand.Abgebrochen) {
+                    Text(
+                        text = funkStand.grund,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BoulderBuddy.colors.textSecondary,
+                    )
+                }
+
+                (funkStand as? Sitzungsstand.Fertig)?.let { BilanzBlock(it.bilanz) }
+
+                PrimaryButton(
+                    text = "Mit dem anderen Gerät verbinden",
+                    icon = Icons.Outlined.Sync,
+                    onClick = { rechteAnfordern() },
+                )
+
+                Text(
+                    text = "Beide Geräte müssen dafür diesen Bildschirm offen haben und nah " +
+                        "beieinander liegen.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
+                )
+
+                SectionHeader(text = "Ohne Funk, über eine Datei")
+
+                Text(
+                    text = "Für den Notfall und für Sicherungen. Hier braucht es zwei " +
+                        "Durchgänge: abgeben, drüben einlesen, dann in die andere Richtung.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
+                )
 
                 PrimaryButton(
                     text = "Stand abgeben",
@@ -167,6 +263,15 @@ fun AbgleichScreen(
         },
     )
 
+    FunkDialoge(
+        stand = funkStand,
+        onBestaetigen = onBestaetigeVerbindung,
+        onKonflikt = onFunkKonflikt,
+        onErstbegegnung = onFunkErstbegegnung,
+        onAbbrechen = onFunkAbbrechen,
+        onFertig = onFunkFertig,
+    )
+
     when (val vorschlag = state.vorschlag) {
         is Abgleichvorschlag.Erstbegegnung -> ErstbegegnungDialog(
             meine = vorschlag.meine,
@@ -179,6 +284,69 @@ fun AbgleichScreen(
             konflikte = vorschlag.konflikte,
             onWahl = onEntscheideKonflikt,
             onAbbrechen = onAbbrechen,
+        )
+
+        else -> Unit
+    }
+}
+
+/**
+ * Alles, was der Funkweg an Rückfragen stellt (Sync-Plan S4/S5).
+ *
+ * Getrennt vom Datei-Weg, obwohl die Fragen dieselben sind: der Funkweg läuft im Foreground
+ * Service weiter, auch wenn dieser Screen kurz verschwindet. Sein Zustand kommt deshalb aus
+ * der Sitzung und nicht aus dem ViewModel — und darf hier nur gelesen werden.
+ */
+@Composable
+private fun FunkDialoge(
+    stand: Sitzungsstand,
+    onBestaetigen: (Boolean) -> Unit,
+    onKonflikt: (Seite) -> Unit,
+    onErstbegegnung: (Boolean) -> Unit,
+    onAbbrechen: () -> Unit,
+    onFertig: () -> Unit,
+) {
+    LaunchedEffect(stand) {
+        if (stand is Sitzungsstand.Fertig) onFertig()
+    }
+
+    when (stand) {
+        is Sitzungsstand.Bestaetigen -> AlertDialog(
+            onDismissRequest = { onBestaetigen(false) },
+            title = { Text("Ist das dein anderes Gerät?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                    Text(stand.name)
+                    Text(
+                        text = stand.zahl,
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                    // Der einzige Schutz davor, den eigenen Stand einem fremden Tablet zu
+                    // geben. Nearby prüft die Zahl nicht — der Mensch tut es.
+                    Text(
+                        "Auf dem anderen Gerät muss dieselbe Zahl stehen. Steht dort eine " +
+                            "andere, brich hier ab.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { onBestaetigen(true) }) { Text("Passt") } },
+            dismissButton = {
+                TextButton(onClick = { onBestaetigen(false) }) { Text("Abbrechen") }
+            },
+        )
+
+        is Sitzungsstand.KonfliktFrage -> KonfliktDialog(
+            konflikte = stand.konflikte,
+            onWahl = onKonflikt,
+            onAbbrechen = onAbbrechen,
+        )
+
+        is Sitzungsstand.ErstbegegnungFrage -> ErstbegegnungDialog(
+            meine = stand.meine,
+            fremde = stand.fremde,
+            onUebernehmen = { onErstbegegnung(true) },
+            onBehalten = { onErstbegegnung(false) },
         )
 
         else -> Unit

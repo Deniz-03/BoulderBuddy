@@ -34,6 +34,8 @@ material3Adaptive = "1.1.0"
 wear = "1.3.0"
 wearCompose = "1.4.1"
 playServicesWearable = "19.0.0"
+# Nearby Connections (Sync-Plan S4): Geraete-Abgleich ohne Konto und ohne fremden Dienst.
+playServicesNearby = "19.3.0"
 errorProneAnnotations = "2.36.0"
 # Tests (Phase 7.6): Coroutine-/Flow-Tests, Room-in-memory, Flow-Assertions.
 coroutines = "1.10.2"
@@ -105,6 +107,7 @@ androidx-wear-compose-material = { group = "androidx.wear.compose", name = "comp
 androidx-wear-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "wearCompose" }
 androidx-wear-compose-navigation = { group = "androidx.wear.compose", name = "compose-navigation", version.ref = "wearCompose" }
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+play-services-nearby = { group = "com.google.android.gms", name = "play-services-nearby", version.ref = "playServicesNearby" }
 # Von Hilt/Dagger generiertem Code referenziert (@CanIgnoreReturnValue im ServiceComponent),
 # aber nur transitiv compileOnly → für javac der generierten Sources explizit nötig (Phase 7.2).
 error-prone-annotations = { group = "com.google.errorprone", name = "error_prone_annotations", version.ref = "errorProneAnnotations" }

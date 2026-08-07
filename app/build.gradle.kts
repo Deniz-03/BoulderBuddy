@@ -27,7 +27,7 @@ android {
 
     // MigrationTestHelper liest die exportierten Schemas aus den Test-Assets (Sync-Plan S0).
     sourceSets {
-        getByName("androidTest").assets.srcDir("$projectDir/schemas")
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
     }
 
     buildTypes {
@@ -121,6 +121,11 @@ dependencies {
 
     // Wear Data Layer (Phase 7.2): empfängt fertige Hangboard-Durchläufe von der Uhr.
     implementation(libs.play.services.wearable)
+
+    // Nearby Connections (Sync-Plan S4): Phone↔Tablet reden direkt miteinander — kein Konto,
+    // kein fremder Dienst, dieselbe Play-Services-Familie wie die Uhr. Nearby hebt selbständig
+    // auf Wi-Fi Direct, die erste Übertragung ist damit Minuten statt eines Nachmittags.
+    implementation(libs.play.services.nearby)
     // Für den von Hilt generierten ServiceComponent-Code (@CanIgnoreReturnValue) — Phase 7.2.
     implementation(libs.error.prone.annotations)
 

@@ -1,4 +1,11 @@
 <resources>
     <string name="app_name">BoulderBuddy</string>
     <string name="widget_description">Aktive Session, Tops und Schnellstart für Timer/Session.</string>
+
+    <!-- Geraete-Abgleich ueber Nearby (Sync-Plan S5): Meldung des Foreground Service. -->
+    <string name="abgleich_titel">Geräte abgleichen</string>
+    <string name="abgleich_kanal">Geräte-Abgleich</string>
+    <string name="abgleich_laeuft">Der Abgleich läuft …</string>
+    <string name="abgleich_suche">Suche das andere Gerät …</string>
+    <string name="abgleich_bestaetigen">Bitte die Zahl auf beiden Geräten bestätigen</string>
 </resources>
