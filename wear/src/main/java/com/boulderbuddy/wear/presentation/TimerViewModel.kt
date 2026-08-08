@@ -149,7 +149,19 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             while (running && phase != TimerPhase.DONE) {
                 delay(1000)
                 secondsLeft--
-                if (secondsLeft <= 0) advancePhase()
+                /*
+                 * `while` statt `if`: eine Phase der Länge 0 darf keine Sekunde kosten.
+                 *
+                 * Bei Pause = 0 (erlaubt, `coerceIn(0, 300)`) setzte der Wechsel `secondsLeft`
+                 * auf 0, und die Schleife wartete trotzdem erst die nächste volle Sekunde ab.
+                 * Am Emulator gemessen: 10 Sätze à 1 s ohne Pause brauchten 20,7 s statt 10 —
+                 * je Null-Pause eine Sekunde zu viel. Derselbe Fehler stand im Phone-ViewModel
+                 * und ist dort am 08.08. behoben worden; die beiden Zustandsmaschinen sind
+                 * bewusst parallel gebaut, und der Fehler ist mit ihnen mitgewandert.
+                 *
+                 * Terminiert immer, weil `hangSec` mindestens 1 ist (`coerceIn(1, 120)`).
+                 */
+                while (secondsLeft <= 0 && phase != TimerPhase.DONE) advancePhase()
                 if (phase == TimerPhase.DONE && !reported) {
                     reported = true
                     reportCompletion()
