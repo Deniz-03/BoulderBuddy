@@ -186,6 +186,40 @@ Altlasten nur mit.
 
 ---
 
+## Stand: alle zwölf behoben
+
+Abgearbeitet auf Branch `PixelBugfixes` (von `main` nach dem Merge aller Branches). Jede
+Korrektur ist am Pixel 6a gegengeprüft; die Suite läuft mit **46/46** instrumentierten Tests.
+
+| # | Fehler | Belegte Wirkung |
+|---|---|---|
+| F13 | rote Testsuite | 7 Fehlschläge → 0 |
+| F9 | Hallenname überlebt Löschen nicht | „Unbekannte Halle" → Hallenname bleibt |
+| F10 | Notiz wird nie gespeichert | steht während des Tippens in der DB |
+| F1 | Deep-Link doppelt | 3 Zurück-Drücker → 1 |
+| F8 | Doppeltipp legt zwei Sessions an | 2 → 1 |
+| F12 | Phantom-Halle „Meine Halle" | Hallenzahl bleibt unverändert |
+| F11 | Gradsystem unlöschbar nach Hallen-Löschung | Papierkorb bleibt, nur Standards geschützt |
+| F5 | Speichern unter der Tastatur | ganzes Formular erreichbar, Speichern getestet |
+| F2 | Formularzustand beim Drehen | Notiz + Auswahl überstehen die Drehung |
+| F3 | „Übernehmen" verwirft den Durchlauf | läuft weiter (Satz 2 → 3) |
+| F4 | Pause 0 kostet eine Sekunde | 8,112 s → **6,103 s** bei 6 s Soll |
+| F6 | „Heute" bei alter Session | „6. August · läuft gerade" |
+| F7 | stummer Knopf | sichtbar deaktiviert ohne Namen |
+
+**Zwei Dinge, die sich beim Beheben als falsch herausstellten** — beide standen vorher in
+diesem Dokument bzw. im Zwischenbericht:
+
+* Der erste Ansatz für F1 (`savedInstanceState == null`) hätte den Notification-Tap bei
+  laufender App verschluckt. Das Gerät hat ihn widerlegt, bevor er committet wurde; der Marker
+  sitzt jetzt im Intent selbst.
+* Daraus entstand kurzzeitig der Verdacht, dieser Fall sei „schon vorher kaputt" gewesen. Er
+  war es nicht — mein `am start` setzte die Flags nicht, die die echte Notification verwendet
+  (`CLEAR_TOP|NEW_TASK`). Mit den richtigen Flags funktioniert er in beiden Ständen. Ein Fehler
+  im Test, keiner in der App.
+
+---
+
 ## Behoben: F9 und F10
 
 Beide Korrekturen sind gebaut, mit Tests abgesichert und am Pixel gegengeprüft.
