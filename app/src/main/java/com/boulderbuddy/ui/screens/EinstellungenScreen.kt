@@ -1,6 +1,8 @@
 package com.boulderbuddy.ui.screens
 
+import android.Manifest
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,8 +27,11 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Vibration
 import androidx.compose.material.icons.outlined.Watch
@@ -48,6 +53,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.BuildConfig
+import com.boulderbuddy.proximity.hasBackgroundLocationPermission
+import com.boulderbuddy.proximity.hasFineLocationPermission
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SelectableChip
@@ -58,6 +65,7 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.EinstellungenUiState
 import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 
@@ -86,6 +94,13 @@ fun EinstellungenScreen(
     // Öffnet den experimentellen Ghost-Climber-Flow (Phase 7.5) — bewusst hier statt
     // im MVP-Kernfluss verankert (Plan A.4).
     onOpenGhostClimber: () -> Unit = {},
+    // Oeffnet "Geraete abgleichen" (Sync-Plan S7). Steht bei den Daten, nicht unter
+    // Experimental: es geht um den eigenen Bestand, nicht um eine Spielerei.
+    onOpenAbgleich: () -> Unit = {},
+    // Öffnet die Hallen-Verwaltung (Gym-Näherungs-Push M1: Koordinaten + Erinnerungen).
+    onOpenGymVerwaltung: () -> Unit = {},
+    // Master-Toggle des Gym-Näherungs-Push (M2); registriert/entfernt die Geofences.
+    onSetProximityAlerts: (Boolean) -> Unit = {},
     // Navigations-Callback (Phase 2). Default = {} hält Preview & Tests lauffähig.
     onBack: () -> Unit = {},
 ) {
@@ -104,6 +119,83 @@ fun EinstellungenScreen(
         exportMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             onExportMessageShown()
+        }
+    }
+
+    // Hintergrund-Standort-Flow des Gym-Näherungs-Push (M2). Android erzwingt die
+    // Reihenfolge: erst Foreground (FINE) gewähren lassen, DANN Background anfragen —
+    // ab API 30 öffnet die Background-Anfrage den System-Settings-Flow ("Immer erlauben").
+    // Zum Schluss (M4) POST_NOTIFICATIONS (Runtime-Permission ab API 33) mit anfragen.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        // Toggle unabhängig vom Grant setzen — ohne Notification-Permission degradiert
+        // nur die Anzeige (der Notifier prüft selbst und zeigt dann nichts).
+        onSetProximityAlerts(true)
+        if (!granted) {
+            Toast.makeText(
+                context,
+                "Ohne Benachrichtigungs-Erlaubnis können keine Erinnerungen erscheinen.",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+    val requestNotificationsOrEnable = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            onSetProximityAlerts(true)
+        }
+    }
+    val backgroundPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        // Auch ohne Background-Grant weitermachen: der Nutzer kann "Immer erlauben"
+        // später in den System-Einstellungen nachreichen; bis dahin degradiert das
+        // Feature still (GeofenceManager registriert nichts).
+        if (!granted) {
+            Toast.makeText(
+                context,
+                "Erinnerungen funktionieren nur mit Standort „Immer erlauben“ " +
+                    "(App-Einstellungen).",
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+        requestNotificationsOrEnable()
+    }
+    val foregroundPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        val granted = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (!granted) {
+            Toast.makeText(
+                context,
+                "Ohne Standort-Berechtigung sind Gym-Erinnerungen nicht möglich.",
+                Toast.LENGTH_LONG,
+            ).show()
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            !hasBackgroundLocationPermission(context)
+        ) {
+            backgroundPermissionLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            requestNotificationsOrEnable()
+        }
+    }
+    val enableProximityAlerts = {
+        when {
+            !hasFineLocationPermission(context) -> foregroundPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                !hasBackgroundLocationPermission(context) ->
+                backgroundPermissionLauncher.launch(
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+                )
+            else -> requestNotificationsOrEnable()
         }
     }
 
@@ -138,6 +230,10 @@ fun EinstellungenScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Ohne Begrenzung stand am Tablet das Label „Dark Mode" ganz links und
+                    // sein Schalter 1240 dp weiter rechts. Beide gehören zur selben Zeile,
+                    // aber auf diese Entfernung liest man sie nicht mehr als eine.
+                    .inhaltsBreite()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(vertical = Dimens.paddingL),
@@ -167,6 +263,20 @@ fun EinstellungenScreen(
                         icon = Icons.Outlined.Add,
                         label = "Grading-System erstellen",
                         onClick = { showCreateGradingDialog = true },
+                    )
+                    // Hallen-Verwaltung (Näherungs-Push M1): Koordinaten, Radius, Erinnerungen.
+                    SettingsRow(
+                        icon = Icons.Outlined.LocationOn,
+                        label = "Hallen verwalten",
+                        onClick = onOpenGymVerwaltung,
+                        trailing = {
+                            Icon(
+                                imageVector = Icons.Outlined.ChevronRight,
+                                contentDescription = null,
+                                tint = BoulderBuddy.colors.textTertiary,
+                                modifier = Modifier.size(Dimens.iconS),
+                            )
+                        },
                     )
                     // Öffnet die Verwaltung (Systeme ansehen/löschen). Zeigt die Anzahl als Kontext.
                     SettingsRow(
@@ -218,6 +328,22 @@ fun EinstellungenScreen(
                             )
                         },
                     )
+                    // Gym-Näherungs-Push (M2): "Session starten?"-Erinnerung, wenn man an
+                    // einer hinterlegten Halle ankommt. Einschalten stößt den (mehrstufigen)
+                    // Standort-Permission-Flow an.
+                    SettingsRow(
+                        icon = Icons.Outlined.NotificationsActive,
+                        label = "Gym-Erinnerungen",
+                        trailing = {
+                            ToggleSwitch(
+                                checked = state.proximityAlertsEnabled,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) enableProximityAlerts()
+                                    else onSetProximityAlerts(false)
+                                },
+                            )
+                        },
+                    )
                 }
 
                 // --- Gruppe: App ---
@@ -243,6 +369,12 @@ fun EinstellungenScreen(
                         icon = Icons.Outlined.FileDownload,
                         label = "Sessions exportieren (CSV)",
                         onClick = { exportLauncher.launch("boulderbuddy_sessions.csv") },
+                    )
+                    SettingsRow(
+                        icon = Icons.Outlined.Sync,
+                        label = "Geräte abgleichen",
+                        subtitle = "Phone und Tablet auf denselben Stand bringen",
+                        onClick = onOpenAbgleich,
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Person,

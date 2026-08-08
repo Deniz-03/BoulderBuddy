@@ -37,12 +37,14 @@ class FakeSettingsRepository(
     val darkModeState = MutableStateFlow<Boolean?>(null)
     val hapticFeedbackState = MutableStateFlow(true)
     val userNameState = MutableStateFlow("")
+    val proximityAlertsState = MutableStateFlow(false)
 
     override val selectedGradeSystemId: Flow<Int?> = _selectedGradeSystemId
     override val timerConfig: Flow<TimerConfig> = timerConfigState
     override val darkMode: Flow<Boolean?> = darkModeState
     override val hapticFeedback: Flow<Boolean> = hapticFeedbackState
     override val userName: Flow<String> = userNameState
+    override val proximityAlertsEnabled: Flow<Boolean> = proximityAlertsState
 
     override suspend fun setSelectedGradeSystem(systemId: Int) {
         _selectedGradeSystemId.value = systemId
@@ -62,6 +64,10 @@ class FakeSettingsRepository(
 
     override suspend fun setUserName(name: String) {
         userNameState.value = name.trim()
+    }
+
+    override suspend fun setProximityAlertsEnabled(enabled: Boolean) {
+        proximityAlertsState.value = enabled
     }
 }
 
@@ -99,6 +105,10 @@ class FakeSessionRepository : SessionRepository {
         all.value = all.value.map { if (it.id == session.id) session else it }
     }
 
+    override suspend fun updateNotes(sessionId: Int, notes: String?) {
+        all.value = all.value.map { if (it.id == sessionId) it.copy(notes = notes) else it }
+    }
+
     override suspend fun endSession(sessionId: Int, endedAt: Long) {
         all.value = all.value.map { if (it.id == sessionId) it.copy(endedAt = endedAt) else it }
         if (active.value?.id == sessionId) active.value = null
@@ -133,6 +143,20 @@ class FakeGymRepository : GymRepository {
     override suspend fun update(gym: GymEntity) {
         all.value = all.value.map { if (it.id == gym.id) gym else it }
     }
+
+    /**
+     * Löscht nur die Halle. Die Fremdschlüssel-Folgen (Session behält ihren Namen, Gradsystem
+     * wird global) macht in der echten App SQLite — hier gibt es keine, weil der Fake keine
+     * Sessions kennt.
+     */
+    override suspend fun delete(gymId: Int) {
+        all.value = all.value.filterNot { it.id == gymId }
+    }
+
+    /** Sessions kennt dieser Fake nicht; Tests, die zählen wollen, setzen [sessionCount]. */
+    var sessionCount: Int = 0
+
+    override suspend fun countSessions(gymId: Int): Int = sessionCount
 }
 
 class FakeGradeRepository : GradeRepository {

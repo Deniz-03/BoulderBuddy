@@ -9,6 +9,7 @@ import com.boulderbuddy.data.db.dao.RouteDao
 import com.boulderbuddy.data.db.dao.SessionDao
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
+import com.boulderbuddy.data.db.entity.hallenName
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
@@ -68,7 +69,9 @@ class SessionExporter @Inject constructor(
                 session.id.toString(),
                 df.format(Date(session.date)),
                 session.endedAt?.let { df.format(Date(it)) } ?: "aktiv",
-                gymNames[session.gymId].orEmpty(),
+                // Der Export ist ein Beleg: eine gelöschte Halle darf hier keine leere Zelle
+                // hinterlassen, sonst fehlt im CSV, wo trainiert wurde.
+                session.hallenName { gymNames[it] }.orEmpty(),
                 session.gradeSystemId?.let { systemNames[it] }.orEmpty(),
                 session.durationMin?.toString().orEmpty(),
                 session.notes.orEmpty(),

@@ -15,6 +15,7 @@ import com.boulderbuddy.fake.FakeGradeRepository
 import com.boulderbuddy.fake.FakeHangboardWorkoutRepository
 import com.boulderbuddy.fake.FakeRouteRepository
 import com.boulderbuddy.fake.FakeSessionRepository
+import com.boulderbuddy.ui.model.Zeitraum
 import com.boulderbuddy.util.MainDispatcherRule
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -119,6 +120,51 @@ class StatistikViewModelTest {
                 assertThat(state.flashRate).isEqualTo("–")
                 assertThat(state.hangboardHangTime).isEqualTo("–")
                 assertThat(state.distributionBySystem).isEmpty()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    /**
+     * Nur die Verdrahtung: dass beide Verläufe für **alle drei** Körnungen im Zustand liegen.
+     *
+     * Der Umschalter im Screen wechselt ohne neue Datenbankabfrage — er greift in diese Maps.
+     * Fehlte ein Schlüssel, liefe er in einen leeren Zustand. Was die Aggregation *rechnet*,
+     * prüft `StatistikVerlaufTest` mit festem Stichtag; hier wird bewusst nichts über Werte
+     * behauptet, weil das ViewModel `LocalDate.now()` benutzt.
+     */
+    @Test
+    fun `beide Verlaeufe liegen fuer alle drei Koernungen im Zustand`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            grades.systems.value = listOf(GradeSystemEntity(id = 1, gymId = null, name = "Französisch"))
+            grades.grades.value = listOf(GradeEntity(id = 10, systemId = 1, label = "6a", order = 0))
+            sessions.all.value = listOf(
+                SessionEntity(id = 1, gymId = 1, date = System.currentTimeMillis()),
+            )
+            routes.all.value = listOf(
+                RouteEntity(id = 1, sessionId = 1, gradeId = 10, status = RouteStatus.SENT, attempts = 1),
+            )
+
+            val vm = StatistikViewModel(sessions, routes, grades, hangboardWorkouts)
+
+            vm.uiState.test {
+                var state = awaitItem()
+                while (state.totalSessions == 0) state = awaitItem()
+
+                assertThat(state.routenVerlauf.keys).containsExactlyElementsIn(Zeitraum.entries)
+                assertThat(state.gradVerlauf.keys).containsExactlyElementsIn(Zeitraum.entries)
+
+                Zeitraum.entries.forEach { zeitraum ->
+                    // Die Reihe ist vollständig — auch Abschnitte ohne Aktivität stehen drin.
+                    assertThat(state.routenVerlauf.getValue(zeitraum)).hasSize(zeitraum.eimer)
+                    // Das Top von heute liegt im jüngsten Abschnitt; die x-Achsen beider
+                    // Diagramme müssen deckungsgleich sein, sonst liegen sie versetzt
+                    // untereinander.
+                    val kurve = state.gradVerlauf.getValue(zeitraum).getValue(1)
+                    assertThat(kurve.map { it.label })
+                        .isEqualTo(state.routenVerlauf.getValue(zeitraum).map { it.label })
+                    assertThat(kurve.last().wertLabel).isEqualTo("6a")
+                }
 
                 cancelAndIgnoreRemainingEvents()
             }

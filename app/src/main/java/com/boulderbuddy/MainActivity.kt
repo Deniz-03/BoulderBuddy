@@ -8,10 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.boulderbuddy.proximity.ProximityIntent
 import com.boulderbuddy.ui.navigation.AppNavigation
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.viewmodel.ThemeViewModel
@@ -29,11 +29,16 @@ class MainActivity : ComponentActivity() {
         // Effekt in der Composition greift. Die Icon-Helligkeit stellt dieser Aufruf noch
         // nach dem System ein; korrigiert wird sie unten, sobald das App-Theme feststeht.
         enableEdgeToEdge()
-        // Optionales Sprungziel aus dem Homescreen-Widget (7.4c); nur beim Start-Intent.
+        // Optionales Sprungziel aus dem Homescreen-Widget (7.4c) bzw. der Näherungs-
+        // Notification (M4, gleiches Intent-Extra-Muster); nur beim Start-Intent.
         val widgetNavTarget = intent?.getStringExtra(WidgetIntent.EXTRA_NAV_TARGET)
         // Nur für TARGET_ACTIVE_SESSION gesetzt: die Session, in die das Widget springt.
         val widgetSessionId = intent
             ?.getIntExtra(WidgetIntent.EXTRA_SESSION_ID, -1)
+            ?.takeIf { it > 0 }
+        // Gym fürs Vorbefüllen von SessionErstellen (nur von der Näherungs-Notification gesetzt).
+        val navGymId = intent
+            ?.getIntExtra(ProximityIntent.EXTRA_GYM_ID, -1)
             ?.takeIf { it > 0 }
         setContent {
             // Dark-Mode-Override aus den Einstellungen; null = dem System folgen (7.4a).
@@ -66,13 +71,14 @@ class MainActivity : ComponentActivity() {
             }
 
             BoulderBuddyTheme(darkTheme = darkTheme) {
-                // WindowSizeClass für adaptive Layouts (Phase 7.1: Tablet). Wird an die
-                // Navigation gereicht, die daraus Compact vs. Medium/Expanded ableitet.
-                val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
+                // Die Fensterbreite wird nicht mehr von hier durchgereicht: sie steht über
+                // `aktuelleBreite()` (ui/theme/Breite.kt) überall in der Composition zur
+                // Verfügung. Ein Parameter hätte sie nur bis zur Navigation getragen, während
+                // sie inzwischen auch einzelne Screens und Raster interessiert.
                 AppNavigation(
-                    windowSizeClass = windowSizeClass,
                     initialNavTarget = widgetNavTarget,
                     initialNavSessionId = widgetSessionId,
+                    initialNavGymId = navGymId,
                 )
             }
         }

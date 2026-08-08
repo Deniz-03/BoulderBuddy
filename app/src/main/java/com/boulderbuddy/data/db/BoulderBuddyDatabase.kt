@@ -7,19 +7,24 @@ import com.boulderbuddy.data.db.dao.GhostAnalysisDao
 import com.boulderbuddy.data.db.dao.GradeDao
 import com.boulderbuddy.data.db.dao.GradeSystemDao
 import com.boulderbuddy.data.db.dao.GymDao
+import com.boulderbuddy.data.db.dao.GymVisitDao
 import com.boulderbuddy.data.db.dao.HangboardTemplateDao
 import com.boulderbuddy.data.db.dao.HangboardWorkoutDao
+import com.boulderbuddy.data.db.dao.MedienDao
 import com.boulderbuddy.data.db.dao.RouteDao
 import com.boulderbuddy.data.db.dao.SessionDao
+import com.boulderbuddy.data.db.dao.StandMetaDao
 import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.db.entity.GymVisitEntity
 import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
 import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
+import com.boulderbuddy.data.db.entity.StandMetaEntity
 
 /**
  * Room-Datenbank der App. Wird ab Phase 4 per Hilt bereitgestellt.
@@ -36,6 +41,8 @@ import com.boulderbuddy.data.db.entity.SessionEntity
         HangboardWorkoutEntity::class,
         HangboardSegmentEntity::class,
         GhostAnalysisEntity::class,
+        StandMetaEntity::class,
+        GymVisitEntity::class,
     ],
     // v2 (Phase 6): RouteEntity um name + sektor erweitert.
     // v3 (MVP-Polish): GradeSystem.gymId nullable (globale Standard-Systeme) +
@@ -46,9 +53,25 @@ import com.boulderbuddy.data.db.entity.SessionEntity
     // v6 (Phase 7 Anhang B): vereintes Hangboard-Workout-Modell — hangboard_session ersetzt
     // durch hangboard_workout (sessionId nullable = eigenständige Trainings, mode/origin)
     // + hangboard_segment (gemessene bzw. abgeleitete Hänge-/Pausendauern je Satz).
-    // Keine handgeschriebene Migration nötig: der Provider nutzt destruktive Migration
-    // (pre-Release, keine Bestandsnutzer — siehe DatabaseModule).
-    version = 6,
+    // v7 (Sync-Plan S1): stand_meta (Herkunft des gemeinsamen Standes, E3) + Keypoint-Pfade
+    // relativ zu filesDir statt absolut (E15) — eine gerätelokale Spalte darf nicht in eine
+    // verglichene Zeile geraten.
+    // v8 (Gym-Näherungs-Push): Gym um Koordinaten/Radius/Alerts-Toggle erweitert +
+    // neue gym_visit-Tabelle (Besuchs-Log für gelernte Besuchsmuster).
+    // v9: Gym.defaultGradeSystemId — beim Session-Anlegen vorgewähltes Gradsystem der Halle.
+    // v10: Hallen sind löschbar, ohne Historie mitzunehmen — session.gymId und
+    // grade_system.gymId auf SET NULL (vorher CASCADE) + session.gymName als Beleg, in
+    // welcher Halle eine Session lief, wenn es die Halle nicht mehr gibt.
+    //
+    // Das Feature war auf seinem Branch einmal v6 — dieselbe Nummer, die der Hangboard-Umbau
+    // schon vergeben hatte. Auf einem Gerät, das beide Stände nacheinander sah, verglich Room
+    // nur die Nummer, fand sie gleich und prüfte den Identity-Hash: Absturz beim Start, ohne
+    // dass eine Migration je lief. Deshalb hier v8 und nicht v6.
+    //
+    // Ab dem Geräte-Abgleich (Sync-Plan S0) gibt es echte Migrationen für jeden Schritt:
+    // siehe Migrations.kt. Wer die Version erhöht, schreibt dort die passende Migration —
+    // einen destruktiven Fallback gibt es nicht mehr.
+    version = 10,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -61,6 +84,9 @@ abstract class BoulderBuddyDatabase : RoomDatabase() {
     abstract fun hangboardTemplateDao(): HangboardTemplateDao
     abstract fun hangboardWorkoutDao(): HangboardWorkoutDao
     abstract fun ghostAnalysisDao(): GhostAnalysisDao
+    abstract fun standMetaDao(): StandMetaDao
+    abstract fun medienDao(): MedienDao
+    abstract fun gymVisitDao(): GymVisitDao
 
     companion object {
         const val NAME = "boulderbuddy.db"

@@ -10,6 +10,7 @@ import com.boulderbuddy.data.export.SessionExporter
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.settings.SettingsRepository
+import com.boulderbuddy.proximity.GeofenceManager
 import com.boulderbuddy.wearsync.WearConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,6 +44,8 @@ data class EinstellungenUiState(
     val userName: String = "",
     /** Ob gerade eine Uhr mit dem Phone verbunden ist (nur Anzeige, nicht schaltbar). */
     val watchConnected: Boolean = false,
+    /** Master-Toggle des Gym-Näherungs-Push (M2); Opt-in, Default aus. */
+    val proximityAlertsEnabled: Boolean = false,
 )
 
 @HiltViewModel
@@ -51,6 +54,7 @@ class EinstellungenViewModel @Inject constructor(
     private val gradeRepository: GradeRepository,
     private val settingsRepository: SettingsRepository,
     private val sessionExporter: SessionExporter,
+    private val geofenceManager: GeofenceManager,
     wearConnection: WearConnection,
 ) : ViewModel() {
 
@@ -66,6 +70,7 @@ class EinstellungenViewModel @Inject constructor(
         val hapticFeedback: Boolean,
         val userName: String,
         val watchConnected: Boolean,
+        val proximityAlerts: Boolean,
     )
 
     val uiState: StateFlow<EinstellungenUiState> = combine(
@@ -77,7 +82,10 @@ class EinstellungenViewModel @Inject constructor(
             settingsRepository.hapticFeedback,
             settingsRepository.userName,
             wearConnection.connected,
-        ) { darkMode, haptic, name, watch -> Praeferenzen(darkMode, haptic, name, watch) },
+            settingsRepository.proximityAlertsEnabled,
+        ) { darkMode, haptic, name, watch, proximity ->
+            Praeferenzen(darkMode, haptic, name, watch, proximity)
+        },
     ) { systems, grades, selectedId, praeferenzen ->
         val countBySystem = grades.groupingBy { it.systemId }.eachCount()
         EinstellungenUiState(
@@ -95,6 +103,7 @@ class EinstellungenViewModel @Inject constructor(
             hapticFeedback = praeferenzen.hapticFeedback,
             userName = praeferenzen.userName,
             watchConnected = praeferenzen.watchConnected,
+            proximityAlertsEnabled = praeferenzen.proximityAlerts,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -120,6 +129,18 @@ class EinstellungenViewModel @Inject constructor(
     /** Speichert den Anzeigenamen für die Home-Begrüßung. Leer = neutrale Begrüßung. */
     fun setUserName(name: String) {
         viewModelScope.launch { settingsRepository.setUserName(name) }
+    }
+
+    /**
+     * Master-Toggle des Gym-Näherungs-Push (M2). Registriert die Geofences direkt neu —
+     * "aus" entfernt damit alle Geofences (Plan §12), "an" registriert alle Gyms mit
+     * Koordinaten (sofern Hintergrund-Standort erteilt; den Flow macht der Screen davor).
+     */
+    fun setProximityAlerts(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setProximityAlertsEnabled(enabled)
+            geofenceManager.refreshGeofences()
+        }
     }
 
     /**

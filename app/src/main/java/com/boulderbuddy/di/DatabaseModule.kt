@@ -2,16 +2,20 @@ package com.boulderbuddy.di
 
 import android.content.Context
 import androidx.room.Room
+import com.boulderbuddy.data.db.ALLE_MIGRATIONEN
 import com.boulderbuddy.data.db.BoulderBuddyDatabase
 import com.boulderbuddy.data.db.SeedData
 import com.boulderbuddy.data.db.dao.GhostAnalysisDao
 import com.boulderbuddy.data.db.dao.GradeDao
 import com.boulderbuddy.data.db.dao.GradeSystemDao
 import com.boulderbuddy.data.db.dao.GymDao
+import com.boulderbuddy.data.db.dao.GymVisitDao
 import com.boulderbuddy.data.db.dao.HangboardTemplateDao
 import com.boulderbuddy.data.db.dao.HangboardWorkoutDao
+import com.boulderbuddy.data.db.dao.MedienDao
 import com.boulderbuddy.data.db.dao.RouteDao
 import com.boulderbuddy.data.db.dao.SessionDao
+import com.boulderbuddy.data.db.dao.StandMetaDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -37,10 +41,11 @@ object DatabaseModule {
         )
             // Beispieldaten beim ersten Erstellen der DB (siehe SeedData.onCreate).
             .addCallback(SeedData)
-            // Pre-Release ohne Bestandsnutzer: Schema-Änderungen (z.B. v1→v2, Route.name/sektor)
-            // verwerfen die alte DB, statt Migrationen zu pflegen. Vor dem ersten Release durch
-            // echte Migrationen ersetzen.
-            .fallbackToDestructiveMigration(dropAllTables = true)
+            // Echte Migrationen statt `fallbackToDestructiveMigration` (Sync-Plan S0): der
+            // Geräte-Abgleich überträgt Daten, die ein Schema-Update sonst gelöscht hätte.
+            // Bewusst ohne destruktiven Fallback — fehlt ein Pfad, soll die App laut scheitern
+            // statt still zu leeren.
+            .addMigrations(*ALLE_MIGRATIONEN)
             .build()
 
     @Provides
@@ -69,4 +74,13 @@ object DatabaseModule {
     @Provides
     fun provideGhostAnalysisDao(db: BoulderBuddyDatabase): GhostAnalysisDao =
         db.ghostAnalysisDao()
+
+    @Provides
+    fun provideStandMetaDao(db: BoulderBuddyDatabase): StandMetaDao = db.standMetaDao()
+
+    @Provides
+    fun provideMedienDao(db: BoulderBuddyDatabase): MedienDao = db.medienDao()
+
+    @Provides
+    fun provideGymVisitDao(db: BoulderBuddyDatabase): GymVisitDao = db.gymVisitDao()
 }

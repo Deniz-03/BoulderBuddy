@@ -47,6 +47,7 @@ import com.boulderbuddy.ui.components.VideoPlayer
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.BoulderDetailUiState
 import com.boulderbuddy.util.MediaType
 import com.boulderbuddy.util.mediaTypeOf
@@ -61,7 +62,8 @@ fun BoulderDetailScreen(
     // Anzeige-Zustand aus dem BoulderDetailViewModel.
     state: BoulderDetailUiState = BoulderDetailUiState(),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
-    onBack: () -> Unit = {},
+    // `onBack = null` = kein Weg zurück, also kein Pfeil — siehe SessionDetailScreen.
+    onBack: (() -> Unit)? = {},
     onEdit: () -> Unit = {},
     // Schnell-Versuche (nur bei aktiver Session sichtbar, siehe state.isSessionActive).
     onIncrementAttempts: () -> Unit = {},
@@ -76,13 +78,15 @@ fun BoulderDetailScreen(
             TopBar(
                 title = state.name.ifBlank { "Boulder" },
                 subtitle = subtitle,
-                navIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
-                            tint = BoulderBuddy.colors.onChrome,
-                        )
+                navIcon = onBack?.let { zurueck ->
+                    {
+                        IconButton(onClick = zurueck) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Zurück",
+                                tint = BoulderBuddy.colors.onChrome,
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -110,7 +114,12 @@ fun BoulderDetailScreen(
             }
 
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Ein einzelner Boulder ist wenig Inhalt: Bild, zwei Kennzahlen, eine
+                    // Notiz. Über die volle Pane-Breite gezogen wurde daraus ein 920 dp
+                    // breiter Bilderrahmen mit einem Platzhalter-Icon in der Mitte.
+                    .inhaltsBreite(Dimens.spaltenBreiteWeit),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,
@@ -242,7 +251,9 @@ private fun BoulderFoto(
 ) {
     Box(
         modifier = modifier
-            .fillMaxWidth()
+            // Gedeckelt und linksbündig: die Höhe folgt hier über `aspectRatio` der Breite,
+            // ein ungedeckelter Rahmen wäre im Detail-Pane 920 × 517 dp groß.
+            .inhaltsBreite(Dimens.medienMaxBreite, ausrichtung = Alignment.Start)
             .aspectRatio(16f / 9f)
             .clip(MaterialTheme.shapes.medium)
             .background(BoulderBuddy.colors.surfaceCard)

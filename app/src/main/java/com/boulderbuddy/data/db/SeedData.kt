@@ -28,9 +28,19 @@ object SeedData : RoomDatabase.Callback() {
     }
 
     private fun seed(db: SupportSQLiteDatabase) {
-        // Gym
+        // Gym.
+        //
+        // Die Spalten sind hier ausgeschrieben, auch die mit Entity-Default: `geofenceRadiusMeters`
+        // und `proximityAlertsEnabled` sind `NOT NULL` und haben ihren Standardwert **nur in
+        // Kotlin**, nicht im SQL-Schema (Begründung in MIGRATION_7_8). Ein `INSERT`, der sie
+        // ausließ, scheiterte deshalb mit `NOT NULL constraint failed` — und zwar erst bei einer
+        // Neuinstallation, wo dieses Seed als einziges läuft. Wer hier eine Spalte ergänzt,
+        // ergänzt sie mit.
         db.execSQL(
-            "INSERT INTO gym (id, name, location) VALUES (1, 'Boulder World München', 'München')"
+            "INSERT INTO gym " +
+                "(id, name, location, latitude, longitude, geofenceRadiusMeters, " +
+                "proximityAlertsEnabled, defaultGradeSystemId) " +
+                "VALUES (1, 'Boulder World München', 'München', NULL, NULL, 150, 1, 1)"
         )
 
         // Gradsystem des Gyms (V-Scale als Halle-Standard; Farbe hängt an der Route, nicht am Grad)
@@ -74,9 +84,13 @@ object SeedData : RoomDatabase.Callback() {
         )
 
         // Eine aktive Beispiel-Session (endedAt = NULL → läuft noch), mit dem Halle-Gradsystem.
+        // `gymName` ist der Beleg, der eine gelöschte Halle überdauert (v10) — ebenfalls
+        // NOT NULL und deshalb hier gesetzt.
         db.execSQL(
-            "INSERT INTO session (id, gymId, gradeSystemId, date, durationMin, notes, endedAt) " +
-                "VALUES (1, 1, 1, ${System.currentTimeMillis()}, NULL, NULL, NULL)"
+            "INSERT INTO session " +
+                "(id, gymId, gymName, gradeSystemId, date, durationMin, notes, endedAt) " +
+                "VALUES (1, 1, 'Boulder World München', 1, " +
+                "${System.currentTimeMillis()}, NULL, NULL, NULL)"
         )
 
         // Ein paar Beispiel-Boulder in der aktiven Session, damit die App nach dem ersten

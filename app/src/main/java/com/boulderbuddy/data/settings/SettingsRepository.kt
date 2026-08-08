@@ -41,6 +41,12 @@ interface SettingsRepository {
     /** Anzeigename für die Begrüßung auf dem Home-Screen; leer = neutrale Begrüßung. */
     val userName: Flow<String>
 
+    /**
+     * Master-Toggle des Gym-Näherungs-Push (M2). Default `false` — das Feature ist Opt-in,
+     * weil es Hintergrund-Standort braucht (Permission-Flow beim Einschalten).
+     */
+    val proximityAlertsEnabled: Flow<Boolean>
+
     suspend fun setSelectedGradeSystem(systemId: Int)
 
     suspend fun setTimerConfig(config: TimerConfig)
@@ -50,6 +56,8 @@ interface SettingsRepository {
     suspend fun setHapticFeedback(enabled: Boolean)
 
     suspend fun setUserName(name: String)
+
+    suspend fun setProximityAlertsEnabled(enabled: Boolean)
 }
 
 class SettingsRepositoryImpl @Inject constructor(
@@ -76,6 +84,9 @@ class SettingsRepositoryImpl @Inject constructor(
     override val userName: Flow<String> =
         dataStore.data.map { it[KEY_USER_NAME].orEmpty() }
 
+    override val proximityAlertsEnabled: Flow<Boolean> =
+        dataStore.data.map { it[KEY_PROXIMITY_ALERTS] ?: false }
+
     override suspend fun setSelectedGradeSystem(systemId: Int) {
         dataStore.edit { it[KEY_GRADE_SYSTEM_ID] = systemId }
     }
@@ -100,6 +111,10 @@ class SettingsRepositoryImpl @Inject constructor(
         dataStore.edit { it[KEY_USER_NAME] = name.trim() }
     }
 
+    override suspend fun setProximityAlertsEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_PROXIMITY_ALERTS] = enabled }
+    }
+
     private companion object {
         val KEY_GRADE_SYSTEM_ID = intPreferencesKey("selected_grade_system_id")
         val KEY_TIMER_SETS = intPreferencesKey("timer_sets")
@@ -108,5 +123,6 @@ class SettingsRepositoryImpl @Inject constructor(
         val KEY_DARK_MODE = booleanPreferencesKey("dark_mode")
         val KEY_HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
         val KEY_USER_NAME = stringPreferencesKey("user_name")
+        val KEY_PROXIMITY_ALERTS = booleanPreferencesKey("proximity_alerts_enabled")
     }
 }

@@ -3,6 +3,7 @@ package com.boulderbuddy.ui.viewmodel
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.RouteRepository
@@ -77,7 +78,9 @@ class SessionListViewModel @Inject constructor(
         val bySortKey = when (sortMode) {
             SessionSortMode.DATUM -> sessions.sortedBy { it.date }
             SessionSortMode.HALLE -> sessions.sortedBy {
-                gymsById[it.gymId]?.name.orEmpty().lowercase()
+                // Auch nach „Halle" sortiert eine Session mit gelöschter Halle noch sinnvoll:
+                // ihr Schnappschuss-Name steht dort, wo der Hallenname stünde.
+                it.hallenName { id -> gymsById[id]?.name }.orEmpty().lowercase()
             }
             SessionSortMode.BOULDER -> sessions.sortedBy { routesBySession[it.id].orEmpty().size }
         }
@@ -98,7 +101,7 @@ class SessionListViewModel @Inject constructor(
             }
             SessionListItemUi(
                 id = session.id,
-                gym = gymsById[session.gymId]?.name ?: "Unbekannte Halle",
+                gym = session.hallenName { gymsById[it]?.name } ?: "Unbekannte Halle",
                 date = if (isActive) "Heute · läuft gerade" else formatRelativeDay(session.date),
                 accentColor = accentColorFor(sessionRoutes),
                 badges = badges,

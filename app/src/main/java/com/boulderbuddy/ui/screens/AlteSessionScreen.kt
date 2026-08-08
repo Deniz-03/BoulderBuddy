@@ -28,7 +28,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
@@ -42,6 +41,7 @@ import com.boulderbuddy.ui.components.appendSpokenNote
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 import kotlinx.coroutines.launch
 
@@ -67,16 +67,24 @@ fun AlteSessionScreen(
     // Schreibt die geänderte Session-Notiz zurück (beim Verlassen des Feldes).
     onNotesChange: (String) -> Unit = {},
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
-    onBack: () -> Unit = {},
+    // `onBack = null` = kein Weg zurück, also kein Pfeil — siehe SessionDetailScreen.
+    onBack: (() -> Unit)? = {},
     onOpenBoulder: (Int) -> Unit = {},
 ) {
-    // Session-Notiz: nachträglich editierbar (die Reflexion schreibt man meist nach der
-    // Session). Der Text lebt während des Tippens lokal und wird beim Fokusverlust
-    // gespeichert — sonst löste jeder Tastendruck einen Room-Write aus.
-    var notiz by remember(notes) { mutableStateOf(notes) }
+    /*
+     * Session-Notiz: nachträglich editierbar (die Reflexion schreibt man meist nach der Session).
+     *
+     * Bewusst **ohne** `notes` als remember-Schlüssel. Da beim Tippen gespeichert wird, kommt der
+     * geschriebene Wert über den Room-Flow gleich wieder herein; mit Schlüssel würde das Feld bei
+     * jedem Rücklauf neu aufgesetzt und beim schnellen Tippen Zeichen verlieren, die zwischen
+     * Schreiben und Rücklauf entstanden sind. Der Startwert genügt einmalig: `SessionRoute`
+     * rendert diesen Screen erst, wenn die Session geladen ist.
+     */
+    var notiz by remember { mutableStateOf(notes) }
 
-    // Das Speichern beim Fokusverlust ist für sich genommen unsichtbar — die kurze
-    // Rückmeldung macht daraus eine nachvollziehbare Aktion.
+    // Nur noch für die Spracheingabe: die trägt in einem Zug einen ganzen Satz ein, und das
+    // bestätigt die kurze Rückmeldung. Beim Tippen braucht es sie nicht — dort sieht man den
+    // Text ja entstehen.
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -89,13 +97,15 @@ fun AlteSessionScreen(
             TopBar(
                 title = gym,
                 subtitle = dateSubtitle,
-                navIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
-                            tint = BoulderBuddy.colors.onChrome,
-                        )
+                navIcon = onBack?.let { zurueck ->
+                    {
+                        IconButton(onClick = zurueck) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Zurück",
+                                tint = BoulderBuddy.colors.onChrome,
+                            )
+                        }
                     }
                 },
             )
@@ -103,7 +113,10 @@ fun AlteSessionScreen(
         content = { _ ->
           Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Nachtrag einer Session: überwiegend Notiztext, also Textspaltenbreite.
+                    .inhaltsBreite(),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,
@@ -140,7 +153,14 @@ fun AlteSessionScreen(
                 item {
                     TextField(
                         value = notiz,
-                        onChange = { notiz = it },
+                        // Beim Tippen speichern, nicht beim Verlassen des Feldes: der Screen
+                        // wird über Zurück verlassen, und dabei gibt es keinen Fokuswechsel
+                        // mehr — die Notiz war damit schlicht weg. Ein Tastendruck kostet jetzt
+                        // eine einzelne UPDATE-Anweisung (SessionDao.updateNotes).
+                        onChange = {
+                            notiz = it
+                            onNotesChange(it)
+                        },
                         label = "NOTIZ",
                         placeholder = "Notiz zu dieser Session…",
                         singleLine = false,
@@ -152,11 +172,8 @@ fun AlteSessionScreen(
                         trailing = {
                             SpeechToTextButton(
                                 onResult = { spoken ->
-                                    // Direkt speichern statt auf den Fokusverlust zu warten:
-                                    // der Mikrofon-Button nimmt dem Feld den Fokus, der
-                                    // Speicher-Trigger unten hat also schon ausgelöst, als der
-                                    // Text noch der alte war. Ohne diese Zeile wäre die
-                                    // eingesprochene Notiz beim Verlassen des Screens weg.
+                                    // Eigener Speicher-Aufruf, weil der erkannte Text nicht
+                                    // durch `onChange` läuft — er wird hier direkt gesetzt.
                                     val ergaenzt = appendSpokenNote(notiz, spoken)
                                     notiz = ergaenzt
                                     onNotesChange(ergaenzt)
@@ -165,14 +182,6 @@ fun AlteSessionScreen(
                                     }
                                 },
                             )
-                        },
-                        // hasFocus statt isFocused: der Modifier sitzt am Container der
-                        // TextField-Komponente, der das eigentliche Eingabefeld als Kind hält.
-                        modifier = Modifier.onFocusChanged { focusState ->
-                            if (!focusState.hasFocus && notiz != notes) {
-                                onNotesChange(notiz)
-                                scope.launch { snackbarHostState.showSnackbar("Notiz gespeichert") }
-                            }
                         },
                     )
                 }

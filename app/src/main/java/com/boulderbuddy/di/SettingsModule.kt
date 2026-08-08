@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.boulderbuddy.sync.GeraeteStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,4 +28,20 @@ object SettingsModule {
         PreferenceDataStoreFactory.create {
             context.preferencesDataStoreFile("settings")
         }
+
+    /**
+     * Eigener Store für Geräte-ID und Nummernband (Sync-Plan E14). Getrennt von den
+     * Einstellungen, weil die Android-Backup-Regeln nur ganze Dateien ausschließen können —
+     * siehe `res/xml/backup_rules.xml`.
+     */
+    @Provides
+    @Singleton
+    @GeraeteStore
+    fun provideGeraeteDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create {
+            context.preferencesDataStoreFile(GERAETE_STORE_NAME)
+        }
+
+    /** Dateiname ohne Endung; die Backup-Regeln nennen ihn mit `.preferences_pb`. */
+    const val GERAETE_STORE_NAME = "geraet"
 }

@@ -22,6 +22,15 @@ interface GymRepository {
 
     /** Aktualisiert eine bestehende Halle. */
     suspend fun update(gym: GymEntity)
+
+    /**
+     * Löscht eine Halle. Sessions und ihre Boulder bleiben erhalten — samt Hallenname, der
+     * dabei in `session.gymName` gesichert wird (siehe [GymDao.deleteAndKeepName]).
+     */
+    suspend fun delete(gymId: Int)
+
+    /** Anzahl der Sessions an dieser Halle — Grundlage der Rückfrage vor dem Löschen. */
+    suspend fun countSessions(gymId: Int): Int
 }
 
 class GymRepositoryImpl @Inject constructor(
@@ -35,4 +44,8 @@ class GymRepositoryImpl @Inject constructor(
     override suspend fun create(gym: GymEntity): Int = gymDao.insert(gym).toInt()
 
     override suspend fun update(gym: GymEntity) = gymDao.update(gym)
+
+    override suspend fun delete(gymId: Int) = gymDao.deleteAndKeepName(gymId)
+
+    override suspend fun countSessions(gymId: Int): Int = gymDao.countSessions(gymId)
 }

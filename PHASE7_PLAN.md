@@ -63,8 +63,13 @@ Priorisierung nach *Requirements-Pflicht → Aufwand/Nutzen → Doku-Wert*:
 > - **Automatische Hangboard-Erkennung auf der Uhr** (Advanced-Ausbau von 7.2): Sensorik erkennt
 >   Hängen/Loslassen, misst Satz- und (variable) Pausenlängen automatisch, bis der Nutzer die
 >   Session auf der Uhr beendet. → **[Anhang B](#anhang-b--fable-5-auftrag-automatische-hangboard-erkennung-uhr)**.
+> - **Gym-Näherungs-Push (Variante B)** (UX-Ausbau): App lernt Besuchshäufigkeit je manuell
+>   hinterlegter Halle und schickt eine gedrosselte „Session starten?"-Push, wenn der Nutzer in
+>   Gym-Nähe erkannt wird (Geofencing + Hintergrund-Standort). Start-Kontext:
+>   [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md).
+>   → **[Anhang C](#anhang-c--fable-5-auftrag-gym-naeherungs-push-variante-b)**.
 >
-> UI folgt in beiden Fällen der Funktion (Function-first).
+> UI folgt in allen Fällen der Funktion (Function-first).
 
 ---
 
@@ -634,3 +639,112 @@ M5: Kalibrierung final + Akku-Check.
    Session → anhängen, sonst eigenständiges Hangboard-Training. Nie verworfen, nie blockiert.
    **Ersetzt die ursprüngliche Gate-Antwort** (Konsistenz + kein Datenverlust); die bidirektionale
    Zustandsabfrage entfällt. Details: START-Doc §0 (UX-Konzept).
+
+---
+
+# Anhang C — Fable-5-Auftrag: Gym-Näherungs-Push (Variante B)
+
+> **Start-Kontext = [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md)** (Repo-Root). Dort stehen alle
+> Repo-Fakten, die verbindlichen Entscheidungen und die Meilensteine M0–M5. Dieser Anhang ist die
+> Kurzfassung/Verankerung im Gesamtplan. **Branch `PushNot`**. Beim Bauen stand die DB auf **v5**;
+> seit dem Merge von `DeviceSync` (Hangboard-Umbau v6, Sync v7) hängt das Feature an **v7→v8** —
+> siehe C.3.
+
+## C.0 Ziel & Nicht-Ziele
+
+**Ziel (Variante B, bewusst gewählt gegen automatisches Gym-Discovery):** Die manuelle Gym-Liste
+bleibt. Die App lernt **wann/wie oft** der Nutzer in welcher Halle war und schickt eine
+**Push-Benachrichtigung „Session starten?"**, wenn Nähe zu einer hinterlegten Halle erkannt wird —
+auch bei geschlossener App.
+
+**Nicht-Ziele:** kein Karten-/POI-Discovery, kein Auto-Anlegen von Gyms, kein Server/Cloud, kein
+Bewegungs-Live-Tracking, keine Social-Features.
+
+## C.1 Verbindliche Entscheidungen (mit Deniz geklärt 2026-07-07)
+
+1. **Koordinaten:** Standort-Button „aktuellen Standort übernehmen" im Gym-Editor (FusedLocation).
+   Kein Maps-SDK/API-Key/Geocoding.
+2. **Erkennung:** Android Geofencing-API + `ACCESS_BACKGROUND_LOCATION` (nicht nur Foreground-Polling).
+3. **Push-Politik:** smart — gedrosselt (max 1×/Tag pro Gym, Cooldown), unterdrückt bei aktiver/
+   kürzlich beendeter Session, musterbewusst; nicht bei jeder Ankunft.
+4. **Besuch =** Geofence-Ankunft (DWELL) **und** Session-Start; Tages-Dedupe.
+
+## C.2 Wichtigster Repo-Fakt (Ausgangslage — inzwischen abgearbeitet)
+
+**Es gab keine Gym-Verwaltungs-UI** — Gyms entstanden implizit „find-or-create by name"
+(`SessionErstellenViewModel`), `GymEntity` hatte nur `name` + Freitext-`location`. Der **Gym-Editor
+(Liste + Bearbeiten + Standort-Button) war Teil des Auftrags** (M1). Details + alle weiteren
+Repo-Anker in [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md).
+
+**Nachtrag:** Das freie Textfeld beim Session-Anlegen blieb dabei zunächst stehen und war die letzte
+Stelle, an der eine Halle ihre Identität verlieren konnte — ein abgewandelter Name legte eine
+zweite, koordinatenlose Halle an, und die Näherungs-Politik sah für die eigentliche nie eine
+Session. Seit dem Umbau auf eine **Auswahl bestehender Hallen** (Chips, zuletzt benutzte zuerst)
+reicht der Screen eine `gymId` weiter statt eines Textes.
+
+„+ Neue Halle" führt dabei in **denselben Gym-Editor** wie aus den Einstellungen, nicht in ein
+Namensfeld: eine Halle soll beim Anlegen dieselben Felder bekommen wie beim Bearbeiten — sonst
+entstehen wieder Hallen, denen alles fehlt außer dem Namen, und der Näherungs-Push hätte nichts,
+woran er ansetzen könnte. Die neu angelegte Halle kommt über den `savedStateHandle` zurück
+(Muster wie `KAMERA_ERGEBNIS`) und ist danach ausgewählt. Implizit entstehen Hallen seitdem
+nirgends mehr.
+
+**Löschen (DB v10):** Hallen sind im Editor löschbar. Dafür mussten zwei `CASCADE` weichen, die
+beim Aufräumen einer Hallenliste Trainingshistorie vernichtet hätten: `session.gymId` hätte alle
+Sessions der Halle und über sie jeden Boulder mitgenommen, `grade_system.gymId` das
+hallenspezifische Gradsystem samt Graden — womit weiterhin existierende Boulder ihre Schwierigkeit
+verloren hätten. Beide sind jetzt `SET NULL`; die Session trägt den Hallennamen als Schnappschuss
+(`session.gymName`) und weiß damit weiterhin, wo sie war. Angezeigt wird `gym?.name ?: gymName`,
+zentral in `SessionEntity.hallenName` — so schlagen Umbenennungen weiter durch, solange es die
+Halle gibt.
+
+Dazu trägt jede Halle ein **Standard-Gradsystem** (`gym.defaultGradeSystemId`, DB v9), das beim
+Session-Anlegen vorgewählt wird. Es ist ein Vorschlag, keine Bindung: die Auswahl in der Session
+bleibt frei (Moonboard u.Ä.), und nur ein Hallenwechsel setzt sie auf den Vorschlag der neuen
+Halle zurück. Die Spalte hat bewusst **keinen Fremdschlüssel** — `grade_system.gymId` zeigt bereits
+zurück auf `gym`, ein Bezug in die Gegenrichtung machte aus dem Abgleichs-Baum einen Zyklus
+(Begründung in `GymEntity` und `sync/Standtabellen.kt`).
+
+## C.3 Datenmodell (DB v7→v8, echte Migration)
+
+> Ursprünglich als v5→v6 destruktiv geplant und so gebaut. `DeviceSync` hatte dieselbe **6** parallel
+> für den Hangboard-Umbau vergeben — auf einem Gerät, das beide Stände sah, verglich Room nur die
+> Nummer, ließ keine Migration laufen und stürzte an der Hash-Prüfung ab. Seit dem Merge ist das
+> Feature **v7→v8** mit `MIGRATION_7_8` in `Migrations.kt`; einen destruktiven Fallback gibt es
+> seit dem Geräte-Abgleich nicht mehr.
+
+- `GymEntity` +`latitude/longitude: Double?`, `geofenceRadiusMeters: Int = 150`,
+  `proximityAlertsEnabled: Boolean = true`.
+- Neue `GymVisitEntity(gymId FK CASCADE, timestamp, source "GEOFENCE"|"SESSION")`.
+- `GymVisitStats` (pure Kotlin, JVM-testbar): Histogramme Wochentag/Stunde, `isTypicalSlot(now)`.
+
+## C.4 Reihenfolge / Meilensteine (jeder = grüner Build = ein Commit)
+
+- **M0** Datenmodell + `GymVisitStats`-Logik (DB v8, Schema-Export). JVM- + DAO-Tests.
+- **M1** Gym-Verwaltungs-Screen + „Standort übernehmen" + Foreground-Permission-Flow.
+- **M2** `GeofenceManager` + `GeofenceBroadcastReceiver` + Boot-Re-Register + Background-Permission +
+  Manifest + Master-Toggle.
+- **M3** Besuchs-Logging (Geofence-DWELL + Session-Start, Tages-Dedupe) + Stats ans UI.
+- **M4** Notification-Channel + Deep-Link (SessionErstellen vorbefüllt, Muster wie Widget-Intent) +
+  `ProximityNotificationPolicy` (pure, JVM-testbar) + Cooldown-Persistenz.
+- **M5** Verifikation echtes Gerät + Kalibrierung (Radius/Cooldown/loiteringDelay).
+
+Baue die **pure Logik** (Stats, Policy) früh und teste sie hart in der JVM — das ist der ohne
+Hardware demonstrierbar korrekte Kern; Geofencing/Notification drumherum sind dünne Adapter.
+
+## C.5 MUSS vor/bei M5 mit Deniz geklärt/getestet werden
+
+> Konkrete Abläufe dafür: **[`PUSHNOT_TESTEN.md`](PUSHNOT_TESTEN.md)**.
+
+1. **Hardware/echter Standort:** ~~nur mit echtem Standortwechsel prüfbar~~ — **erledigt als
+   Annahme**: der Geofence wird mit `INITIAL_TRIGGER_DWELL` registriert, ein Gerät *innerhalb* des
+   Radius löst also beim Registrieren aus. Eine Halle mit den eigenen Wohnungskoordinaten ist damit
+   ein vollwertiger Testfall ohne Fahrt und ohne Mock-Location (Workflow 1). Die *Ankunft* von
+   draußen braucht weiter einen bewegten Standort → Emulator mit Play Services (Workflow 2).
+2. **Hintergrund-Verhalten:** Doze / geschlossene App / Hersteller-Akku-Killer sind geräteabhängig —
+   evtl. Batterieoptimierung-Ausnahme; nur am echten Gerät seriös testbar. **Bleibt offen.**
+3. **Kalibrierung:** finaler Radius (Start 150 m), `loiteringDelay`, Cooldown-Länge, Definition
+   „typischer Slot" — empirisch, nicht raten. Als benannte Default-Konstanten mit Kommentar.
+   **Bleibt offen** — die Tabelle in PUSHNOT_TESTEN.md listet alle sechs Schrauben mit Fundort.
+4. **Cooldown-Persistenz:** DataStore-Key pro Gym vs. `lastNotifiedAt`-Spalte auf `GymEntity` —
+   **entschieden**: DataStore-Key `gym_notified_<id>` (Begründung in `ProximityPushStateStore`).

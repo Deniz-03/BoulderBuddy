@@ -4,9 +4,11 @@ import android.content.Context
 import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
+import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.ui.model.istGetoppt
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -27,6 +29,22 @@ data class WidgetData(
     val sessionTops: Int = 0,
     /** Tops über alle Sessions (Motivations-Zahl, auch ohne aktive Session sinnvoll). */
     val totalTops: Int = 0,
+    /**
+     * Der Dark-Mode-Schalter aus den Einstellungen; `null` = dem System folgen (7.4a).
+     *
+     * **Hier steht der Override, nicht das fertige Theme** — und das ist der Kern der Sache.
+     * Ein Widget zeichnet nicht selbst: es liefert RemoteViews, die der LAUNCHER auflöst.
+     * Ein hier ausgerechnetes „dunkel/hell" wäre ein fester Farbwert, und der bleibt stehen,
+     * wenn das System sein Theme wechselt — die Widget-Daten haben ja keinen Grund, neu zu
+     * emittieren. Genau das war am Gerät zu sehen: alles ringsum wurde dunkel, das Widget
+     * blieb cremefarben.
+     *
+     * Die Unterscheidung „gesetzt / nicht gesetzt" muss deshalb bis in die Farbwahl
+     * durchgereicht werden (siehe `BoulderWidget`): ohne Override Farbressourcen, die der
+     * Launcher live gegen `values-night` auflöst; mit Override feste Werte, die genau das
+     * nicht tun sollen.
+     */
+    val darkModeOverride: Boolean? = null,
 )
 
 /**
@@ -51,6 +69,7 @@ interface WidgetEntryPoint {
     fun sessionRepository(): SessionRepository
     fun routeRepository(): RouteRepository
     fun gymRepository(): GymRepository
+    fun settingsRepository(): SettingsRepository
 }
 
 /**
@@ -71,6 +90,7 @@ fun observeWidgetData(context: Context): Flow<WidgetData> {
         entryPoint.routeRepository().observeAll(),
         entryPoint.sessionRepository().observeActive(),
         entryPoint.gymRepository().observeAll(),
+        entryPoint.settingsRepository().darkMode,
         ::buildWidgetData,
     )
 }
@@ -80,17 +100,26 @@ internal fun buildWidgetData(
     routes: List<RouteEntity>,
     active: SessionEntity?,
     gyms: List<GymEntity>,
+    darkModeOverride: Boolean? = null,
 ): WidgetData {
     val totalTops = routes.count { it.status.istGetoppt }
-    if (active == null) return WidgetData(hasActiveSession = false, totalTops = totalTops)
+    if (active == null) {
+        return WidgetData(
+            hasActiveSession = false,
+            totalTops = totalTops,
+            darkModeOverride = darkModeOverride,
+        )
+    }
 
     val sessionRoutes = routes.filter { it.sessionId == active.id }
     return WidgetData(
         hasActiveSession = true,
-        gymName = gyms.firstOrNull { it.id == active.gymId }?.name ?: "Aktive Session",
+        gymName = active.hallenName { id -> gyms.firstOrNull { it.id == id }?.name }
+            ?: "Aktive Session",
         activeSessionId = active.id,
         routeCount = sessionRoutes.size,
         sessionTops = sessionRoutes.count { it.status.istGetoppt },
         totalTops = totalTops,
+        darkModeOverride = darkModeOverride,
     )
 }

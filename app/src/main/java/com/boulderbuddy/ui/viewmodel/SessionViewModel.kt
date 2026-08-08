@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
+import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
 import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import com.boulderbuddy.data.db.entity.RouteEntity
@@ -101,7 +102,8 @@ class SessionViewModel @AssistedInject constructor(
         val session = sessions.firstOrNull { it.id == sessionId }
             ?: return@combine SessionUiState(loading = false, exists = false)
         buildState(session, routes, grades.associateBy { it.id }, hangboardWorkouts,
-            gymName = gyms.firstOrNull { it.id == session.gymId }?.name ?: "Unbekannte Halle")
+            gymName = session.hallenName { id -> gyms.firstOrNull { it.id == id }?.name }
+                ?: "Unbekannte Halle")
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -111,13 +113,16 @@ class SessionViewModel @AssistedInject constructor(
     /**
      * Schreibt die Session-Notiz zurück. Leerer Text wird zu `null` normalisiert, damit
      * "keine Notiz" nur eine Repräsentation hat.
+     *
+     * Wird bei **jedem Tastendruck** gerufen (siehe `AlteSessionScreen`) und schreibt deshalb
+     * mit einer einzelnen `UPDATE`-Anweisung, statt die Zeile zu laden und zurückzuschreiben.
+     * Der frühere Weg — nur beim Fokusverlust speichern — sah sparsamer aus, verlor die Notiz
+     * aber vollständig: den Screen verlässt man über Zurück, und dabei entsteht kein
+     * Fokuswechsel mehr, der noch etwas hätte auslösen können.
      */
     fun updateNotes(notes: String) {
         viewModelScope.launch {
-            val session = sessionRepository.getById(sessionId) ?: return@launch
-            val bereinigt = notes.trim().takeIf { it.isNotEmpty() }
-            if (bereinigt == session.notes) return@launch
-            sessionRepository.update(session.copy(notes = bereinigt))
+            sessionRepository.updateNotes(sessionId, notes.trim().takeIf { it.isNotEmpty() })
         }
     }
 

@@ -27,6 +27,9 @@ interface SessionRepository {
     /** Aktualisiert eine bestehende Session (Notizen, Dauer, …). */
     suspend fun update(session: SessionEntity)
 
+    /** Schreibt allein die Notiz; `null` = keine Notiz. */
+    suspend fun updateNotes(sessionId: Int, notes: String?)
+
     /** Beendet die Session, indem `endedAt` gesetzt wird (Default: jetzt). */
     suspend fun endSession(sessionId: Int, endedAt: Long = System.currentTimeMillis())
 }
@@ -44,6 +47,9 @@ class SessionRepositoryImpl @Inject constructor(
     override suspend fun create(session: SessionEntity): Int = sessionDao.insert(session).toInt()
 
     override suspend fun update(session: SessionEntity) = sessionDao.update(session)
+
+    override suspend fun updateNotes(sessionId: Int, notes: String?) =
+        sessionDao.updateNotes(sessionId, notes)
 
     override suspend fun endSession(sessionId: Int, endedAt: Long) =
         sessionDao.endSession(sessionId, endedAt)

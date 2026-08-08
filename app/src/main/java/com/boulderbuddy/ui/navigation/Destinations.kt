@@ -36,9 +36,6 @@ object Timer          // -> HangboardTimerScreen
 object Einstellungen      // -> EinstellungenScreen
 
 @Serializable
-object SessionErstellen   // -> SessionErstellenScreen
-
-@Serializable
 object BoulderUebersicht  // -> BoulderUebersichtScreen
 
 // Ghost Climber (7.5): bewusst Push-Ziel aus den Einstellungen ("Experimental"),
@@ -51,9 +48,24 @@ object GhostClimber       // -> GhostClimberScreen
 @Serializable
 object HangboardHistorie  // -> HangboardHistorieScreen
 
+// Geräte abgleichen (Sync-Plan S7): Push-Ziel aus den Einstellungen. Bewusst kein Tab —
+// es ist eine Wartungsaufgabe, keine tägliche.
+@Serializable
+object Abgleich           // -> AbgleichScreen
+
+// Gym-Verwaltung (Näherungs-Push M1): Liste der Hallen, erreichbar aus den Einstellungen.
+@Serializable
+object GymVerwaltung      // -> GymVerwaltungScreen
+
 // -----------------------------------------------------------------------------
 // Push-Ziele MIT Argument:
 // -----------------------------------------------------------------------------
+
+// gymId gesetzt = Ort-Feld mit dieser Halle vorbefüllen (Gym-Näherungs-Push M4:
+// Notification-Deep-Link). null = normaler Flow (Home/Widget) — bestehende
+// argumentlose Aufrufe laufen dank Default weiter.
+@Serializable
+data class SessionErstellen(val gymId: Int? = null)   // -> SessionErstellenScreen
 
 // Eigener Aufnahme-Screen auf CameraX (7.4d). `auftrag` ist der Name eines
 // CaptureAuftrag-Eintrags — als String, weil @Serializable-Routen keine Enums tragen.
@@ -67,6 +79,14 @@ data class BoulderDetail(val boulderId: Int)   // -> BoulderDetailScreen
 
 @Serializable
 data class Session(val sessionId: Int)         // -> SessionRoute (aktiv/beendet)
+
+// Gym-Editor (Näherungs-Push M1): Name/Adresse + Koordinaten (Standort-Button),
+// Geofence-Radius, Pro-Gym-Erinnerungs-Toggle und das Standard-Gradsystem der Halle.
+// gymId null = neue Halle anlegen. Derselbe Screen für beides — eine Halle soll beim
+// Anlegen dieselben Felder haben wie beim Bearbeiten, sonst entstehen wieder Hallen, denen
+// alles fehlt außer dem Namen.
+@Serializable
+data class GymBearbeiten(val gymId: Int? = null)   // -> GymBearbeitenScreen
 
 // sessionId nullable: Annahme laut Plan ist "mit sessionId", aber die offene Frage
 // (Boulder ohne aktive Session anlegen?) bleibt bewusst offen -> default null.
