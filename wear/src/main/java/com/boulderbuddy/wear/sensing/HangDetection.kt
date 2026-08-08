@@ -28,12 +28,25 @@ data class SensorSample(
 data class HangDetectionConfig(
     /**
      * Achse des Gravitationsvektors, die beim Hängen dominiert (0=x, 1=y, 2=z).
-     * Uhr am gehobenen Arm: die Y-Achse des Geräts zeigt entlang des Unterarms —
-     * hängt der Arm über Kopf, zeigt die Gravitation in Richtung -Y.
+     * Uhr am Handgelenk: die Y-Achse des Geräts (12 Uhr) zeigt entlang des Unterarms
+     * zur Hand — hängt der Arm über Kopf, zeigt sie nach oben.
      */
     val orientationAxis: Int = 1,
-    /** Vorzeichen der Achse beim Hängen (-1 = Gravitation entlang negativer Achse). */
-    val orientationSign: Int = -1,
+    /**
+     * Vorzeichen der Achse beim Hängen (+1 = Gravitation entlang positiver Achse).
+     *
+     * An der echten Aufnahme bestimmt (B.5.3, `hangboard_garmin_2026-08-02.csv`): Android
+     * meldet +g entlang der nach oben zeigenden Achse, beim Hängen zeigt +Y nach oben,
+     * also `gravity_y ≈ +9`. Mit dem umgekehrten Vorzeichen erkennt die Heuristik
+     * stattdessen die **Pausen** — beide Zustände sind „Arm senkrecht und still", der
+     * Fehler ist also nur an echten Daten sichtbar (Test: `invertierte
+     * Orientierungsachse erkennt die Pausen statt der Sätze`).
+     *
+     * Achtung: Wear OS dreht bei „Uhr am anderen Handgelenk / Krone zum Ellenbogen" nur
+     * die *Anzeige*, nicht die Sensorachsen. Für solche Trageweisen kehrt sich das
+     * Vorzeichen um — das gehört langfristig kalibriert statt fest verdrahtet.
+     */
+    val orientationSign: Int = 1,
     /** Mindestanteil der Gravitation (m/s²) entlang der Achse, damit „Arm über Kopf" gilt. */
     val orientationMinG: Float = 6f,
     /** Gleitendes Varianz-Fenster über die lineare Beschleunigung (ms). */
