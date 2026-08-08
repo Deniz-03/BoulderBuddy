@@ -1,15 +1,19 @@
 package com.boulderbuddy.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -21,7 +25,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.PrimaryButton
@@ -37,6 +43,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 import com.boulderbuddy.ui.viewmodel.HalleUi
+import com.boulderbuddy.ui.viewmodel.LaufendeSessionUi
 import com.boulderbuddy.ui.viewmodel.SessionErstellenUiState
 
 
@@ -131,6 +138,10 @@ fun SessionErstellenScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),   // 16dp zwischen den Blöcken
             ) {
+                // Mehrere Sessions gleichzeitig sind erlaubt — aber niemand soll die zweite
+                // aus Versehen anlegen und die erste unbemerkt weiterlaufen lassen.
+                state.laufende?.let { LaufendeSessionHinweis(it) }
+
                 /*
                  * Halle: auswählen statt tippen.
                  *
@@ -261,6 +272,46 @@ fun SessionErstellenScreen(
             }
         },
     )
+}
+
+/**
+ * Hinweis, dass schon eine Session läuft.
+ *
+ * Bewusst ein Hinweis und keine Rückfrage: mehrere gleichzeitig sind erlaubt (vormittags
+ * Hangboard, abends Halle), und ein Dialog, den man jedes Mal wegtippt, informiert nach dem
+ * zweiten Mal niemanden mehr. Er blockt deshalb nichts — er nennt nur, was sonst unsichtbar
+ * bliebe: **welche** Session läuft und **seit wann**.
+ */
+@Composable
+private fun LaufendeSessionHinweis(laufende: LaufendeSessionUi) {
+    val text = when {
+        laufende.anzahl > 1 ->
+            "Es laufen bereits ${laufende.anzahl} Sessions. Die letzte: " +
+                "${laufende.gymName.ifBlank { "unbekannte Halle" }}, ${laufende.seit}."
+        laufende.gymName.isBlank() -> "Es läuft bereits eine Session, ${laufende.seit}."
+        else -> "In „${laufende.gymName}“ läuft bereits eine Session, ${laufende.seit}."
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(BoulderBuddy.colors.surfaceCard)
+            .padding(Dimens.paddingM),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Info,
+            contentDescription = null,
+            tint = BoulderBuddy.colors.textTertiary,
+            modifier = Modifier.size(Dimens.iconS),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = BoulderBuddy.colors.textSecondary,
+        )
+    }
 }
 
 @Preview(showBackground = true)

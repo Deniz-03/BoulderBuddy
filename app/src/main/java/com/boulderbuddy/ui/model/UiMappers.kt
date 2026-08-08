@@ -87,6 +87,24 @@ fun formatRelativeDay(millis: Long, today: LocalDate = LocalDate.now()): String 
     }
 }
 
+private val uhrzeitFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
+
+/**
+ * Startzeitpunkt als „seit"-Angabe: heute nur die Uhrzeit, sonst mit dem Tag davor.
+ *
+ * Bewusst der Zeitpunkt und keine laufende Dauer: der Wert wird beim Aufbau des Zustands
+ * berechnet und aktualisiert sich nicht von selbst. Eine Dauer, die stehen bleibt, während die
+ * Zeit weiterläuft, wäre nach ein paar Minuten schlicht falsch — eine Uhrzeit bleibt richtig.
+ */
+fun formatSeit(millis: Long, today: LocalDate = LocalDate.now()): String {
+    val zeit = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
+    val uhrzeit = zeit.format(uhrzeitFormatter)
+    return when (val tag = formatRelativeDay(millis, today)) {
+        "Heute" -> "seit $uhrzeit"
+        else -> "seit $tag, $uhrzeit"
+    }
+}
+
 /**
  * Der Tag einer Session, bei einer laufenden ergänzt um den Hinweis, dass sie noch läuft.
  *
