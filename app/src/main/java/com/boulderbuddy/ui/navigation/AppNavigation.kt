@@ -36,7 +36,6 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.Breite
 import com.boulderbuddy.ui.theme.aktuelleBreite
 import com.boulderbuddy.ui.screens.BoulderDetailRoute
-import com.boulderbuddy.ui.screens.BoulderUebersichtScreen
 import com.boulderbuddy.ui.screens.AbgleichScreen
 import com.boulderbuddy.ui.screens.EinstellungenScreen
 import com.boulderbuddy.ui.screens.GhostClimberScreen
@@ -49,7 +48,6 @@ import com.boulderbuddy.ui.screens.KameraScreen
 import com.boulderbuddy.ui.screens.RouteHinzufuegenScreen
 import com.boulderbuddy.ui.screens.SessionErstellenScreen
 import com.boulderbuddy.ui.screens.SessionRoute
-import com.boulderbuddy.ui.screens.SessionUebersichtScreen
 import com.boulderbuddy.ui.screens.StatistikScreen
 import com.boulderbuddy.ui.viewmodel.BoulderUebersichtViewModel
 import com.boulderbuddy.ui.viewmodel.AbgleichViewModel
@@ -197,29 +195,34 @@ fun AppNavigation(
                         launchSingleTop = true
                     }
                 }
-                if (isWideLayout) {
-                    // Tablet (≥ 600 dp): Liste + Detail nebeneinander. Auswahl, Detail-Navigation
-                    // und Zurück laufen über den Pane-Navigator im SessionsListDetail.
-                    SessionsListDetail(
-                        state = state,
-                        onSetSortMode = viewModel::setSortMode,
-                        onCreateSession = { navController.navigate(SessionErstellen()) },
-                        onOpenBoulderOverview = onOpenBoulderOverview,
-                        onOpenSettings = { navController.navigate(Einstellungen) },
-                        onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
-                        onAddRoute = { sessionId -> navController.navigate(RouteHinzufuegen(sessionId)) },
-                    )
-                } else {
-                    // Phone (Compact): unverändertes Push-Verhalten.
-                    SessionUebersichtScreen(
-                        state = state,
-                        onSetSortMode = viewModel::setSortMode,
-                        onOpenSession = { sessionId -> navController.navigate(Session(sessionId)) },
-                        onCreateSession = { navController.navigate(SessionErstellen()) },
-                        onOpenBoulderOverview = onOpenBoulderOverview,
-                        onOpenSettings = { navController.navigate(Einstellungen) },
-                    )
-                }
+                /*
+                 * **Eine** Ansicht für alle Breiten, nicht zwei.
+                 *
+                 * Vorher hing hier ein `if (isWideLayout)`: breit ein Pane-Layout, schmal ein
+                 * Push-Ziel. Damit gab es zwei Navigationsmodelle für dieselbe Sache — im Pane
+                 * lebt die Auswahl im Pane-Navigator, im Push im Back-Stack. Beim Drehen wechselt
+                 * das Modell, und der Back-Stack trug dann ein Ziel, das im anderen gar nicht
+                 * vorkommt: am Tablet blieb nach „quer → hoch → Session öffnen → quer" ein
+                 * Vollbild-Screen mit Zurück-Pfeil stehen, ohne Liste daneben.
+                 *
+                 * `ListDetailPaneScaffold` erledigt den schmalen Fall längst selbst — es klappt
+                 * unter der Grenze auf einen Pane um, und `SessionsListDetail` blendet den
+                 * Zurück-Pfeil dann wieder ein. Diese Fähigkeit wurde nur nie erreicht, weil die
+                 * Verzweigung vorher abbog.
+                 *
+                 * `Session(sessionId)` bleibt als Route bestehen: Home, Widget und Näherungs-Push
+                 * springen von **außerhalb** dieses Tabs dorthin, und dort ist ein eigener Screen
+                 * richtig ("Zurück führt nach Home").
+                 */
+                SessionsListDetail(
+                    state = state,
+                    onSetSortMode = viewModel::setSortMode,
+                    onCreateSession = { navController.navigate(SessionErstellen()) },
+                    onOpenBoulderOverview = onOpenBoulderOverview,
+                    onOpenSettings = { navController.navigate(Einstellungen) },
+                    onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
+                    onAddRoute = { sessionId -> navController.navigate(RouteHinzufuegen(sessionId)) },
+                )
             }
             composable<Stats> {
                 val viewModel: StatistikViewModel = hiltViewModel()
@@ -417,25 +420,16 @@ fun AppNavigation(
                         launchSingleTop = true
                     }
                 }
-                if (isWideLayout) {
-                    // Tablet: Raster + Detail nebeneinander, wie im Sessions-Tab.
-                    BoulderListDetail(
-                        state = state,
-                        onOpenSessionOverview = onOpenSessionOverview,
-                        onOpenSettings = { navController.navigate(Einstellungen) },
-                        onEditBoulder = { boulderId ->
-                            navController.navigate(RouteHinzufuegen(boulderId = boulderId))
-                        },
-                    )
-                } else {
-                    // Phone (Compact): unverändertes Push-Verhalten.
-                    BoulderUebersichtScreen(
-                        state = state,
-                        onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
-                        onOpenSessionOverview = onOpenSessionOverview,
-                        onOpenSettings = { navController.navigate(Einstellungen) },
-                    )
-                }
+                // Wie im Sessions-Tab: eine Ansicht für alle Breiten. Begründung dort.
+                // `BoulderDetail(boulderId)` bleibt als Route für Sprünge von außerhalb.
+                BoulderListDetail(
+                    state = state,
+                    onOpenSessionOverview = onOpenSessionOverview,
+                    onOpenSettings = { navController.navigate(Einstellungen) },
+                    onEditBoulder = { boulderId ->
+                        navController.navigate(RouteHinzufuegen(boulderId = boulderId))
+                    },
+                )
             }
             composable<RouteHinzufuegen> { entry ->
                 val viewModel: RouteHinzufuegenViewModel = hiltViewModel()
