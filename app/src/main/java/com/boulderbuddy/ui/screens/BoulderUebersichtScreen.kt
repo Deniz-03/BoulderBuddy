@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -62,12 +63,12 @@ fun BoulderUebersichtScreen(
     onOpenSettings: () -> Unit = {},
 ) {
     // Gewähltes System (null = "Alle Systeme") und Grad (null = "Alle Grade" des Systems).
-    var selectedSystemId by remember { mutableStateOf<Int?>(null) }
-    var selectedGradeId by remember { mutableStateOf<Int?>(null) }
+    var selectedSystemId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var selectedGradeId by rememberSaveable { mutableStateOf<Int?>(null) }
     // Suche: das Feld wird über das Lupen-Icon ein-/ausgeblendet und filtert zusätzlich
     // zu den Grad-Filtern (beides greift gleichzeitig).
-    var searchOpen by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     // Gegen veraltete Auswahl absichern, falls sich die Daten ändern (System/Grad verschwindet).
     val effectiveSystemId = selectedSystemId?.takeIf { id -> state.systems.any { it.id == id } }

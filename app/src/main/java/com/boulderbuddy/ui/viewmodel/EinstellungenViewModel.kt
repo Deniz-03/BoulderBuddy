@@ -5,10 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
-import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.export.SessionExporter
 import com.boulderbuddy.data.repository.GradeRepository
-import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.proximity.GeofenceManager
 import com.boulderbuddy.wearsync.WearConnection
@@ -28,7 +26,7 @@ data class GradeSystemUi(
     val id: Int,
     val name: String,
     val gradeCount: Int,
-    /** `true`, wenn löschbar. Globale Standards (V-Scale/Französisch, `gymId == null`) nicht. */
+    /** `true`, wenn löschbar. Die mitgelieferten Standards (V-Scale/Französisch) sind es nicht. */
     val deletable: Boolean = false,
 )
 
@@ -50,7 +48,6 @@ data class EinstellungenUiState(
 
 @HiltViewModel
 class EinstellungenViewModel @Inject constructor(
-    private val gymRepository: GymRepository,
     private val gradeRepository: GradeRepository,
     private val settingsRepository: SettingsRepository,
     private val sessionExporter: SessionExporter,
@@ -94,8 +91,10 @@ class EinstellungenViewModel @Inject constructor(
                     id = it.id,
                     name = it.name,
                     gradeCount = countBySystem[it.id] ?: 0,
-                    // Globale Standards (gymId == null) sind geschützt, alles andere löschbar.
-                    deletable = it.gymId != null,
+                    // Geschützt ist, was die App mitbringt — nicht, was zufällig keine Halle
+                    // hat. Vorher stand hier `it.gymId != null`, und damit wurde jedes System
+                    // unlöschbar, dessen Halle gelöscht wurde.
+                    deletable = !it.istStandard,
                 )
             },
             selectedGradeSystemId = selectedId,
@@ -174,18 +173,26 @@ class EinstellungenViewModel @Inject constructor(
 
     /**
      * Legt ein neues Custom-Grading-System an. Jedes Label wird zu einem Grad (reine
-     * Schwierigkeit, Reihenfolge = Eingabe-Index). Leere Labels werden ignoriert. Fehlt eine
-     * Halle, wird eine Standard-Halle angelegt, damit das System einen FK-Anker hat.
+     * Schwierigkeit, Reihenfolge = Eingabe-Index). Leere Labels werden ignoriert. Das System
+     * gehört zu keiner Halle — es ist hallenübergreifend wählbar und bleibt löschbar.
      */
     fun createGradeSystem(name: String, labels: List<String>) {
         val cleanName = name.trim()
         val cleanLabels = labels.map { it.trim() }.filter { it.isNotBlank() }
         if (cleanName.isBlank() || cleanLabels.isEmpty()) return
         viewModelScope.launch {
-            val gymId = gymRepository.observeAll().first().firstOrNull()?.id
-                ?: gymRepository.create(GymEntity(name = "Meine Halle"))
+            /*
+             * Ohne Halle. Vorher hing das neue System an der *ersten beliebigen* Halle — und
+             * gab es keine, legte diese Zeile stillschweigend eine namens „Meine Halle" an.
+             * Wer sich eine eigene Skala baute, hatte danach eine Halle in der Verwaltung und
+             * einen Chip im Session-Formular, den er nie angelegt hatte.
+             *
+             * Ein Gradsystem darf ohne Halle bestehen; die Zuordnung zu einer Halle läuft
+             * ohnehin in der Gegenrichtung über `gym.defaultGradeSystemId`. Dass es damit
+             * löschbar bleibt, sichert `istStandard` — nicht mehr `gymId`.
+             */
             val systemId = gradeRepository.createSystem(
-                GradeSystemEntity(gymId = gymId, name = cleanName)
+                GradeSystemEntity(gymId = null, name = cleanName)
             )
             gradeRepository.createGrades(
                 cleanLabels.mapIndexed { index, label ->

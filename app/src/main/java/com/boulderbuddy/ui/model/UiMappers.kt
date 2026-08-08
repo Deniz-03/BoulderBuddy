@@ -87,6 +87,42 @@ fun formatRelativeDay(millis: Long, today: LocalDate = LocalDate.now()): String 
     }
 }
 
+private val uhrzeitFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
+
+/**
+ * Startzeitpunkt als „seit"-Angabe: heute nur die Uhrzeit, sonst mit dem Tag davor.
+ *
+ * Bewusst der Zeitpunkt und keine laufende Dauer: der Wert wird beim Aufbau des Zustands
+ * berechnet und aktualisiert sich nicht von selbst. Eine Dauer, die stehen bleibt, während die
+ * Zeit weiterläuft, wäre nach ein paar Minuten schlicht falsch — eine Uhrzeit bleibt richtig.
+ */
+fun formatSeit(millis: Long, today: LocalDate = LocalDate.now()): String {
+    val zeit = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault())
+    val uhrzeit = zeit.format(uhrzeitFormatter)
+    return when (val tag = formatRelativeDay(millis, today)) {
+        "Heute" -> "seit $uhrzeit"
+        else -> "seit $tag, $uhrzeit"
+    }
+}
+
+/**
+ * Der Tag einer Session, bei einer laufenden ergänzt um den Hinweis, dass sie noch läuft.
+ *
+ * Vorher stand an beiden Aufrufstellen fest verdrahtet „Heute · läuft gerade" — der Tag wurde
+ * für eine laufende Session gar nicht erst angesehen. Eine Session, die man abends startet und
+ * nicht beendet, behauptete damit auch drei Tage später noch, sie sei von heute. Am Gerät mit
+ * einer zwei Tage alten, weiterhin laufenden Session nachgestellt: Home und die Sessions-Liste
+ * sagten „Heute", die Detailansicht rechnete daneben korrekt „Läuft · 48:33 h".
+ */
+fun formatSessionTag(
+    millis: Long,
+    laeuftNoch: Boolean,
+    today: LocalDate = LocalDate.now(),
+): String {
+    val tag = formatRelativeDay(millis, today)
+    return if (laeuftNoch) "$tag · läuft gerade" else tag
+}
+
 /**
  * Dauer in Millisekunden als kurze Stundenangabe, z.B. "1.5h". Unter einer Stunde
  * werden Minuten gezeigt ("45min").

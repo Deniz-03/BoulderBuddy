@@ -288,8 +288,14 @@ class MigrationTest {
             }
 
             // Und der eigentliche Zweck: das Löschen darf die Historie nicht mitnehmen.
-            // Room hat die Fremdschlüssel in `onOpen` eingeschaltet, das DELETE greift also
-            // mit denselben Regeln wie in der App.
+            //
+            // Die Fremdschlüssel müssen hier von Hand eingeschaltet werden. Der Kommentar an
+            // dieser Stelle behauptete, Room habe das in `onOpen` schon getan — das gilt aber
+            // nur für eine über Room geöffnete Datenbank, nicht für die rohe, die
+            // `runMigrationsAndValidate` zurückgibt. Ohne dieses PRAGMA lief das DELETE ohne
+            // jede Regel durch, `gymId` blieb auf einer Halle stehen, die es nicht mehr gab,
+            // und der Test schlug ausgerechnet an der Zusage fehl, die er absichern soll.
+            db.execSQL("PRAGMA foreign_keys = ON")
             db.execSQL("DELETE FROM gym WHERE id = 1")
 
             db.query("SELECT gymId, gymName FROM session WHERE id = 1").use { c ->
@@ -307,10 +313,66 @@ class MigrationTest {
         }
     }
 
+    /**
+     * v11 trennt „gehört zur App" von „hat keine Halle".
+     *
+     * Der Fall, der die Unterscheidung nötig machte, steht als dritte Zeile im Test: ein System,
+     * dessen Halle gelöscht wurde. Es hat danach `gymId IS NULL` wie ein Standard — darf aber
+     * löschbar bleiben.
+     */
+    @Test
+    fun v10_zu_v11_schuetzt_nur_die_mitgelieferten_standards() {
+        helper.createDatabase(TEST_DB, 10).use { db ->
+            db.execSQL(
+                "INSERT INTO gym (id, name, location, latitude, longitude, " +
+                    "geofenceRadiusMeters, proximityAlertsEnabled, defaultGradeSystemId) " +
+                    "VALUES (1, 'Boulderwelt', NULL, NULL, NULL, 150, 1, NULL)",
+            )
+            // Mitgeliefert, ohne Halle → geschützt.
+            db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (2, NULL, 'V-Scale')")
+            // Eigenes System an einer Halle → löschbar.
+            db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (10, 1, 'Hausfarben')")
+            // Eigenes System, dessen Halle es nicht mehr gibt → sieht aus wie ein Standard,
+            // ist aber keiner.
+            db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (11, NULL, 'Kellerwand')")
+        }
+
+        helper.runMigrationsAndValidate(TEST_DB, 11, true, *ALLE_MIGRATIONEN).use { db ->
+            fun istStandard(id: Int): Int =
+                db.query("SELECT istStandard FROM grade_system WHERE id = $id").use { c ->
+                    assertThat(c.moveToFirst()).isTrue()
+                    c.getInt(0)
+                }
+
+            assertThat(istStandard(2)).isEqualTo(1)
+            assertThat(istStandard(10)).isEqualTo(0)
+            assertThat(istStandard(11)).isEqualTo(0)
+        }
+    }
+
+    /**
+     * Der Standardwert steht seit v11 auch im SQL-Schema, nicht nur in der Entity. Das ist die
+     * Lehre aus den `NOT NULL`-Fallen dieses Projekts: ein `INSERT`, der die Spalte auslässt,
+     * darf nicht scheitern — sonst bricht wieder ein Seed, eine Fixture oder ein Abgleich von
+     * einem Gerät mit älterem Spaltensatz.
+     */
+    @Test
+    fun v11_erlaubt_ein_insert_ohne_istStandard() {
+        helper.createDatabase(TEST_DB, 10).use { }
+        helper.runMigrationsAndValidate(TEST_DB, 11, true, *ALLE_MIGRATIONEN).use { db ->
+            db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (20, NULL, 'Ohne Flag')")
+
+            db.query("SELECT istStandard FROM grade_system WHERE id = 20").use { c ->
+                assertThat(c.moveToFirst()).isTrue()
+                assertThat(c.getInt(0)).isEqualTo(0)
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
 
         /** Mitziehen, wenn die Schema-Version steigt — hier steht das Ziel des Voll-Durchlaufs. */
-        const val NEUESTE = 10
+        const val NEUESTE = 11
     }
 }

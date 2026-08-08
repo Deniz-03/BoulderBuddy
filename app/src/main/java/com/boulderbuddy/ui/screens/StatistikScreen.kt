@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -81,7 +82,7 @@ fun StatistikScreen(
     val activity = state.activity
 
     // Gewähltes System für die Grade-Verteilung (Default: erstes System mit Tops).
-    var selectedSystemId by remember { mutableStateOf<Int?>(null) }
+    var selectedSystemId by rememberSaveable { mutableStateOf<Int?>(null) }
     val effectiveSystemId = selectedSystemId?.takeIf { id -> state.distributionSystems.any { it.id == id } }
         ?: state.distributionSystems.firstOrNull()?.id
     val gradeDistribution = effectiveSystemId?.let { state.distributionBySystem[it] }.orEmpty()
@@ -89,7 +90,7 @@ fun StatistikScreen(
     // Körnung der beiden Verlaufs-Diagramme. Ein gemeinsamer Umschalter für beide: sie
     // beantworten dieselbe Frage aus zwei Richtungen ("wie viel" und "wie schwer"), und zwei
     // getrennte Regler nebeneinander würde man unweigerlich gegeneinander verstellen.
-    var zeitraum by remember { mutableStateOf(Zeitraum.Woche) }
+    var zeitraum by rememberSaveable { mutableStateOf(Zeitraum.Woche) }
     val routenVerlauf = state.routenVerlauf[zeitraum].orEmpty()
     val gradVerlauf = effectiveSystemId
         ?.let { state.gradVerlauf[zeitraum]?.get(it) }

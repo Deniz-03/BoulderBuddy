@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.theme.spaltenFuer
 import com.boulderbuddy.ui.viewmodel.HangboardWorkoutUi
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
@@ -112,7 +113,18 @@ fun SessionDetailScreen(
         },
         content = { _ ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    /*
+                     * Auch als Vollbild-Ziel eine lesbare Spalte.
+                     *
+                     * Im Detail-Pane des Tablets begrenzt der Pane die Breite von selbst — als
+                     * Sprungziel von Home, Widget oder Näherungs-Push füllt derselbe Screen aber
+                     * das ganze Fenster. Am 1280-dp-Tablet stand „Session beenden" dann als
+                     * 2500 px breiter Balken da. Die anderen Detail-Screens (AlteSession,
+                     * BoulderDetail) machen das längst; hier fehlte es als einzigem.
+                     */
+                    .inhaltsBreite(),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,

@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -201,12 +202,12 @@ fun EinstellungenScreen(
 
     // Steuert die Grading-Dialoge (Standard wählen / anlegen / verwalten).
     var showGradingDialog by remember { mutableStateOf(false) }
-    var showCreateGradingDialog by remember { mutableStateOf(false) }
+    var showCreateGradingDialog by rememberSaveable { mutableStateOf(false) }
     var showManageGradingDialog by remember { mutableStateOf(false) }
     // Zu löschendes System (Bestätigung); null = kein Löschdialog offen.
     var pendingDelete by remember { mutableStateOf<GradeSystemUi?>(null) }
     // Dialog zum Ändern des Anzeigenamens (Home-Begrüßung).
-    var showNameDialog by remember { mutableStateOf(false) }
+    var showNameDialog by rememberSaveable { mutableStateOf(false) }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -485,7 +486,7 @@ private fun NameAendernDialog(
     onSave: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var name by remember { mutableStateOf(current) }
+    var name by rememberSaveable { mutableStateOf(current) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -582,7 +583,7 @@ private fun GradingSystemAnlegenDialog(
     onCreate: (String, List<String>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
     // Start mit zwei leeren Zeilen; weitere per "Grad hinzufügen".
     val labels = remember { mutableStateListOf("", "") }
 

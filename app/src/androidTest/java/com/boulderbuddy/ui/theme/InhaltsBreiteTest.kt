@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.assertLeftPositionInRootIsEqualTo
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -54,14 +53,30 @@ class InhaltsBreiteTest {
     private val fensterBreite = 1280.dp
     private val grenze = 600.dp
     private val kind = "kind"
+    private val fenster = "fenster"
 
     /** Rendert [inhalt] in einem Fenster fester Breite. */
     private fun imFenster(breite: Dp = fensterBreite, inhalt: @Composable () -> Unit) {
         composeRule.setContent {
             BoulderBuddyTheme {
-                Box(Modifier.requiredWidth(breite)) { inhalt() }
+                Box(Modifier.requiredWidth(breite).testTag(fenster)) { inhalt() }
             }
         }
+    }
+
+    /**
+     * Linke Kante des Kindes **relativ zum erzwungenen Fenster**, nicht zur Bildschirmwurzel.
+     *
+     * Der Unterschied ist der ganze Punkt: `requiredWidth(1280.dp)` erzwingt die Breite auch
+     * auf einem schmaleren Gerät, das Fenster wird dann aber in der Wurzel zentriert und
+     * beginnt links davon — auf einem 411-dp-Telefon bei (411 − 1280) / 2 = −434 dp. Gegen die
+     * Wurzel gemessen kamen die Erwartungen 340 dp und 0 dp deshalb nur auf einem Tablet
+     * heraus, und der Test schlug auf dem Telefon fehl, obwohl das Layout stimmte.
+     */
+    private fun linkeKanteImFenster(): Float {
+        val rahmen = composeRule.onNodeWithTag(fenster).getUnclippedBoundsInRoot()
+        val inhalt = composeRule.onNodeWithTag(kind).getUnclippedBoundsInRoot()
+        return (inhalt.left - rahmen.left).value
     }
 
     /** Ein Kind, das sich nimmt, was der Container ihm erlaubt — wie eine Karte im Screen. */
@@ -86,7 +101,7 @@ class InhaltsBreiteTest {
         }
 
         // (1280 − 600) / 2 = 340
-        composeRule.onNodeWithTag(kind).assertLeftPositionInRootIsEqualTo(340.dp)
+        assertThat(linkeKanteImFenster()).isWithin(1f).of(340f)
     }
 
     @Test
@@ -95,7 +110,7 @@ class InhaltsBreiteTest {
             Box(Modifier.inhaltsBreite(grenze, ausrichtung = Alignment.Start)) { FuellendesKind() }
         }
 
-        composeRule.onNodeWithTag(kind).assertLeftPositionInRootIsEqualTo(0.dp)
+        assertThat(linkeKanteImFenster()).isWithin(1f).of(0f)
     }
 
     @Test

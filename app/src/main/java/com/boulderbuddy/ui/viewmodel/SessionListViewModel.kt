@@ -9,6 +9,7 @@ import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.model.formatRelativeDay
+import com.boulderbuddy.ui.model.formatSessionTag
 import com.boulderbuddy.ui.model.istGetoppt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -102,7 +103,7 @@ class SessionListViewModel @Inject constructor(
             SessionListItemUi(
                 id = session.id,
                 gym = session.hallenName { gymsById[it]?.name } ?: "Unbekannte Halle",
-                date = if (isActive) "Heute · läuft gerade" else formatRelativeDay(session.date),
+                date = formatSessionTag(session.date, laeuftNoch = isActive),
                 accentColor = accentColorFor(sessionRoutes),
                 badges = badges,
                 isActive = isActive,

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -36,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +53,7 @@ import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.appendSpokenNote
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
+import com.boulderbuddy.ui.theme.inhaltsAbstandMitTastatur
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.aktuelleBreite
@@ -93,21 +94,26 @@ fun RouteHinzufuegenScreen(
         return
     }
 
-    // Formularfelder aus den Startwerten initialisieren. remember(initial) neu-keyed, sobald
-    // im Edit-Fall die geladenen Werte eintreffen → Vorbefüllung greift.
+    // Formularfelder aus den Startwerten initialisieren. Der Schlüssel `initial` sorgt dafür,
+    // dass sie neu gesetzt werden, sobald im Edit-Fall die geladenen Werte eintreffen —
+    // die Vorbefüllung greift damit auch dann, wenn sie später kommt als der erste Frame.
+    //
+    // `rememberSaveable` und nicht `remember`: sonst war ein halb ausgefülltes Formular nach
+    // dem Drehen leer. Am Gerät geprüft war das im Session-Formular, hier trifft es dieselbe
+    // Konstruktion — nur mit mehr Feldern, die dabei verlorengehen.
     val initial = state.initial
-    var sektor by remember(initial) { mutableStateOf(initial.sektor) }
-    var name by remember(initial) { mutableStateOf(initial.name) }
-    var notiz by remember(initial) { mutableStateOf(initial.notiz) }
-    var versuche by remember(initial) { mutableIntStateOf(initial.attempts) }
+    var sektor by rememberSaveable(initial) { mutableStateOf(initial.sektor) }
+    var name by rememberSaveable(initial) { mutableStateOf(initial.name) }
+    var notiz by rememberSaveable(initial) { mutableStateOf(initial.notiz) }
+    var versuche by rememberSaveable(initial) { mutableIntStateOf(initial.attempts) }
     // Status als 2 Zustände: Geschafft = SENT, Projekt = PROJECT. Flash wird beim Anzeigen abgeleitet.
-    var geschafft by remember(initial) { mutableStateOf(initial.status == RouteStatus.SENT) }
-    var selectedGradeId by remember(initial) { mutableStateOf(initial.gradeId) }
+    var geschafft by rememberSaveable(initial) { mutableStateOf(initial.status == RouteStatus.SENT) }
+    var selectedGradeId by rememberSaveable(initial) { mutableStateOf(initial.gradeId) }
     // Route-Farbe (Farb-Key), von der Schwierigkeit entkoppelt — dient nur dem Wiedererkennen.
-    var colorKey by remember(initial) { mutableStateOf(initial.color) }
+    var colorKey by rememberSaveable(initial) { mutableStateOf(initial.color) }
 
     // Gewähltes Foto/Video (content-URI als String); null = noch keins gewählt.
-    var mediaUri by remember(initial) { mutableStateOf(initial.mediaUri) }
+    var mediaUri by rememberSaveable(initial) { mutableStateOf(initial.mediaUri) }
     // Medientyp aus der URI abgeleitet (kein DB-Feld, Phase 7.3c) — steuert die Vorschau.
     val isVideo = remember(mediaUri) { mediaTypeOf(context, mediaUri) == MediaType.VIDEO }
     val photoPicker = rememberLauncherForActivityResult(
@@ -318,7 +324,7 @@ fun RouteHinzufuegenScreen(
                 Row(
                     modifier = Modifier
                         .inhaltsBreite(Dimens.spaltenBreiteWeit)
-                        .navigationBarsPadding()
+                        .inhaltsAbstandMitTastatur()
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = Dimens.paddingL, vertical = Dimens.paddingL),
                     horizontalArrangement = Arrangement.spacedBy(Dimens.paddingXL),
@@ -337,7 +343,7 @@ fun RouteHinzufuegenScreen(
                     modifier = Modifier
                         // Formularspalte statt Fensterbreite — siehe SessionErstellenScreen.
                         .inhaltsBreite()
-                        .navigationBarsPadding()
+                        .inhaltsAbstandMitTastatur()
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = Dimens.paddingL, vertical = Dimens.paddingL),
                     verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),

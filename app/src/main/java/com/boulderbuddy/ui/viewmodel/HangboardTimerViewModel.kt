@@ -134,6 +134,21 @@ class HangboardTimerViewModel @Inject constructor(
             restSec = restSec.coerceAtLeast(0),
         )
         viewModelScope.launch { settingsRepository.setTimerConfig(config) }
+        /*
+         * Unveränderte Werte lassen den Durchlauf in Ruhe.
+         *
+         * `applyConfig` setzt zurück, und das ist beim Ändern auch richtig — ein Durchlauf mit
+         * halb alten, halb neuen Vorgaben wäre nichts wert. Nur trifft „Übernehmen" auch, wer
+         * den Dialog bloß aufgemacht und wieder bestätigt hat: am Gerät stand der Timer danach
+         * mitten aus Satz 4 heraus wieder auf Satz 1, angehalten, und der Durchlauf war nicht
+         * gespeichert. Ohne Rückfrage, ohne Hinweis.
+         */
+        // `this.` ist hier keine Zierde: die Parameter heißen wie die Felder und verdeckten
+        // sie sonst — der Vergleich prüfte den Parameter gegen sich selbst und wäre immer wahr.
+        val unveraendert = config.sets == totalSets &&
+            config.hangSec == this.hangSec &&
+            config.restSec == this.restSec
+        if (unveraendert) return
         applyConfig(config)
     }
 
@@ -191,7 +206,18 @@ class HangboardTimerViewModel @Inject constructor(
             while (running && phase != TimerPhase.DONE) {
                 delay(1000)
                 secondsLeft--
-                if (secondsLeft <= 0) advancePhase()
+                /*
+                 * `while` statt `if`: eine Phase der Länge 0 darf keine Sekunde kosten.
+                 *
+                 * Bei Pause = 0 setzte der Wechsel `secondsLeft` auf 0, und die Schleife wartete
+                 * trotzdem erst die nächste volle Sekunde ab, bevor sie weiterschaltete. Gemessen
+                 * an der von der App selbst protokollierten Laufzeit: 3 Sätze à 2 s ohne Pause
+                 * brauchten 8,1 s statt 6 — je Null-Pause exakt eine Sekunde zu viel.
+                 *
+                 * Terminiert immer, weil `hangSec` mindestens 1 ist (siehe [updateConfig]): jede
+                 * zweite Phase hat damit eine echte Dauer.
+                 */
+                while (secondsLeft <= 0 && phase != TimerPhase.DONE) advancePhase()
                 if (phase == TimerPhase.DONE && !recorded) {
                     recorded = true
                     recordWorkout()

@@ -15,6 +15,7 @@ import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.ui.model.formatRelativeDay
+import com.boulderbuddy.ui.model.formatSessionTag
 import com.boulderbuddy.ui.model.istGetoppt
 import com.boulderbuddy.ui.theme.routeColorForKey
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -157,7 +158,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun buildSubtitle(session: SessionEntity, boulderCount: Int): String {
-        val prefix = if (session.endedAt == null) "Heute · läuft gerade" else formatRelativeDay(session.date)
+        val prefix = formatSessionTag(session.date, laeuftNoch = session.endedAt == null)
         return "$prefix · $boulderCount Boulder"
     }
 }

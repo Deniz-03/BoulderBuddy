@@ -30,6 +30,13 @@ data class AutoWorkoutResult(
     val startedAt: Long,
     val endedAt: Long,
     val segments: List<HangSegment>,
+    /**
+     * Ob der Durchlauf beim Phone angekommen ist. `null` = noch unterwegs.
+     *
+     * Steht hier, weil die Uhr Workouts **nirgends lokal ablegt**: ohne Verbindung ist der
+     * Durchlauf weg. Der Screen hat das vorher trotzdem als "An Phone übertragen" gemeldet.
+     */
+    val uebertragen: Boolean? = null,
 )
 
 /** Live-Zustand der laufenden Auto-Erkennung für den Auto-Screen. */
@@ -110,14 +117,15 @@ class AutoHangService : Service(), SensorEventListener {
                 endedAt = endedAt,
                 segments = segments,
             )
-            // Ergebnis ans Phone (§2 Kanal 1) — best effort, Verknüpfung entscheidet das Phone.
+            // Ergebnis ans Phone (§2 Kanal 1). Welche Session es bekommt, entscheidet das
+            // Phone — ob es überhaupt ankommt, muss aber die Uhr wissen und sagen.
             if (segments.isNotEmpty()) {
                 PhoneConnector.sendAutoWorkoutCompleted(
                     context = this,
                     startedAt = startedAtEpoch,
                     endedAt = endedAt,
                     segments = segments.map { it.hangMs to it.restMs },
-                )
+                ) { ok -> _result.value = _result.value?.copy(uebertragen = ok) }
             }
             vibrate(VIBRATE_DONE)
             Log.d(TAG, "Auto-Erkennung beendet: ${segments.size} Sätze.")

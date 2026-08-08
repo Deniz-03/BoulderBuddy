@@ -65,10 +65,17 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                         )
                     }
                     if (result.sets > 0) {
-                        // Best effort (§0 Säule 3): die Session-Verknüpfung entscheidet das Phone.
+                        // Welche Session das Workout bekommt, entscheidet das Phone (§0 Säule 3);
+                        // ob es überhaupt ankam, sagt die Uhr. Vorher stand hier bedingungslos
+                        // "An Phone übertragen" — auch ohne verbundenes Phone, und da die Uhr
+                        // Workouts nirgends lokal ablegt, war der Durchlauf damit weg.
                         item {
                             Text(
-                                text = "An Phone übertragen",
+                                text = when (result.uebertragen) {
+                                    true -> "An Phone übertragen"
+                                    null -> "Wird übertragen…"
+                                    false -> "Nicht übertragen — kein Phone verbunden"
+                                },
                                 style = MaterialTheme.typography.caption2,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),

@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.stateIn
 data class AutoResultUi(
     val sets: Int,
     val hangTimeText: String,
+    /** Ob der Durchlauf beim Phone angekommen ist; `null` = noch unterwegs. */
+    val uebertragen: Boolean? = null,
 )
 
 /** UI-Zustand des Auto-Screens: Live-Status während der Erkennung bzw. Ergebnis danach. */
@@ -72,6 +74,7 @@ class AutoHangViewModel(app: Application) : AndroidViewModel(app) {
                 AutoResultUi(
                     sets = it.segments.size,
                     hangTimeText = format(it.segments.sumOf { s -> s.hangMs } / 1_000),
+                    uebertragen = it.uebertragen,
                 )
             },
         )
