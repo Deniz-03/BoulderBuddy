@@ -40,13 +40,25 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    /**
+     * `false` blockt den Tap **und zeigt das an**.
+     *
+     * Der Parameter kam dazu, weil „Halle anlegen" ohne Namen wortlos nichts tat: `save()`
+     * kehrte bei leerem Namen einfach zurück, der Knopf sah dabei voll aktiv aus wie jeder
+     * andere. Wer nicht ahnte, dass der Name fehlt, tippte ins Leere. Ein Knopf, der nicht
+     * reagiert, muss aussehen, als reagiere er nicht.
+     */
+    enabled: Boolean = true,
 ) {
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = BoulderBuddy.colors.fillStrong,
-        contentColor = BoulderBuddy.colors.onFillStrong,
+        // Gedämpft statt gefüllt: dieselbe Form, aber ohne die Signalwirkung der Füllung.
+        color = if (enabled) BoulderBuddy.colors.fillStrong else BoulderBuddy.colors.surfaceCard,
+        contentColor =
+            if (enabled) BoulderBuddy.colors.onFillStrong else BoulderBuddy.colors.textTertiary,
     ) {
         Row(
             modifier = Modifier.padding(
