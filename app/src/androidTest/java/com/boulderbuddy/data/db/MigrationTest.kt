@@ -288,8 +288,14 @@ class MigrationTest {
             }
 
             // Und der eigentliche Zweck: das Löschen darf die Historie nicht mitnehmen.
-            // Room hat die Fremdschlüssel in `onOpen` eingeschaltet, das DELETE greift also
-            // mit denselben Regeln wie in der App.
+            //
+            // Die Fremdschlüssel müssen hier von Hand eingeschaltet werden. Der Kommentar an
+            // dieser Stelle behauptete, Room habe das in `onOpen` schon getan — das gilt aber
+            // nur für eine über Room geöffnete Datenbank, nicht für die rohe, die
+            // `runMigrationsAndValidate` zurückgibt. Ohne dieses PRAGMA lief das DELETE ohne
+            // jede Regel durch, `gymId` blieb auf einer Halle stehen, die es nicht mehr gab,
+            // und der Test schlug ausgerechnet an der Zusage fehl, die er absichern soll.
+            db.execSQL("PRAGMA foreign_keys = ON")
             db.execSQL("DELETE FROM gym WHERE id = 1")
 
             db.query("SELECT gymId, gymName FROM session WHERE id = 1").use { c ->

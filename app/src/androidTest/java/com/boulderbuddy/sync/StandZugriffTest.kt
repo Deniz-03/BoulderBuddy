@@ -41,11 +41,30 @@ class StandZugriffTest {
         basiertAuf = generation - 1,
     )
 
-    private fun gym(name: String): Zeile =
-        mapOf("name" to Feld.Text(name), "location" to Feld.Leer)
+    /**
+     * Eine Gym-Zeile mit **allen** Spalten, die `STAND_TABELLEN` für `gym` führt.
+     *
+     * Die drei letzten sind nicht schmückendes Beiwerk: `geofenceRadiusMeters` und
+     * `proximityAlertsEnabled` kamen mit v8 dazu und sind `NOT NULL`, ihren Standardwert haben
+     * sie aber **nur in Kotlin**, nicht im SQL-Schema (Begründung in MIGRATION_7_8). Eine
+     * Fixture ohne sie scheitert am `NOT NULL constraint` — dieselbe Falle, die zuvor schon das
+     * Seed erwischt hat. Wer hier eine Spalte ergänzt, ergänzt sie in `Standtabellen.kt` mit.
+     */
+    private fun gym(name: String): Zeile = mapOf(
+        "name" to Feld.Text(name),
+        "location" to Feld.Leer,
+        "latitude" to Feld.Leer,
+        "longitude" to Feld.Leer,
+        "geofenceRadiusMeters" to Feld.Zahl(150),
+        "proximityAlertsEnabled" to Feld.Zahl(1),
+        "defaultGradeSystemId" to Feld.Leer,
+    )
 
+    // `gymName` ist seit v10 NOT NULL und muss deshalb auch hier stehen — leer ist erlaubt,
+    // fehlend nicht.
     private fun session(gymId: Int, datum: Long): Zeile = mapOf(
         "gymId" to Feld.Zahl(gymId.toLong()),
+        "gymName" to Feld.Text(""),
         "gradeSystemId" to Feld.Leer,
         "date" to Feld.Zahl(datum),
         "durationMin" to Feld.Leer,
@@ -80,10 +99,25 @@ class StandZugriffTest {
             .isEqualTo(StandMeta(generation = 1, erzeugtVon = "test-geraet", basiertAuf = 0))
     }
 
-    private fun neueHalle(name: String): Long = sqlite.insert(
+    /**
+     * Legt eine Halle direkt über SQLite an — [ziel] ist standardmäßig die eigene Datenbank,
+     * für den Zwei-Geräte-Fall auch die fremde.
+     *
+     * Wie [gym]: die NOT-NULL-Spalten aus v8 haben ihren Standardwert nur in Kotlin, ein
+     * `ContentValues` ohne sie scheitert am Constraint. Deshalb steht das Einfügen an genau
+     * einer Stelle und nicht dreimal ausgeschrieben.
+     */
+    private fun neueHalle(
+        name: String,
+        ziel: androidx.sqlite.db.SupportSQLiteDatabase = sqlite,
+    ): Long = ziel.insert(
         "gym",
         5, // CONFLICT_REPLACE
-        android.content.ContentValues().apply { put("name", name) },
+        android.content.ContentValues().apply {
+            put("name", name)
+            put("geofenceRadiusMeters", 150)
+            put("proximityAlertsEnabled", 1)
+        },
     )
 
     @Test
@@ -109,16 +143,8 @@ class StandZugriffTest {
             val fremd = andere.openHelper.writableDatabase
             for (t in STAND_TABELLEN.reversed()) fremd.delete(t.name, null, null)
             wendeAn(fremd, gemeinsameZeilen, meta(1), band = 1)
-            obenErste = fremd.insert(
-                "gym",
-                5,
-                android.content.ContentValues().apply { put("name", "neu oben") },
-            )
-            obenZweite = fremd.insert(
-                "gym",
-                5,
-                android.content.ContentValues().apply { put("name", "noch eine oben") },
-            )
+            obenErste = neueHalle("neu oben", fremd)
+            obenZweite = neueHalle("noch eine oben", fremd)
         } finally {
             andere.close()
         }
