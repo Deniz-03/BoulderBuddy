@@ -30,23 +30,22 @@ Wenn nichts kommt, liegt es fast immer an einem Glied hier. Von oben nach unten 
 Punkt 7 gilt global (irgendeine laufende Session unterdrückt jeden Push), Punkt 8 nur für *diese*
 Halle — und daran hängt eine Falle, siehe unten.
 
-### Wie eine Session überhaupt an eine Halle kommt
+### Wie eine Session an eine Halle kommt
 
-Im „Neue Session"-Formular gibt man keine Halle aus einer Liste an, sondern einen **freien Text**.
-`SessionErstellenViewModel.createSession()` macht daraus ein **find-or-create über den Namen**
-(getrimmt, Groß-/Kleinschreibung egal); die Session speichert danach eine echte `gymId`. Punkt 8
-vergleicht also IDs, nicht Strings — aber der Weg dorthin führt über den Namen.
+Im „Neue Session"-Formular wird die Halle **aus den bestehenden ausgewählt** (Chips, zuletzt
+benutzte zuerst); „+ Neue Halle" blendet ein Namensfeld ein. Die Auswahl reicht eine `gymId` nach
+unten, keinen Text — Punkt 8 vergleicht damit dieselbe Identität, die auch der Geofence trägt.
 
-**Die Folge:** wer den vorbefüllten Namen antippt und abändert, legt eine *zweite* Halle ohne
-Koordinaten an. Die gefencte Halle bekommt die Session dann nie, `lastSessionEndedAt` bleibt für sie
-leer, und `POST_SESSION_QUIET` feuert nicht — obwohl man gerade dort trainiert hat. Auch der
-`SESSION`-Besuch landet an der falschen Halle, das gelernte Muster der richtigen wächst also nur
-noch aus Geofence-Ankünften.
+Kommt man über den Notification-Tap, ist die Halle aus dem Deep-Link **vorausgewählt** und gewinnt
+gegen die zuletzt benutzte. Zum Testen von Punkt 8 genügt also: Session starten, beenden, und der
+Fall tritt an der richtigen Halle ein.
 
-Beim normalen Ablauf passiert das nicht: der Deep-Link der Notification füllt das Feld mit dem
-*exakten* Hallennamen vor, unverändert übernommen trifft der Vergleich immer. Fürs Testen heißt
-das: **Session über den Notification-Tap starten oder den Namen exakt aus „Hallen verwalten"
-kopieren**, sonst prüft man Punkt 8 an einer Halle, die gar nicht gemeint war.
+> **Vorher war das anders**, und in älteren Aufzeichnungen taucht es noch auf: bis
+> `SessionErstellenScreen` die Auswahl bekam, stand hier ein freies Textfeld, aus dem per
+> „find-or-create" eine Halle wurde. Ein abgewandelter Name legte unbemerkt eine zweite Halle ohne
+> Koordinaten an — die Session hing dann woanders als der Geofence, und `POST_SESSION_QUIET` trat
+> für die eigentliche Halle nie ein. Wer eine solche Dublette noch in der Datenbank hat, sieht sie
+> in „Hallen verwalten" und kann sie dort löschen.
 
 Punkt 2 ist zweistufig, weil Android es erzwingt: erst der normale Standort-Dialog, dann ein
 *zweiter* Weg über die System-Einstellungen für „Immer erlauben". Die App führt dich da durch,
@@ -182,7 +181,7 @@ Jede Entscheidung lässt sich herstellen. Alle prüfst du an derselben Logcat-Ze
 | `NOTIFY` | Workflow 1, alles sauber |
 | `DISABLED` | Pro-Gym-Toggle aus, Master an → registriert erst gar nicht |
 | `ACTIVE_SESSION` | Session starten, dann Master-Toggle aus/an |
-| `POST_SESSION_QUIET` | Session starten **und beenden**, dann Master-Toggle aus/an (wirkt 3 h). Namen dabei **nicht** ändern — sonst hängt die Session an einer neuen Halle und der Fall tritt nie ein |
+| `POST_SESSION_QUIET` | Session starten **und beenden**, dann Master-Toggle aus/an (wirkt 3 h). Beim Anlegen die gefencte Halle als Chip gewählt lassen, nicht „+ Neue Halle" |
 | `COOLDOWN` | zweiter Durchlauf innerhalb 24 h |
 | `UNTYPICAL_SLOT_COOLDOWN` | braucht ≥ 5 Besuche im Muster — realistisch nur über die Zeit |
 

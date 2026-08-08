@@ -16,7 +16,6 @@ import com.boulderbuddy.ui.navigation.SessionErstellen
 import com.boulderbuddy.widget.refreshBoulderWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -25,15 +24,58 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Anzeige-Zustand des "Neue Session"-Screens: die wählbaren Grading-Systeme. */
+/**
+ * Eine bestehende Halle in der Auswahl — bewusst nur ID und Name.
+ *
+ * Nicht [GymUi] aus der Gym-Verwaltung: die trägt Adresse, Koordinaten-Status und
+ * Erinnerungs-Schalter, und nichts davon gehört in eine Auswahlliste beim Session-Start.
+ */
+data class HalleUi(val id: Int, val name: String)
+
+/**
+ * Welche Halle der Nutzer gewählt hat.
+ *
+ * Als Summentyp statt „ID oder Name, je nachdem": eine bestehende Halle ist über ihre **ID**
+ * bestimmt und kann nicht mehr durch einen abweichenden Text verloren gehen. Nur der
+ * ausdrückliche Neu-Fall reicht einen Namen weiter.
+ */
+sealed interface Hallenwahl {
+    data class Bestehende(val gymId: Int) : Hallenwahl
+    data class Neue(val name: String) : Hallenwahl
+}
+
+/** Anzeige-Zustand des "Neue Session"-Screens: wählbare Hallen + Grading-Systeme. */
 data class SessionErstellenUiState(
     val systems: List<GradeSystemUi> = emptyList(),
     /**
-     * Vorbefüllung des Ort-Felds (Gym-Näherungs-Push M4): Name der Halle aus dem
-     * Notification-Deep-Link (`SessionErstellen(gymId)`); `null` = normaler Flow.
+     * Bestehende Hallen, **zuletzt benutzte zuerst**. Die Reihenfolge ist die eigentliche
+     * Empfehlung: wer klettert, geht meist in dieselbe Halle wie beim letzten Mal.
      */
-    val prefillOrt: String? = null,
+    val gyms: List<HalleUi> = emptyList(),
+    /**
+     * Vorausgewählte Halle: die aus dem Näherungs-Notification-Deep-Link
+     * (`SessionErstellen(gymId)`), sonst die zuletzt benutzte. `null` = es gibt noch keine
+     * Halle, der Screen zeigt dann direkt das Namensfeld.
+     */
+    val vorauswahlGymId: Int? = null,
 )
+
+/**
+ * Sortiert die Hallen nach ihrer letzten Session, neueste zuerst.
+ *
+ * Als eigene Funktion, weil hier die einzige Entscheidung dieses Screens steckt: welche Halle
+ * ganz vorn steht, ist zugleich die Vorauswahl. Ohne Session behält eine Halle die Reihenfolge,
+ * in der sie hereinkommt (alphabetisch aus dem Repository), und landet hinter allen benutzten —
+ * `sortedByDescending` ist stabil, das trägt die Sortierung mit.
+ */
+fun sortiereNachLetzterNutzung(
+    gyms: List<GymEntity>,
+    sessions: List<SessionEntity>,
+): List<GymEntity> {
+    val letzteNutzung = sessions.groupBy { it.gymId }
+        .mapValues { (_, eintraege) -> eintraege.maxOf { it.date } }
+    return gyms.sortedByDescending { letzteNutzung[it.id] ?: Long.MIN_VALUE }
+}
 
 @HiltViewModel
 class SessionErstellenViewModel @Inject constructor(
@@ -46,30 +88,29 @@ class SessionErstellenViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
-    // Gym-Name für die Vorbefüllung (Deep-Link aus der Näherungs-Notification, M4).
-    private val prefillOrtFlow = MutableStateFlow<String?>(null)
+    // Halle aus dem Näherungs-Notification-Deep-Link (M4); null = normaler Aufruf.
+    private val argGymId: Int? = savedStateHandle.toRoute<SessionErstellen>().gymId
 
-    init {
-        val argGymId = savedStateHandle.toRoute<SessionErstellen>().gymId
-        if (argGymId != null) {
-            viewModelScope.launch {
-                prefillOrtFlow.value = gymRepository.getById(argGymId)?.name
-            }
-        }
-    }
-
-    // Reale Grading-Systeme (Standards + Custom) für die Auswahl beim Session-Anlegen.
+    // Reale Hallen + Grading-Systeme (Standards + Custom) für die Auswahl beim Anlegen.
     val uiState: StateFlow<SessionErstellenUiState> = combine(
         gradeRepository.observeAllSystems(),
         gradeRepository.observeAllGrades(),
-        prefillOrtFlow,
-    ) { systems, grades, prefillOrt ->
+        gymRepository.observeAll(),
+        sessionRepository.observeAll(),
+    ) { systems, grades, gyms, sessions ->
         val countBySystem = grades.groupingBy { it.systemId }.eachCount()
+        val sortiert = sortiereNachLetzterNutzung(gyms, sessions)
+
         SessionErstellenUiState(
             systems = systems.map {
                 GradeSystemUi(id = it.id, name = it.name, gradeCount = countBySystem[it.id] ?: 0)
             },
-            prefillOrt = prefillOrt,
+            gyms = sortiert.map { HalleUi(id = it.id, name = it.name) },
+            // Der Deep-Link gewinnt; sonst die zuletzt benutzte Halle. `takeIf` fängt eine
+            // Gym-ID ab, die es nicht (mehr) gibt — sonst stünde eine Auswahl da, zu der kein
+            // Chip gehört.
+            vorauswahlGymId = argGymId?.takeIf { id -> gyms.any { it.id == id } }
+                ?: sortiert.firstOrNull()?.id,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -80,15 +121,34 @@ class SessionErstellenViewModel @Inject constructor(
     /**
      * Legt eine neue, aktive Session an (`endedAt = null`) und meldet die neue ID zurück.
      *
-     * Halle: "find-or-create" über den Namen (case-insensitive). [gradeSystemId] wird auf der
-     * Session gespeichert und steuert später die Grade-Auswahl beim Boulder-Anlegen.
+     * Die Halle kommt als [Hallenwahl]: eine bestehende über ihre ID, eine neue über den Namen.
+     * Vorher trug **jede** Session nur einen freien Text, aus dem hier per "find-or-create" eine
+     * Halle wurde. Ein abgewandelter Name legte damit stillschweigend eine zweite Halle an — die
+     * Session hing danach woanders als der Geofence, und die Näherungs-Politik sah für die
+     * eigentliche Halle nie eine Session ([com.boulderbuddy.proximity.ProximityNotificationPolicy]).
+     *
+     * [gradeSystemId] wird auf der Session gespeichert und steuert später die Grade-Auswahl beim
+     * Boulder-Anlegen.
      */
-    fun createSession(ort: String, gradeSystemId: Int?, notiz: String, onCreated: (Int) -> Unit) {
+    fun createSession(
+        halle: Hallenwahl,
+        gradeSystemId: Int?,
+        notiz: String,
+        onCreated: (Int) -> Unit,
+    ) {
         viewModelScope.launch {
-            val name = ort.trim().ifBlank { "Meine Halle" }
-            val existing = gymRepository.observeAll().first()
-                .firstOrNull { it.name.equals(name, ignoreCase = true) }
-            val gymId = existing?.id ?: gymRepository.create(GymEntity(name = name))
+            val gymId = when (halle) {
+                is Hallenwahl.Bestehende -> halle.gymId
+                is Hallenwahl.Neue -> {
+                    val name = halle.name.trim().ifBlank { "Meine Halle" }
+                    // Auch im Neu-Fall erst suchen: wer den Namen einer bestehenden Halle
+                    // abtippt, meint sie und soll keine Dublette bekommen.
+                    gymRepository.observeAll().first()
+                        .firstOrNull { it.name.equals(name, ignoreCase = true) }
+                        ?.id
+                        ?: gymRepository.create(GymEntity(name = name))
+                }
+            }
 
             val startedAt = System.currentTimeMillis()
             val newId = sessionRepository.create(

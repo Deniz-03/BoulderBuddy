@@ -669,12 +669,19 @@ Bewegungs-Live-Tracking, keine Social-Features.
    kürzlich beendeter Session, musterbewusst; nicht bei jeder Ankunft.
 4. **Besuch =** Geofence-Ankunft (DWELL) **und** Session-Start; Tages-Dedupe.
 
-## C.2 Wichtigster Repo-Fakt
+## C.2 Wichtigster Repo-Fakt (Ausgangslage — inzwischen abgearbeitet)
 
-**Es gibt heute keine Gym-Verwaltungs-UI** — Gyms entstehen implizit „find-or-create by name"
-(`SessionErstellenViewModel`), `GymEntity` hat nur `name` + Freitext-`location`. Der **Gym-Editor
-(Liste + Bearbeiten + Standort-Button) ist Teil des Auftrags** (M1). Details + alle weiteren
+**Es gab keine Gym-Verwaltungs-UI** — Gyms entstanden implizit „find-or-create by name"
+(`SessionErstellenViewModel`), `GymEntity` hatte nur `name` + Freitext-`location`. Der **Gym-Editor
+(Liste + Bearbeiten + Standort-Button) war Teil des Auftrags** (M1). Details + alle weiteren
 Repo-Anker in [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md).
+
+**Nachtrag:** Das freie Textfeld beim Session-Anlegen blieb dabei zunächst stehen und war die letzte
+Stelle, an der eine Halle ihre Identität verlieren konnte — ein abgewandelter Name legte eine
+zweite, koordinatenlose Halle an, und die Näherungs-Politik sah für die eigentliche nie eine
+Session. Seit dem Umbau auf eine **Auswahl bestehender Hallen** (Chips, zuletzt benutzte zuerst,
+plus „+ Neue Halle") reicht der Screen eine `gymId` weiter statt eines Textes; getippt wird nur
+noch, was es wirklich noch nicht gibt.
 
 ## C.3 Datenmodell (DB v7→v8, echte Migration)
 

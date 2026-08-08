@@ -363,8 +363,8 @@ fun AppNavigation(
                     // Session anlegen (Room) und danach zur neuen aktiven Session navigieren;
                     // das Erstellen-Formular wird dabei vom Back-Stack genommen, damit Back von
                     // der Session direkt nach Home führt.
-                    onCreateSession = { ort, gradeSystemId, notiz ->
-                        viewModel.createSession(ort, gradeSystemId, notiz) { newSessionId ->
+                    onCreateSession = { halle, gradeSystemId, notiz ->
+                        viewModel.createSession(halle, gradeSystemId, notiz) { newSessionId ->
                             navController.navigate(Session(newSessionId)) {
                                 // Reified-Variante: matcht die Route unabhängig vom gymId-Argument.
                                 popUpTo<SessionErstellen> { inclusive = true }
