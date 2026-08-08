@@ -3,6 +3,7 @@ package com.boulderbuddy.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
+import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.haptics.HapticPattern
 import com.boulderbuddy.data.haptics.HapticPlayer
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
@@ -266,7 +267,10 @@ class HangboardTimerViewModel @Inject constructor(
                 segments,
             )
             savedTo = if (session != null) {
-                val gymName = gymRepository.getById(session.gymId)?.name
+                // Die Halle vorab laden: `hallenName` nimmt keine suspend-Funktion, die
+                // Auflösungsregel soll aber auch hier nicht ein zweites Mal dastehen.
+                val halle = session.gymId?.let { gymRepository.getById(it) }
+                val gymName = session.hallenName { halle?.name }
                 if (gymName != null) "In Session „$gymName“ gespeichert"
                 else "In aktiver Session gespeichert"
             } else {

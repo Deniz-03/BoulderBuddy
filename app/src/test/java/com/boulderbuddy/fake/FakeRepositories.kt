@@ -139,6 +139,20 @@ class FakeGymRepository : GymRepository {
     override suspend fun update(gym: GymEntity) {
         all.value = all.value.map { if (it.id == gym.id) gym else it }
     }
+
+    /**
+     * Löscht nur die Halle. Die Fremdschlüssel-Folgen (Session behält ihren Namen, Gradsystem
+     * wird global) macht in der echten App SQLite — hier gibt es keine, weil der Fake keine
+     * Sessions kennt.
+     */
+    override suspend fun delete(gymId: Int) {
+        all.value = all.value.filterNot { it.id == gymId }
+    }
+
+    /** Sessions kennt dieser Fake nicht; Tests, die zählen wollen, setzen [sessionCount]. */
+    var sessionCount: Int = 0
+
+    override suspend fun countSessions(gymId: Int): Int = sessionCount
 }
 
 class FakeGradeRepository : GradeRepository {

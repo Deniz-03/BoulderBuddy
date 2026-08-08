@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
+import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
 import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import com.boulderbuddy.data.db.entity.RouteEntity
@@ -101,7 +102,8 @@ class SessionViewModel @AssistedInject constructor(
         val session = sessions.firstOrNull { it.id == sessionId }
             ?: return@combine SessionUiState(loading = false, exists = false)
         buildState(session, routes, grades.associateBy { it.id }, hangboardWorkouts,
-            gymName = gyms.firstOrNull { it.id == session.gymId }?.name ?: "Unbekannte Halle")
+            gymName = session.hallenName { id -> gyms.firstOrNull { it.id == id }?.name }
+                ?: "Unbekannte Halle")
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),

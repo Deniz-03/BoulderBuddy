@@ -59,6 +59,9 @@ import com.boulderbuddy.data.db.entity.StandMetaEntity
     // v8 (Gym-Näherungs-Push): Gym um Koordinaten/Radius/Alerts-Toggle erweitert +
     // neue gym_visit-Tabelle (Besuchs-Log für gelernte Besuchsmuster).
     // v9: Gym.defaultGradeSystemId — beim Session-Anlegen vorgewähltes Gradsystem der Halle.
+    // v10: Hallen sind löschbar, ohne Historie mitzunehmen — session.gymId und
+    // grade_system.gymId auf SET NULL (vorher CASCADE) + session.gymName als Beleg, in
+    // welcher Halle eine Session lief, wenn es die Halle nicht mehr gibt.
     //
     // Das Feature war auf seinem Branch einmal v6 — dieselbe Nummer, die der Hangboard-Umbau
     // schon vergeben hatte. Auf einem Gerät, das beide Stände nacheinander sah, verglich Room
@@ -68,7 +71,7 @@ import com.boulderbuddy.data.db.entity.StandMetaEntity
     // Ab dem Geräte-Abgleich (Sync-Plan S0) gibt es echte Migrationen für jeden Schritt:
     // siehe Migrations.kt. Wer die Version erhöht, schreibt dort die passende Migration —
     // einen destruktiven Fallback gibt es nicht mehr.
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

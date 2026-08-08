@@ -45,6 +45,12 @@ Fall tritt an der richtigen Halle ein.
 Zug anlegen *und* ihr direkt Koordinaten geben — Workflow 1 braucht dann keinen zweiten Weg über
 die Einstellungen. Die neu angelegte Halle ist beim Zurückkommen automatisch ausgewählt.
 
+**Und wieder loswerden:** Im Editor unten steht „Halle löschen". Testhallen kannst du also
+gefahrlos anlegen und wieder entfernen — Sessions, die daran hingen, bleiben mitsamt Bouldern und
+Hallennamen erhalten (`session.gymName`, DB v10). Weg ist nur, was ohne die Halle nichts mehr
+bedeutet: ihr Standort, ihr Geofence und das gelernte Besuchsmuster. Wer also ein Besuchsmuster
+zurücksetzen will, ohne den DataStore anzufassen, löscht die Halle und legt sie neu an.
+
 > **Vorher war das anders**, und in älteren Aufzeichnungen taucht es noch auf: bis
 > `SessionErstellenScreen` die Auswahl bekam, stand hier ein freies Textfeld, aus dem per
 > „find-or-create" eine Halle wurde. Ein abgewandelter Name legte unbemerkt eine zweite Halle ohne

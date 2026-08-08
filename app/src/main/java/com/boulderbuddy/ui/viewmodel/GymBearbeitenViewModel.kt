@@ -45,6 +45,8 @@ data class GymBearbeitenUiState(
     val locationError: String? = null,
     /** Gelerntes Besuchsmuster, z.B. "8 Besuche · meist dienstags" (M3); `null` = keine Besuche. */
     val visitSummary: String? = null,
+    /** Sessions an dieser Halle — die Rückfrage vor dem Löschen nennt die Zahl. */
+    val sessionCount: Int = 0,
 ) {
     val hasCoordinates: Boolean get() = latitude != null && longitude != null
 }
@@ -82,6 +84,7 @@ class GymBearbeitenViewModel @Inject constructor(
                             radiusMeters = gym.geofenceRadiusMeters,
                             alertsEnabled = gym.proximityAlertsEnabled,
                             defaultGradeSystemId = gym.defaultGradeSystemId,
+                            sessionCount = gymRepository.countSessions(gymId),
                         )
                     }
                 }
@@ -222,6 +225,24 @@ class GymBearbeitenViewModel @Inject constructor(
             // registrieren (M2). Idempotent, daher bedenkenlos bei jedem Save.
             geofenceManager.refreshGeofences()
             onSaved(gespeicherteId)
+        }
+    }
+
+    /**
+     * Löscht die Halle und meldet zurück, dass der Screen schließen kann.
+     *
+     * Was dabei *nicht* passiert, ist der Punkt: Sessions und ihre Boulder bleiben, sie tragen
+     * den Hallennamen seit v10 selbst. Ein hallenspezifisches Gradsystem wird global statt
+     * gelöscht, seine Grade bleiben also gültig. Es verschwindet nur, was ohne die Halle keine
+     * Bedeutung mehr hat: ihr Besuchs-Log und ihr Geofence.
+     */
+    fun delete(onDeleted: () -> Unit) {
+        val id = gymId ?: return
+        viewModelScope.launch {
+            gymRepository.delete(id)
+            // Der Geofence dieser Halle muss weg — refreshGeofences meldet ohnehin alle neu an.
+            geofenceManager.refreshGeofences()
+            onDeleted()
         }
     }
 }

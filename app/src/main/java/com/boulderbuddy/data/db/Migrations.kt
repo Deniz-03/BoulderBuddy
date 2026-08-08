@@ -374,6 +374,82 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
     }
 }
 
+/**
+ * v9→v10: Eine Halle lässt sich löschen, ohne die Trainingshistorie mitzunehmen.
+ *
+ * Bis hierher hing an `gym` zweimal ein `CASCADE`, und beide hätten beim Löschen mehr
+ * mitgerissen als die Halle:
+ *
+ * 1. `session.gymId` → alle Sessions dieser Halle, und über `route.sessionId` (ebenfalls
+ *    CASCADE) jeden dort geloggten Boulder. Aus „Halle aus der Liste nehmen" wäre „Jahre an
+ *    Trainingsdaten weg" geworden.
+ * 2. `grade_system.gymId` → das hallenspezifische Gradsystem samt seiner Grade. Boulder, die
+ *    es weiterhin gibt, hätten über `route.gradeId` (SET NULL) ihre Schwierigkeit verloren.
+ *
+ * Beide werden zu `SET NULL`. Damit die Session danach noch sagen kann, **wo** sie war,
+ * bekommt sie `gymName` — beim Migrieren aus der `gym`-Zeile befüllt, für Sessions ohne
+ * auffindbare Halle leer. Das Gradsystem wird beim Löschen zum globalen System (`gymId`
+ * NULL), was der Zustand ist, den es dann tatsächlich hat.
+ *
+ * `gymId` wird nullable — `SET NULL` verlangt das. Beide Tabellen müssen dafür neu angelegt
+ * werden: `ALTER TABLE` kann weder einen Fremdschlüssel ändern noch `NOT NULL` lockern.
+ */
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `_new_session` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`gymId` INTEGER, " +
+                "`gymName` TEXT NOT NULL, " +
+                "`gradeSystemId` INTEGER, " +
+                "`date` INTEGER NOT NULL, " +
+                "`durationMin` INTEGER, " +
+                "`notes` TEXT, " +
+                "`endedAt` INTEGER, " +
+                "FOREIGN KEY(`gymId`) REFERENCES `gym`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE SET NULL , " +
+                "FOREIGN KEY(`gradeSystemId`) REFERENCES `grade_system`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        // Den Namen aus der Halle ziehen, solange es sie noch gibt. `COALESCE` fängt die
+        // Session ab, deren Halle schon vorher fehlte (etwa nach einem Abgleich): sie bekommt
+        // den leeren Namen statt NULL, sonst scheiterte die NOT-NULL-Spalte.
+        db.execSQL(
+            "INSERT INTO `_new_session` " +
+                "(`id`,`gymId`,`gymName`,`gradeSystemId`,`date`,`durationMin`,`notes`,`endedAt`) " +
+                "SELECT s.`id`, s.`gymId`, " +
+                "COALESCE((SELECT g.`name` FROM `gym` g WHERE g.`id` = s.`gymId`), ''), " +
+                "s.`gradeSystemId`, s.`date`, s.`durationMin`, s.`notes`, s.`endedAt` " +
+                "FROM `session` s",
+        )
+        db.execSQL("DROP TABLE `session`")
+        db.execSQL("ALTER TABLE `_new_session` RENAME TO `session`")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_session_gymId` ON `session` (`gymId`)")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_session_gradeSystemId` " +
+                "ON `session` (`gradeSystemId`)",
+        )
+
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `_new_grade_system` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`gymId` INTEGER, " +
+                "`name` TEXT NOT NULL, " +
+                "FOREIGN KEY(`gymId`) REFERENCES `gym`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL(
+            "INSERT INTO `_new_grade_system` (`id`,`gymId`,`name`) " +
+                "SELECT `id`,`gymId`,`name` FROM `grade_system`",
+        )
+        db.execSQL("DROP TABLE `grade_system`")
+        db.execSQL("ALTER TABLE `_new_grade_system` RENAME TO `grade_system`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_grade_system_gymId` ON `grade_system` (`gymId`)",
+        )
+    }
+}
+
 /** Alle Migrationen in einer Liste — so kann `DatabaseModule` sie am Stück übergeben. */
 val ALLE_MIGRATIONEN: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -384,4 +460,5 @@ val ALLE_MIGRATIONEN: Array<Migration> = arrayOf(
     MIGRATION_6_7,
     MIGRATION_7_8,
     MIGRATION_8_9,
+    MIGRATION_9_10,
 )

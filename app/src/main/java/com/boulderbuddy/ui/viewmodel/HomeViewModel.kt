@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.repository.GradeRepository
@@ -136,7 +137,7 @@ class HomeViewModel @Inject constructor(
             val sessionRoutes = routes.filter { it.sessionId == session.id }
             LastSessionUi(
                 sessionId = session.id,
-                gym = gymsById[session.gymId]?.name ?: "Unbekannte Halle",
+                gym = session.hallenName { gymsById[it]?.name } ?: "Unbekannte Halle",
                 subtitle = buildSubtitle(session, sessionRoutes.size),
                 accentColor = accentColorFor(sessionRoutes),
                 isActive = session.endedAt == null,

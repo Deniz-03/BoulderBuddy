@@ -3,6 +3,7 @@ package com.boulderbuddy.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
+import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.SessionRepository
@@ -53,7 +54,7 @@ class HangboardHistorieViewModel @Inject constructor(
         gymRepository.observeAll(),
     ) { workouts, sessions, gyms ->
         val gymNameBySessionId = sessions.associate { session ->
-            session.id to gyms.firstOrNull { it.id == session.gymId }?.name
+            session.id to session.hallenName { id -> gyms.firstOrNull { it.id == id }?.name }
         }
         HangboardHistorieUiState(
             loading = false,

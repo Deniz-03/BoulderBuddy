@@ -72,6 +72,7 @@ fun GymBearbeitenScreen(
     onClearCoordinates: () -> Unit = {},
     onLocationErrorShown: () -> Unit = {},
     onSave: () -> Unit = {},
+    onDelete: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -119,6 +120,7 @@ fun GymBearbeitenScreen(
     }
 
     var showManualDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -282,9 +284,35 @@ fun GymBearbeitenScreen(
                     text = if (state.neu) "Halle anlegen" else "Speichern",
                     onClick = onSave,
                 )
+
+                // Löschen nur für bestehende Hallen, und bewusst unauffällig: ein TextButton
+                // unter dem Primärweg, nicht daneben. Die Rückfrage kommt trotzdem.
+                if (!state.neu) {
+                    TextButton(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    ) {
+                        Text(
+                            text = "Halle löschen",
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
         },
     )
+
+    if (showDeleteDialog) {
+        LoeschenDialog(
+            gymName = state.name,
+            sessionCount = state.sessionCount,
+            onConfirm = {
+                showDeleteDialog = false
+                onDelete()
+            },
+            onDismiss = { showDeleteDialog = false },
+        )
+    }
 
     if (showManualDialog) {
         KoordinatenDialog(
@@ -297,6 +325,51 @@ fun GymBearbeitenScreen(
             onDismiss = { showManualDialog = false },
         )
     }
+}
+
+/**
+ * Rückfrage vor dem Löschen.
+ *
+ * Sie sagt ausdrücklich, was **bleibt**, nicht nur was verschwindet. Bei einer Halle mit
+ * Trainingshistorie ist genau das die Frage, die jemand vor dem Tippen im Kopf hat — und die
+ * Antwort ist beruhigend, also gehört sie in den Dialog und nicht ins Changelog.
+ */
+@Composable
+private fun LoeschenDialog(
+    gymName: String,
+    sessionCount: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (gymName.isBlank()) "Halle löschen?" else "„$gymName“ löschen?") },
+        text = {
+            Text(
+                if (sessionCount == 0) {
+                    "Die Halle wird aus der Auswahl entfernt. Es hängen keine Sessions daran."
+                } else {
+                    val sessionen = if (sessionCount == 1) {
+                        "1 Session bleibt"
+                    } else {
+                        "$sessionCount Sessions bleiben"
+                    }
+                    "$sessionen erhalten — mit allen Bouldern und dem Hallennamen. " +
+                        "Verloren geht nur, was ohne die Halle keine Bedeutung mehr hat: ihr " +
+                        "Standort und das gelernte Besuchsmuster. Ein eigenes Grading-System " +
+                        "der Halle bleibt und gilt danach hallenübergreifend."
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Löschen", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+        },
+    )
 }
 
 // Manuelle Koordinaten-Eingabe (Notnagel — Primärweg ist der Standort-Button).

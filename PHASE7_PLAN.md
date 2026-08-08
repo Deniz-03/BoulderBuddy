@@ -689,6 +689,15 @@ woran er ansetzen könnte. Die neu angelegte Halle kommt über den `savedStateHa
 (Muster wie `KAMERA_ERGEBNIS`) und ist danach ausgewählt. Implizit entstehen Hallen seitdem
 nirgends mehr.
 
+**Löschen (DB v10):** Hallen sind im Editor löschbar. Dafür mussten zwei `CASCADE` weichen, die
+beim Aufräumen einer Hallenliste Trainingshistorie vernichtet hätten: `session.gymId` hätte alle
+Sessions der Halle und über sie jeden Boulder mitgenommen, `grade_system.gymId` das
+hallenspezifische Gradsystem samt Graden — womit weiterhin existierende Boulder ihre Schwierigkeit
+verloren hätten. Beide sind jetzt `SET NULL`; die Session trägt den Hallennamen als Schnappschuss
+(`session.gymName`) und weiß damit weiterhin, wo sie war. Angezeigt wird `gym?.name ?: gymName`,
+zentral in `SessionEntity.hallenName` — so schlagen Umbenennungen weiter durch, solange es die
+Halle gibt.
+
 Dazu trägt jede Halle ein **Standard-Gradsystem** (`gym.defaultGradeSystemId`, DB v9), das beim
 Session-Anlegen vorgewählt wird. Es ist ein Vorschlag, keine Bindung: die Auswahl in der Session
 bleibt frei (Moonboard u.Ä.), und nur ein Hallenwechsel setzt sie auf den Vorschlag der neuen

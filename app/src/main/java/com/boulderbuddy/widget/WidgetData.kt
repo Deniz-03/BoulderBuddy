@@ -4,6 +4,7 @@ import android.content.Context
 import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
+import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
@@ -113,7 +114,8 @@ internal fun buildWidgetData(
     val sessionRoutes = routes.filter { it.sessionId == active.id }
     return WidgetData(
         hasActiveSession = true,
-        gymName = gyms.firstOrNull { it.id == active.gymId }?.name ?: "Aktive Session",
+        gymName = active.hallenName { id -> gyms.firstOrNull { it.id == id }?.name }
+            ?: "Aktive Session",
         activeSessionId = active.id,
         routeCount = sessionRoutes.size,
         sessionTops = sessionRoutes.count { it.status.istGetoppt },

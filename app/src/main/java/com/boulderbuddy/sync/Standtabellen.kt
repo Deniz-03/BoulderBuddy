@@ -63,7 +63,9 @@ val STAND_TABELLEN: List<Tabelle> = listOf(
     Tabelle(
         name = "grade_system",
         spalten = listOf("gymId", "name"),
-        eltern = listOf(Elternbezug("gymId", "gym", Loeschregel.KASKADE)),
+        // Seit v10 AUF_NULL statt KASKADE: eine gelöschte Halle nimmt ihr Gradsystem nicht
+        // mit, es wird global. Sonst verlören Boulder, die es weiter gibt, ihre Schwierigkeit.
+        eltern = listOf(Elternbezug("gymId", "gym", Loeschregel.AUF_NULL)),
     ),
     Tabelle(
         name = "grade",
@@ -72,9 +74,16 @@ val STAND_TABELLEN: List<Tabelle> = listOf(
     ),
     Tabelle(
         name = "session",
-        spalten = listOf("gymId", "gradeSystemId", "date", "durationMin", "notes", "endedAt"),
+        // `gymName` ist der Beleg, in welcher Halle die Session lief — er muss mitreisen,
+        // sonst stünde auf dem anderen Gerät „Unbekannte Halle", sobald die Halle dort fehlt.
+        spalten = listOf(
+            "gymId", "gymName", "gradeSystemId", "date", "durationMin", "notes", "endedAt",
+        ),
         eltern = listOf(
-            Elternbezug("gymId", "gym", Loeschregel.KASKADE),
+            // Seit v10 AUF_NULL statt KASKADE. Der Unterschied ist keiner von Geschmack:
+            // mit KASKADE hätte eine auf dem anderen Gerät gelöschte Halle hier sämtliche
+            // Sessions samt Bouldern mitgenommen, sobald der Abgleich sie nachzieht.
+            Elternbezug("gymId", "gym", Loeschregel.AUF_NULL),
             Elternbezug("gradeSystemId", "grade_system", Loeschregel.AUF_NULL),
         ),
     ),

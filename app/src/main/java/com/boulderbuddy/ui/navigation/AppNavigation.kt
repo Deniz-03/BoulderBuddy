@@ -302,6 +302,9 @@ fun AppNavigation(
                             navController.popBackStack()
                         }
                     },
+                    // Nach dem Löschen zurück — ohne GYM_ERGEBNIS: es gibt keine Halle
+                    // auszuwählen, und die alte ID zeigte ins Leere.
+                    onDelete = { viewModel.delete { navController.popBackStack() } },
                     onBack = { navController.popBackStack() },
                 )
             }

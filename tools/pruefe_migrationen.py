@@ -314,7 +314,62 @@ else:
     print("[FEHLER] gym hat Fremdschluessel:", bezuege)
     fehler.append("gym-Fremdschluessel")
 
-# 7. Fremdschluessel sind nach der Migration konsistent.
+# 7. v9 -> v10: Loeschen einer Halle darf keine Historie mitnehmen. Der eigentliche Test ist
+# nicht die Migration, sondern das DELETE danach — genau dort schlug frueher CASCADE zu.
+con = neu(9)
+con.executescript("""
+INSERT INTO gym VALUES (1, 'Boulderwelt', NULL, NULL, NULL, 150, 1, NULL);
+INSERT INTO grade_system VALUES (10, 1, 'Hausfarben');
+INSERT INTO grade VALUES (100, 10, 'gelb', 0);
+INSERT INTO session VALUES (1, 1, 10, 5000, 90, NULL, 6000);
+INSERT INTO route VALUES (1000, 1, 100, 'Ecke', NULL, 2, 'TOP', 'gelb', NULL, NULL);
+""")
+fahre(con, migrationen, 9, 10)
+
+zeile = con.execute("SELECT gymId, gymName FROM session WHERE id = 1").fetchone()
+if zeile == (1, "Boulderwelt"):
+    print("[ok] Session bekommt bei v9 -> v10 den Hallennamen als Schnappschuss")
+else:
+    print("[FEHLER] session nach v9->v10:", zeile, "erwartet (1, 'Boulderwelt')")
+    fehler.append("session v9->v10")
+
+# Jetzt das, wofuer der ganze Umbau da war.
+#
+# `commit()` muss vor das PRAGMA: Pythons sqlite3 haelt nach den INSERTs oben eine
+# Transaktion offen, und `PRAGMA foreign_keys` ist innerhalb einer Transaktion ein
+# stillschweigender No-Op. Ohne das prueft das DELETE gar keine Fremdschluessel und der
+# Test bestuende auch mit CASCADE — er wuerde also genau das nicht messen, worum es geht.
+con.commit()
+con.execute("PRAGMA foreign_keys=ON")
+con.execute("DELETE FROM gym WHERE id = 1")
+
+zeile = con.execute("SELECT gymId, gymName FROM session WHERE id = 1").fetchone()
+if zeile == (None, "Boulderwelt"):
+    print("[ok] geloeschte Halle: Session bleibt und weiss weiterhin, wo sie war")
+else:
+    print("[FEHLER] session nach DELETE gym:", zeile, "erwartet (None, 'Boulderwelt')")
+    fehler.append("session ueberlebt Loeschen nicht")
+
+if con.execute("SELECT COUNT(*) FROM route WHERE id = 1000").fetchone()[0] == 1:
+    print("[ok] geloeschte Halle: der Boulder in der Session bleibt")
+else:
+    print("[FEHLER] route wurde mitgeloescht")
+    fehler.append("route ueberlebt Loeschen nicht")
+
+zeile = con.execute("SELECT gymId FROM grade_system WHERE id = 10").fetchone()
+if zeile == (None,):
+    print("[ok] geloeschte Halle: ihr Gradsystem bleibt und wird global")
+else:
+    print("[FEHLER] grade_system nach DELETE gym:", zeile, "erwartet (None,)")
+    fehler.append("grade_system ueberlebt Loeschen nicht")
+
+if con.execute("SELECT gradeId FROM route WHERE id = 1000").fetchone() == (100,):
+    print("[ok] geloeschte Halle: der Boulder behaelt seine Schwierigkeit")
+else:
+    print("[FEHLER] route.gradeId ist nach dem Loeschen weg")
+    fehler.append("route.gradeId verloren")
+
+# 8. Fremdschluessel sind nach der Migration konsistent.
 con.execute("PRAGMA foreign_keys=ON")
 verletzt = con.execute("PRAGMA foreign_key_check").fetchall()
 if not verletzt:

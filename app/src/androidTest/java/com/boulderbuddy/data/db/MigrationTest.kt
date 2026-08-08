@@ -264,10 +264,53 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun v9_zu_v10_haelt_die_session_ueber_das_loeschen_der_halle_hinweg() {
+        helper.createDatabase(TEST_DB, 9).use { db ->
+            db.execSQL(
+                "INSERT INTO gym (id, name, location, latitude, longitude, " +
+                    "geofenceRadiusMeters, proximityAlertsEnabled, defaultGradeSystemId) " +
+                    "VALUES (1, 'Boulderwelt', NULL, NULL, NULL, 150, 1, NULL)",
+            )
+            db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (10, 1, 'Hausfarben')")
+            db.execSQL(
+                "INSERT INTO session (id, gymId, gradeSystemId, date, durationMin, notes, endedAt) " +
+                    "VALUES (1, 1, 10, 5000, 90, NULL, 6000)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(TEST_DB, 10, true, *ALLE_MIGRATIONEN).use { db ->
+            // Die Migration selbst: der Name wandert aus der Halle in die Session.
+            db.query("SELECT gymId, gymName FROM session WHERE id = 1").use { c ->
+                assertThat(c.moveToFirst()).isTrue()
+                assertThat(c.getInt(0)).isEqualTo(1)
+                assertThat(c.getString(1)).isEqualTo("Boulderwelt")
+            }
+
+            // Und der eigentliche Zweck: das Löschen darf die Historie nicht mitnehmen.
+            // Room hat die Fremdschlüssel in `onOpen` eingeschaltet, das DELETE greift also
+            // mit denselben Regeln wie in der App.
+            db.execSQL("DELETE FROM gym WHERE id = 1")
+
+            db.query("SELECT gymId, gymName FROM session WHERE id = 1").use { c ->
+                assertThat(c.moveToFirst()).isTrue()
+                assertThat(c.isNull(0)).isTrue()
+                // Der Beleg, um den es geht: die Session weiß weiterhin, wo sie war.
+                assertThat(c.getString(1)).isEqualTo("Boulderwelt")
+            }
+            // Das Gradsystem der Halle bleibt und wird global — sonst verlören Boulder ihre
+            // Schwierigkeit.
+            db.query("SELECT gymId FROM grade_system WHERE id = 10").use { c ->
+                assertThat(c.moveToFirst()).isTrue()
+                assertThat(c.isNull(0)).isTrue()
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
 
         /** Mitziehen, wenn die Schema-Version steigt — hier steht das Ziel des Voll-Durchlaufs. */
-        const val NEUESTE = 9
+        const val NEUESTE = 10
     }
 }
