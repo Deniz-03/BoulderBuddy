@@ -24,8 +24,29 @@ Wenn nichts kommt, liegt es fast immer an einem Glied hier. Von oben nach unten 
 | 5 | Pro-Gym-Toggle „Erinnerungen aktiv" an | derselbe Screen | dito |
 | 6 | Standortdienste am Gerät an | System | Logcat: `Geofence-Registrierung fehlgeschlagen` |
 | 7 | Keine laufende Session | — | Logcat: `→ ACTIVE_SESSION` |
-| 8 | Letzte Session an dieser Halle > 3 h her | — | `→ POST_SESSION_QUIET` |
+| 8 | Letzte Session **an dieser Halle** > 3 h her | — | `→ POST_SESSION_QUIET` |
 | 9 | Letzter Push für diese Halle > 24 h her | — | `→ COOLDOWN` ← **der häufigste Stolperstein beim Iterieren** |
+
+Punkt 7 gilt global (irgendeine laufende Session unterdrückt jeden Push), Punkt 8 nur für *diese*
+Halle — und daran hängt eine Falle, siehe unten.
+
+### Wie eine Session überhaupt an eine Halle kommt
+
+Im „Neue Session"-Formular gibt man keine Halle aus einer Liste an, sondern einen **freien Text**.
+`SessionErstellenViewModel.createSession()` macht daraus ein **find-or-create über den Namen**
+(getrimmt, Groß-/Kleinschreibung egal); die Session speichert danach eine echte `gymId`. Punkt 8
+vergleicht also IDs, nicht Strings — aber der Weg dorthin führt über den Namen.
+
+**Die Folge:** wer den vorbefüllten Namen antippt und abändert, legt eine *zweite* Halle ohne
+Koordinaten an. Die gefencte Halle bekommt die Session dann nie, `lastSessionEndedAt` bleibt für sie
+leer, und `POST_SESSION_QUIET` feuert nicht — obwohl man gerade dort trainiert hat. Auch der
+`SESSION`-Besuch landet an der falschen Halle, das gelernte Muster der richtigen wächst also nur
+noch aus Geofence-Ankünften.
+
+Beim normalen Ablauf passiert das nicht: der Deep-Link der Notification füllt das Feld mit dem
+*exakten* Hallennamen vor, unverändert übernommen trifft der Vergleich immer. Fürs Testen heißt
+das: **Session über den Notification-Tap starten oder den Namen exakt aus „Hallen verwalten"
+kopieren**, sonst prüft man Punkt 8 an einer Halle, die gar nicht gemeint war.
 
 Punkt 2 ist zweistufig, weil Android es erzwingt: erst der normale Standort-Dialog, dann ein
 *zweiter* Weg über die System-Einstellungen für „Immer erlauben". Die App führt dich da durch,
@@ -161,7 +182,7 @@ Jede Entscheidung lässt sich herstellen. Alle prüfst du an derselben Logcat-Ze
 | `NOTIFY` | Workflow 1, alles sauber |
 | `DISABLED` | Pro-Gym-Toggle aus, Master an → registriert erst gar nicht |
 | `ACTIVE_SESSION` | Session starten, dann Master-Toggle aus/an |
-| `POST_SESSION_QUIET` | Session starten **und beenden**, dann Master-Toggle aus/an (wirkt 3 h) |
+| `POST_SESSION_QUIET` | Session starten **und beenden**, dann Master-Toggle aus/an (wirkt 3 h). Namen dabei **nicht** ändern — sonst hängt die Session an einer neuen Halle und der Fall tritt nie ein |
 | `COOLDOWN` | zweiter Durchlauf innerhalb 24 h |
 | `UNTYPICAL_SLOT_COOLDOWN` | braucht ≥ 5 Besuche im Muster — realistisch nur über die Zeit |
 
