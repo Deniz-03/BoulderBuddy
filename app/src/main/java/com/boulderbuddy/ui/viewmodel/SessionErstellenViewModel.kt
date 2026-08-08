@@ -132,6 +132,13 @@ class SessionErstellenViewModel @Inject constructor(
      *
      * [gradeSystemId] wird auf der Session gespeichert und steuert später die Grade-Auswahl beim
      * Boulder-Anlegen. Vorbelegt ist das Standard-Grading der Halle, überschreibbar bleibt es.
+     *
+     * `gymName` wird **mitgeschrieben**, nicht nur `gymId`. Ohne diese Zeile blieb die Spalte auf
+     * ihrem Default `""`, und der Beleg, der eine gelöschte Halle überdauern soll (DB v10), war
+     * für jede real angelegte Session leer — die Session hieß danach „Unbekannte Halle", obwohl
+     * die Rückfrage vor dem Löschen ausdrücklich zusichert, der Hallenname bleibe erhalten.
+     * Aufgefallen ist das erst am Gerät, weil die Seed-Session ihren Namen mitbringt und der
+     * Fehler damit ausgerechnet im Beispieldatensatz nicht auftritt.
      */
     fun createSession(
         gymId: Int,
@@ -144,6 +151,9 @@ class SessionErstellenViewModel @Inject constructor(
             val newId = sessionRepository.create(
                 SessionEntity(
                     gymId = gymId,
+                    // Leer nur, wenn die Halle zwischen Auswahl und Tippen verschwunden ist —
+                    // dann greift ohnehin gleich der Fremdschlüssel.
+                    gymName = gymRepository.getById(gymId)?.name.orEmpty(),
                     gradeSystemId = gradeSystemId,
                     date = startedAt,
                     notes = notiz.trim().ifBlank { null },
