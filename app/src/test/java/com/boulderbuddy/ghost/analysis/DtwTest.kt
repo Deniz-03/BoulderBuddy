@@ -68,7 +68,9 @@ class DtwTest {
             assertThat(mapped).isAtLeast(previous)
             previous = mapped
         }
-        // Halbes Tempo: Referenz-Ende (900 ms) ≈ Vergleichs-Ende (1900 ms).
-        assertThat(mapping.mapToComparison(900L)).isEqualTo(1900L)
+        // Halbes Tempo: Referenz-Ende (900 ms) ≈ Vergleichs-Ende. Der letzte Ref-Frame
+        // ist beiden Cmp-Frames 18 und 19 zugeordnet; seit S1 wird der Mittelwert
+        // sub-frame-genau interpoliert (18,5 → 1850 ms) statt auf 19 gerundet.
+        assertThat(mapping.mapToComparison(900L)).isEqualTo(1850L)
     }
 }

@@ -27,15 +27,18 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 
-// Eine Zeile im Einstellungen-Screen: führendes Icon, Label, und rechts entweder
-// ein Wert-Text (z.B. "Französisch", "v0.1") ODER ein eigenes trailing-Element
-// (ToggleSwitch, Chevron). onClick optional — gesetzt, wenn die ganze Zeile navigiert.
+// Eine Zeile im Einstellungen-Screen: führendes Icon, Label (optional mit erklärender
+// Unterzeile), und rechts entweder ein Wert-Text (z.B. "Französisch", "v0.1") ODER ein
+// eigenes trailing-Element (ToggleSwitch, Chevron). Die Unterzeile trägt die Erklärung bei
+// Toggle-Zeilen, wo der Platz rechts schon vom Schalter belegt ist.
+// onClick optional — gesetzt, wenn die ganze Zeile navigiert.
 @Composable
 fun SettingsRow(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
     value: String? = null,
+    subtitle: String? = null,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
@@ -54,25 +57,39 @@ fun SettingsRow(
             tint = BoulderBuddy.colors.textSecondary,
             modifier = Modifier.size(Dimens.iconS),
         )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (subtitle != null) {
+                // bodySmall statt labelSmall: das hier ist ein erklärender Satz, kein
+                // Versalien-Label. Klein plus gesperrt macht ihn mühsam, unabhängig von
+                // der Farbe. Aus demselben Grund textSecondary statt textTertiary — die
+                // Erklärung trägt Information und ist keine Dekoration.
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
+                )
+            }
+        }
         // Trailing: eigenes Element hat Vorrang, sonst der Wert-Text.
         when {
             trailing != null -> trailing()
+            // Der Wert rechts ist die Antwort auf die Zeile („Französisch", „v0.1") und
+            // damit ihr eigentlicher Inhalt — zweite Textebene, nicht dritte.
             value != null -> Text(
                 text = value,
-                style = MaterialTheme.typography.bodySmall,
-                color = BoulderBuddy.colors.textTertiary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = BoulderBuddy.colors.textSecondary,
             )
         }
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3, widthDp = 360)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4, widthDp = 360)
 @Composable
 private fun SettingsRowPreview() {
     BoulderBuddyTheme {

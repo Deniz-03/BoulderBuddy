@@ -126,7 +126,7 @@ fun PhotoPicker(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3, widthDp = 360)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4, widthDp = 360)
 @Composable
 private fun PhotoPickerPreview() {
     BoulderBuddyTheme {

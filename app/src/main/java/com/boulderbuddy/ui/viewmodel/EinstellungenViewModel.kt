@@ -11,6 +11,7 @@ import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.proximity.GeofenceManager
+import com.boulderbuddy.wearsync.WearConnection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,6 +38,12 @@ data class EinstellungenUiState(
     val selectedGradeSystemId: Int? = null,
     /** Expliziter Dark-Mode-Override; `null` = dem System folgen (7.4a). */
     val darkModeOverride: Boolean? = null,
+    /** Vibration bei Timer-Phasenwechseln. */
+    val hapticFeedback: Boolean = true,
+    /** Anzeigename für die Home-Begrüßung; leer = neutrale Begrüßung. */
+    val userName: String = "",
+    /** Ob gerade eine Uhr mit dem Phone verbunden ist (nur Anzeige, nicht schaltbar). */
+    val watchConnected: Boolean = false,
     /** Master-Toggle des Gym-Näherungs-Push (M2); Opt-in, Default aus. */
     val proximityAlertsEnabled: Boolean = false,
 )
@@ -48,6 +55,7 @@ class EinstellungenViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val sessionExporter: SessionExporter,
     private val geofenceManager: GeofenceManager,
+    wearConnection: WearConnection,
 ) : ViewModel() {
 
     // Einmalige Rückmeldung zum Export (Erfolg/Fehler); vom UI als Toast angezeigt und danach
@@ -55,13 +63,30 @@ class EinstellungenViewModel @Inject constructor(
     private val _exportMessage = MutableStateFlow<String?>(null)
     val exportMessage: StateFlow<String?> = _exportMessage.asStateFlow()
 
+    // Die Geräte-/App-Einstellungen als ein Flow gebündelt, damit das äußere combine
+    // innerhalb der typsicheren 5-Flow-Grenze bleibt (wie im HomeViewModel).
+    private data class Praeferenzen(
+        val darkMode: Boolean?,
+        val hapticFeedback: Boolean,
+        val userName: String,
+        val watchConnected: Boolean,
+        val proximityAlerts: Boolean,
+    )
+
     val uiState: StateFlow<EinstellungenUiState> = combine(
         gradeRepository.observeAllSystems(),
         gradeRepository.observeAllGrades(),
         settingsRepository.selectedGradeSystemId,
-        settingsRepository.darkMode,
-        settingsRepository.proximityAlertsEnabled,
-    ) { systems, grades, selectedId, darkMode, proximityAlerts ->
+        combine(
+            settingsRepository.darkMode,
+            settingsRepository.hapticFeedback,
+            settingsRepository.userName,
+            wearConnection.connected,
+            settingsRepository.proximityAlertsEnabled,
+        ) { darkMode, haptic, name, watch, proximity ->
+            Praeferenzen(darkMode, haptic, name, watch, proximity)
+        },
+    ) { systems, grades, selectedId, praeferenzen ->
         val countBySystem = grades.groupingBy { it.systemId }.eachCount()
         EinstellungenUiState(
             systems = systems.map {
@@ -74,8 +99,11 @@ class EinstellungenViewModel @Inject constructor(
                 )
             },
             selectedGradeSystemId = selectedId,
-            darkModeOverride = darkMode,
-            proximityAlertsEnabled = proximityAlerts,
+            darkModeOverride = praeferenzen.darkMode,
+            hapticFeedback = praeferenzen.hapticFeedback,
+            userName = praeferenzen.userName,
+            watchConnected = praeferenzen.watchConnected,
+            proximityAlertsEnabled = praeferenzen.proximityAlerts,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -91,6 +119,16 @@ class EinstellungenViewModel @Inject constructor(
     /** Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a). */
     fun setDarkMode(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setDarkMode(enabled) }
+    }
+
+    /** Schaltet die Vibration bei Timer-Phasenwechseln ein/aus (persistent via DataStore). */
+    fun setHapticFeedback(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setHapticFeedback(enabled) }
+    }
+
+    /** Speichert den Anzeigenamen für die Home-Begrüßung. Leer = neutrale Begrüßung. */
+    fun setUserName(name: String) {
+        viewModelScope.launch { settingsRepository.setUserName(name) }
     }
 
     /**

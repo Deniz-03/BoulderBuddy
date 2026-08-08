@@ -34,10 +34,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawWithContent
+
+import androidx.compose.ui.geometry.Size
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 
 enum class BottomNavTab(
     val selectedIcon: ImageVector,
@@ -50,7 +52,6 @@ enum class BottomNavTab(
     Timer(Icons.Filled.Timer, Icons.Outlined.Timer, "Hangboard-Timer"),
 }
 
-private val InactiveColor = M3OnPrimary.copy(alpha = 0.45f)
 
 @Composable
 fun BottomNav(
@@ -58,9 +59,20 @@ fun BottomNav(
     onTabSelect: (BottomNavTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Trennlinie nach oben, aus demselben Grund wie bei der TopBar: helles Chrome auf
+    // hellem Inhalt braucht eine Kante.
+    val randfarbe = BoulderBuddy.colors.borderSubtle
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = BoulderBuddy.colors.surfaceInverse,
+        modifier = modifier
+            .fillMaxWidth()
+            // drawWithContent statt drawBehind — siehe TopBar: die Füllfarbe der Surface
+            // kommt nach dem übergebenen Modifier und würde die Linie überdecken.
+            .drawWithContent {
+                drawContent()
+                val staerke = 1.dp.toPx()
+                drawRect(color = randfarbe, size = Size(size.width, staerke))
+            },
+        color = BoulderBuddy.colors.surfaceChrome,
     ) {
         Row(
             modifier = Modifier
@@ -87,8 +99,11 @@ private fun BottomNavItem(
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
+    // Beide Farben kommen aus dem Theme, weil das Chrome mitdreht. Der inaktive Eintrag
+    // nimmt textTertiary statt eines Alpha-Werts auf der Inhaltsfarbe: 45 % Deckkraft
+    // ergaben in beiden Themes nur 3,94:1, und darunter steht eine 11-sp-Beschriftung.
     val activeColor = BoulderBuddy.colors.navActive
-    val iconColor = if (isSelected) activeColor else InactiveColor
+    val iconColor = if (isSelected) activeColor else BoulderBuddy.colors.textTertiary
 
     Column(
         modifier = Modifier
@@ -144,7 +159,7 @@ private fun BottomNavTimerPreview() {
     }
 }
 
-@Preview(name = "Scaffold + TopBar + BottomNav", showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(name = "Scaffold + TopBar + BottomNav", showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun FullLayoutPreview() {
     BoulderBuddyTheme {

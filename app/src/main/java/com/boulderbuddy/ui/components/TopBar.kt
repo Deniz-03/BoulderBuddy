@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -21,16 +22,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
-
-private val TopBarSubtitleColor = Color(0xFFBBB5A5)
 
 @Composable
 fun TopBar(
@@ -40,15 +40,38 @@ fun TopBar(
     navIcon: (@Composable () -> Unit)? = null,
     actions: (@Composable RowScope.() -> Unit)? = null,
 ) {
+    // Trennlinie nach unten. Das Chrome dreht mit dem Theme und liegt im Light Mode
+    // farblich dicht am Inhalt — ohne Kante liest die Leiste sich nicht als Rahmen.
+    // Die Farbe wird hier gelesen und nicht im Zeichenblock: der DrawScope ist kein
+    // Composable und kommt an das Theme nicht heran.
+    val randfarbe = BoulderBuddy.colors.borderSubtle
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = BoulderBuddy.colors.surfaceInverse,
+        modifier = modifier
+            .fillMaxWidth()
+            // drawWithContent statt drawBehind: Surface legt seine Füllfarbe NACH dem
+            // übergebenen Modifier auf: eine mit drawBehind gezeichnete Linie wird davon
+            // wieder überdeckt und ist unsichtbar. drawContent() rendert erst Fläche und
+            // Inhalt, danach kommt die Linie darüber.
+            .drawWithContent {
+                drawContent()
+                val staerke = 1.dp.toPx()
+                drawRect(
+                    color = randfarbe,
+                    topLeft = Offset(0f, size.height - staerke),
+                    size = Size(size.width, staerke),
+                )
+            },
+        color = BoulderBuddy.colors.surfaceChrome,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = Dimens.paddingS, vertical = Dimens.paddingM),
+                // Feste Mindesthöhe statt „so hoch wie der Inhalt": siehe Dimens.topBarHoehe.
+                // Das vertikale Padding fällt auf paddingS, damit ein 48-dp-Aktionsicon
+                // innerhalb der 64 dp bleibt statt sie zu sprengen.
+                .heightIn(min = Dimens.topBarHoehe)
+                .padding(horizontal = Dimens.paddingS, vertical = Dimens.paddingS),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (navIcon != null) {
@@ -71,13 +94,13 @@ fun TopBar(
                         MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold)
                     else
                         MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = M3OnPrimary,
+                    color = BoulderBuddy.colors.onChrome,
                 )
                 if (subtitle != null) {
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TopBarSubtitleColor,
+                        color = BoulderBuddy.colors.textSecondary,
                     )
                 }
             }
@@ -114,7 +137,7 @@ private fun TopBarWithBackPreview() {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Zurück",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
             },
@@ -134,7 +157,7 @@ private fun TopBarGreetingPreview() {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = "Einstellungen",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
             },
@@ -153,14 +176,14 @@ private fun TopBarMultiActionPreview() {
                     Icon(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = "Suchen",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
                 IconButton(onClick = {}) {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = "Einstellungen",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
             },

@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.screens
 
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,18 +28,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.GhostAnchorEditor
 import com.boulderbuddy.ui.components.GhostPathEditor
 import com.boulderbuddy.ui.components.GhostSideBySidePlayer
 import com.boulderbuddy.ui.components.GhostSkeletonPlayer
+import com.boulderbuddy.ui.components.MedienQuelleDialog
 import com.boulderbuddy.ui.components.PhotoPicker
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SectionHeader
@@ -50,7 +54,8 @@ import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.theme.aktuelleBreite
+import com.boulderbuddy.ui.theme.Breite
 import com.boulderbuddy.ui.viewmodel.GhostClimberUiState
 import com.boulderbuddy.ui.viewmodel.GhostRole
 import com.boulderbuddy.ui.viewmodel.GhostStep
@@ -68,6 +73,11 @@ import com.boulderbuddy.ui.viewmodel.SavedAnalysisUi
 @Composable
 fun GhostClimberScreen(
     state: GhostClimberUiState = GhostClimberUiState(),
+    // Eigener Aufnahme-Screen (CameraX, 7.4d) — für Ghost bewusst nur Video.
+    onOpenKamera: () -> Unit = {},
+    // Fertige Aufnahme von dort; null = keine. Wird der zuletzt angetippten Rolle zugeordnet.
+    aufnahmeUri: String? = null,
+    onAufnahmeVerbraucht: () -> Unit = {},
     onSelectVideo: (GhostRole, String) -> Unit = { _, _ -> },
     onAnalyze: () -> Unit = {},
     onSelectAnchorFrame: (GhostRole, Long) -> Unit = { _, _ -> },
@@ -87,6 +97,23 @@ fun GhostClimberScreen(
     onBackToPath: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
+    // Für welche Rolle wurde die Kamera geöffnet? Muss den Ausflug auf den Aufnahme-Screen
+    // überleben (Prozesstod eingeschlossen) — daher rememberSaveable und der Enum-Name als
+    // String, weil GhostRole selbst nicht ohne Weiteres speicherbar ist.
+    var wartendeRolle by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(aufnahmeUri, wartendeRolle) {
+        val uri = aufnahmeUri ?: return@LaunchedEffect
+        val rolle = wartendeRolle?.let { name ->
+            runCatching { GhostRole.valueOf(name) }.getOrNull()
+        }
+        // Ohne bekannte Rolle wird die Aufnahme verworfen statt geraten — sie dem falschen
+        // Slot zuzuordnen wäre schlimmer als sie zu ignorieren.
+        if (rolle != null) onSelectVideo(rolle, uri)
+        wartendeRolle = null
+        onAufnahmeVerbraucht()
+    }
+
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
@@ -97,7 +124,7 @@ fun GhostClimberScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -116,6 +143,10 @@ fun GhostClimberScreen(
                     GhostStep.SELECTION -> SelectionStep(
                         state = state,
                         onSelectVideo = onSelectVideo,
+                        onKameraFuerRolle = { rolle ->
+                            wartendeRolle = rolle.name
+                            onOpenKamera()
+                        },
                         onAnalyze = onAnalyze,
                         onRestoreAnalysis = onRestoreAnalysis,
                         onDeleteAnalysis = onDeleteAnalysis,
@@ -162,6 +193,7 @@ fun GhostClimberScreen(
 private fun SelectionStep(
     state: GhostClimberUiState,
     onSelectVideo: (GhostRole, String) -> Unit,
+    onKameraFuerRolle: (GhostRole) -> Unit,
     onAnalyze: () -> Unit,
     onRestoreAnalysis: (Int) -> Unit,
     onDeleteAnalysis: (Int) -> Unit,
@@ -173,20 +205,78 @@ private fun SelectionStep(
         color = BoulderBuddy.colors.textSecondary,
     )
 
-    VideoSlotPicker(
-        title = "Referenz-Video",
-        slot = state.reference,
-        onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
-    )
-    VideoSlotPicker(
-        title = "Vergleichs-Video",
-        slot = state.comparison,
-        onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
-    )
+    /*
+     * Die beiden Auswahlflächen stehen ab Tablet-Breite NEBENEINANDER.
+     *
+     * Untereinander sind sie am Telefon richtig — dort ist kein Platz für etwas anderes. Am
+     * Tablet ergab dieselbe Anordnung zwei 16:9-Flächen von je ~1200 dp Breite, die zusammen
+     * über die Bildhöhe hinausreichten: man musste scrollen, um beide zu sehen. Ausgerechnet
+     * bei einem Schritt, dessen ganze Aufgabe der **Vergleich zweier Videos** ist, sah man nie
+     * beide gleichzeitig.
+     *
+     * Nebeneinander entspricht die Anordnung außerdem dem, was danach passiert: die
+     * Vergleichsansicht stellt dieselben zwei Videos nebeneinander.
+     */
+    val nebeneinander = aktuelleBreite() != Breite.Kompakt
+
+    if (nebeneinander) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingL),
+        ) {
+            VideoSlotPicker(
+                title = "Referenz-Video",
+                slot = state.reference,
+                onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
+                onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
+                modifier = Modifier.weight(1f),
+            )
+            VideoSlotPicker(
+                title = "Vergleichs-Video",
+                slot = state.comparison,
+                onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
+                onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    } else {
+        VideoSlotPicker(
+            title = "Referenz-Video",
+            slot = state.reference,
+            onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
+            onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
+        )
+        VideoSlotPicker(
+            title = "Vergleichs-Video",
+            slot = state.comparison,
+            onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
+            onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
+        )
+    }
 
     if (state.analyzing) {
-        AnalysisProgress(label = "Referenz", slot = state.reference)
-        AnalysisProgress(label = "Vergleich", slot = state.comparison)
+        // Der Fortschritt folgt der Anordnung darüber — zwei Balken untereinander unter zwei
+        // Flächen nebeneinander wären nicht mehr zuzuordnen.
+        if (nebeneinander) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingL),
+            ) {
+                AnalysisProgress(
+                    label = "Referenz",
+                    slot = state.reference,
+                    modifier = Modifier.weight(1f),
+                )
+                AnalysisProgress(
+                    label = "Vergleich",
+                    slot = state.comparison,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        } else {
+            AnalysisProgress(label = "Referenz", slot = state.reference)
+            AnalysisProgress(label = "Vergleich", slot = state.comparison)
+        }
     } else if (state.canAnalyze) {
         PrimaryButton(
             text = "Posen analysieren",
@@ -234,8 +324,8 @@ private fun SavedAnalysisRow(
             )
             Text(
                 text = "Vorschlag: ${analysis.modeLabel}",
-                style = MaterialTheme.typography.labelSmall,
-                color = BoulderBuddy.colors.textTertiary,
+                style = MaterialTheme.typography.bodySmall,
+                color = BoulderBuddy.colors.textSecondary,
             )
         }
         IconButton(onClick = onDelete) {
@@ -253,20 +343,58 @@ private fun VideoSlotPicker(
     title: String,
     slot: GhostVideoSlot,
     onSelected: (String) -> Unit,
+    onAufnehmen: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let { onSelected(it.toString()) } }
+    ) { uri ->
+        uri?.let {
+            // Dauerhaften Lesezugriff sichern, damit die URI Prozess-Neustarts überlebt —
+            // wie in RouteHinzufuegenScreen. Fehlte das hier (und es fehlte), überlebten
+            // Galerie-Videos im Ghost-Flow schon auf EINEM Gerät keinen Neustart
+            // zuverlässig, und der Medien-Umzug aus Sync-Plan S3 scheiterte ausgerechnet
+            // an abgelaufenen Berechtigungen.
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            onSelected(it.toString())
+        }
+    }
 
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
-        SectionHeader(text = title)
-        PhotoPicker(
-            onClick = {
+    var zeigeQuellenwahl by rememberSaveable { mutableStateOf(false) }
+
+    if (zeigeQuellenwahl) {
+        MedienQuelleDialog(
+            // Selbst aufnehmen ist hier der bessere Weg: die App legt die Auflösung fest,
+            // und zwei gleich aufgenommene Videos vergleichen sich berechenbarer.
+            nurVideo = true,
+            onAufnehmen = {
+                zeigeQuellenwahl = false
+                onAufnehmen()
+            },
+            onGalerie = {
+                zeigeQuellenwahl = false
                 picker.launch(
                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly),
                 )
             },
-            label = "Video auswählen",
+            onDismiss = { zeigeQuellenwahl = false },
+        )
+    }
+
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+    ) {
+        SectionHeader(text = title)
+        PhotoPicker(
+            onClick = { zeigeQuellenwahl = true },
+            label = "Video aufnehmen oder wählen",
             imageUri = slot.uri,
             isVideo = slot.uri != null,
         )
@@ -274,8 +402,15 @@ private fun VideoSlotPicker(
 }
 
 @Composable
-private fun AnalysisProgress(label: String, slot: GhostVideoSlot) {
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+private fun AnalysisProgress(
+    label: String,
+    slot: GhostVideoSlot,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+    ) {
         when {
             slot.track != null -> Text(
                 text = "$label: fertig (${slot.track.frames.size} Frames)",
@@ -426,8 +561,12 @@ private fun PreviewStep(
         return
     }
     val cmpTimeForPosition: (Long) -> Long = { pos -> mapping?.mapToComparison(pos) ?: pos }
-    // Debug-Ansicht (Stufe 0): Roh-Keypoints + Kennzahlen-HUD im Overlay-Player.
+    // Debug-Ansicht (Stufe 0): Kennzahlen-HUD + Warp-Kurve im Overlay-Player.
     var debugHud by rememberSaveable { mutableStateOf(false) }
+    // Die ROH-Spur ist bewusst ein eigener Schalter und standardmäßig aus: sie wackelt
+    // per Definition (ungefiltert), und über dem Ergebnis gezeichnet ist nicht mehr
+    // auseinanderzuhalten, ob das Ergebnis unruhig ist oder nur die Rohdaten daneben.
+    var showRaw by rememberSaveable { mutableStateOf(false) }
     // Einzelne Skelette im Overlay ein-/ausblendbar (7.5c).
     var showReference by rememberSaveable { mutableStateOf(true) }
     var showGhost by rememberSaveable { mutableStateOf(true) }
@@ -449,6 +588,22 @@ private fun PreviewStep(
             label = "Debug",
             selected = debugHud,
             onClick = { debugHud = !debugHud },
+        )
+        if (debugHud) {
+            SelectableChip(
+                label = "Roh",
+                selected = showRaw,
+                onClick = { showRaw = !showRaw },
+            )
+        }
+    }
+    if (debugHud && showRaw) {
+        Text(
+            text = "Rot = ungefilterte Roh-Erkennung. Sie wackelt und springt " +
+                "absichtlich — der Abstand zum farbigen Skelett ist genau das, was " +
+                "die Filterkette entfernt.",
+            style = MaterialTheme.typography.labelMedium,
+            color = BoulderBuddy.colors.textTertiary,
         )
     }
     if (state.suggestionReason.isNotEmpty()) {
@@ -486,6 +641,8 @@ private fun PreviewStep(
                 showSkeleton = showReference,
                 showGhost = showGhost,
                 debug = debugHud,
+                showRawOverlay = debugHud && showRaw,
+                dtwDistanceFraction = state.dtwDistanceFraction,
                 modifier = Modifier
                     .fillMaxWidth()
                     // Player im Seitenverhältnis des Videos, damit Letterbox-Ränder

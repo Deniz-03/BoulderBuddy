@@ -2,15 +2,104 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Gym-Näherungs-Push: Standort-Button im Gym-Editor (Foreground) — M1. -->
+    <!-- Vibration bei Timer-Phasenwechseln (Schalter „Haptisches Feedback"). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!--
+      Spracheingabe in Notizfeldern (Weg A): Die App spricht den SpeechRecognizer direkt an und
+      zeigt eine eigene Aufnahme-UI. Damit nimmt sie selbst auf und braucht RECORD_AUDIO.
+
+      Wird die Freigabe verweigert, ist die Spracheingabe aus — es gibt keinen zweiten Weg mehr.
+      Der frühere Rückfall auf den System-RecognizerIntent lief in der Erkenner-App und kam ohne
+      diese Permission aus; er machte die Ablehnung damit wirkungslos.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!--
+      Eigener Aufnahme-Screen (CameraX) für Boulder-Fotos/-Videos und Ghost-Climber-Aufnahmen.
+      Der Ton von Videoaufnahmen läuft über das oben bereits deklarierte RECORD_AUDIO.
+      `required="false"`: die App bleibt auf Geräten ohne Kamera installierbar — dort fällt
+      der Aufnahme-Weg weg, die Galerie-Auswahl funktioniert weiter.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+
+    <!--
+      Geräte-Abgleich über Nearby Connections (Sync-Plan S4).
+
+      Die Aufteilung ist nicht willkürlich, sondern folgt drei Android-Umbrüchen. Die passende
+      Laufzeit-Liste je Version steht in NearbyBerechtigungen.kt — wer hier etwas ändert, ändert
+      sie dort mit.
+
+      Ab Android 12 sind die Bluetooth-Rechte aufgeteilt und laufzeitpflichtig; davor genügen
+      BLUETOOTH/BLUETOOTH_ADMIN als Installationsrechte.
+    -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+
+    <!--
+      Ab Android 13 ersetzt NEARBY_WIFI_DEVICES den Standort. `neverForLocation` ist die
+      Zusicherung an das System UND an den Nutzer: die App leitet aus den gefundenen Geräten
+      keinen Standort ab. Ohne dieses Flag verlangte Android weiterhin die Standortfreigabe.
+    -->
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="tiramisu" />
+
+    <!--
+      Standort — von zwei Features aus zwei Gründen gebraucht:
+
+      1. Nearby verlangt bis Android 12 den genauen Standort (ab 13 übernimmt das
+         NEARBY_WIFI_DEVICES oben). Die Begründung steht in NearbyBerechtigungen.begruendung().
+      2. Der Gym-Näherungs-Push braucht ihn auf *allen* Versionen: Standort-Button im
+         Gym-Editor (M1) und Geofencing (M2).
+
+      Grund 2 ist der weitere — deshalb steht hier kein `maxSdkVersion` mehr. Solange die
+      Näherungs-Push-Freigabe aus ist, fragt die App den Standort auf Android 13+ nur noch
+      für Nearby an, und dort greift weiterhin die Liste in NearbyBerechtigungen.kt.
+    -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
     <!-- Gym-Näherungs-Push: Geofencing bei geschlossener App + Re-Register nach Boot — M2.
          ACCESS_BACKGROUND_LOCATION ist ab API 29 separat, ab API 30 nur via Settings-Flow. -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Gym-Näherungs-Push: "Session starten?"-Notification (Runtime-Permission ab API 33) — M4. -->
+
+    <!--
+      Die erste Übertragung kann Gigabyte umfassen. Ohne Foreground Service bricht sie ab,
+      sobald der Bildschirm ausgeht — mitten in einem Abgleich das schlechteste Ergebnis.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"
+        tools:targetApi="34" />
+    <!-- Auch die „Session starten?"-Notification des Näherungs-Push läuft hierüber (M4). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      Package Visibility (ab API 30): ohne diese Abfrage meldet SpeechRecognizer.isRecognitionAvailable()
+      false, obwohl ein Erkennungsdienst installiert ist — die Spracheingabe hielte sich dann für
+      unmöglich.
+
+      Die zweite Abfrage auf android.speech.action.RECOGNIZE_SPEECH ist mit dem Intent-Fallback
+      entfallen: die App startet keine fremde Spracheingabe-Activity mehr.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
 
     <application
         android:name=".BoulderBuddyApp"
@@ -33,6 +122,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Macht die app-internen Aufnahmen unter `filesDir/aufnahmen/` als `content://`-URI
+          adressierbar. Nicht exportiert: nur die App selbst greift darauf zu — geteilt wird
+          nichts, die Aufnahmen bleiben in der App-Sandbox.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Homescreen-Widget (Phase 7.4c): aktive Session / Tops / Schnellstart. -->
         <receiver
@@ -61,6 +165,16 @@
             </intent-filter>
         </receiver>
 
+        <!--
+          Haelt den Geraete-Abgleich am Leben (Sync-Plan S5). `dataSync`, weil genau das
+          passiert: Daten zwischen zwei Geraeten uebertragen. Ohne den Dienst bricht die
+          erste Uebertragung ab, sobald der Bildschirm ausgeht — mitten in den Videos.
+        -->
+        <service
+            android:name="com.boulderbuddy.sync.nearby.AbgleichService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Empfängt fertige Hangboard-Durchläufe von der Wear-App (Phase 7.2, Data Layer). -->
         <service
             android:name="com.boulderbuddy.wearsync.HangboardWearListenerService"
@@ -71,6 +185,14 @@
                     android:scheme="wear"
                     android:host="*"
                     android:pathPrefix="/boulderbuddy/hangboard_completed" />
+            </intent-filter>
+            <!-- Sensor-Log-Export der Uhr (B.5.1): kommt als DataItem mit Asset. -->
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/boulderbuddy/sensor_log" />
             </intent-filter>
         </service>
     </application>

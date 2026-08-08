@@ -1,12 +1,19 @@
 package com.boulderbuddy.ui.viewmodel
 
+import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
+import com.boulderbuddy.data.db.entity.HangboardWorkoutOrigin
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.settings.TimerConfig
+import com.boulderbuddy.data.haptics.HapticPattern
+import com.boulderbuddy.fake.FakeGymRepository
 import com.boulderbuddy.fake.FakeHangboardRepository
-import com.boulderbuddy.fake.FakeHangboardSessionRepository
+import com.boulderbuddy.fake.FakeHangboardWorkoutRepository
+import com.boulderbuddy.fake.FakeHapticPlayer
 import com.boulderbuddy.fake.FakeSessionRepository
 import com.boulderbuddy.fake.FakeSettingsRepository
+import com.boulderbuddy.fake.FakeWearConnection
 import com.boulderbuddy.ui.screens.TimerPhase
 import com.boulderbuddy.util.MainDispatcherRule
 import com.google.common.truth.Truth.assertThat
@@ -33,14 +40,20 @@ class HangboardTimerViewModelTest {
 
     private val settings = FakeSettingsRepository(TimerConfig(sets = 2, hangSec = 3, restSec = 1))
     private val sessions = FakeSessionRepository()
-    private val hangboardSessions = FakeHangboardSessionRepository()
+    private val hangboardWorkouts = FakeHangboardWorkoutRepository()
     private val hangboard = FakeHangboardRepository()
+    private val gyms = FakeGymRepository()
+    private val haptics = FakeHapticPlayer()
+    private val wear = FakeWearConnection()
 
     private fun createViewModel() = HangboardTimerViewModel(
         settingsRepository = settings,
         sessionRepository = sessions,
-        hangboardSessionRepository = hangboardSessions,
+        hangboardWorkoutRepository = hangboardWorkouts,
         hangboardRepository = hangboard,
+        gymRepository = gyms,
+        hapticPlayer = haptics,
+        wearConnection = wear,
     )
 
     @Test
@@ -79,8 +92,9 @@ class HangboardTimerViewModelTest {
     }
 
     @Test
-    fun completingAllSets_reachesDoneAndRecordsWorkoutInActiveSession() =
+    fun completingAllSets_reachesDoneAndAttachesWorkoutToActiveSession() =
         runTest(mainDispatcherRule.dispatcher) {
+            gyms.all.value = listOf(GymEntity(id = 1, name = "Halle Nord"))
             sessions.active.value = SessionEntity(id = 5, gymId = 1, date = 0L)
             val vm = createViewModel()
             advanceUntilIdle()
@@ -92,18 +106,25 @@ class HangboardTimerViewModelTest {
             assertThat(state.phase).isEqualTo(TimerPhase.DONE)
             assertThat(state.isRunning).isFalse()
 
-            assertThat(hangboardSessions.created).hasSize(1)
-            val workout = hangboardSessions.created.first()
-            assertThat(workout.sessionId).isEqualTo(5)
-            assertThat(workout.totalSets).isEqualTo(2)
-            assertThat(workout.completedSets).isEqualTo(2)
-            assertThat(workout.hangSec).isEqualTo(3)
+            assertThat(hangboardWorkouts.created).hasSize(1)
+            val created = hangboardWorkouts.created.first()
+            assertThat(created.workout.sessionId).isEqualTo(5)
+            assertThat(created.workout.mode).isEqualTo(HangboardWorkoutMode.MANUAL)
+            assertThat(created.workout.origin).isEqualTo(HangboardWorkoutOrigin.PHONE)
+            assertThat(created.workout.plannedSets).isEqualTo(2)
+            assertThat(created.workout.plannedHangSec).isEqualTo(3)
+            // Segmente aus der Vorgabe: 2 Sätze à 3s Hang, letzter Satz ohne Pause.
+            assertThat(created.segments).hasSize(2)
+            assertThat(created.segments.map { it.hangMs }).containsExactly(3_000L, 3_000L)
+            assertThat(created.segments.last().restMs).isEqualTo(0L)
+            // Speicherort-Feedback (§0 Säule 3) nennt die Session-Halle.
+            assertThat(state.savedTo).contains("Halle Nord")
         }
 
     @Test
-    fun completingWithoutActiveSession_recordsNothing() =
+    fun completingWithoutActiveSession_recordsStandaloneWorkout() =
         runTest(mainDispatcherRule.dispatcher) {
-            // Keine aktive Session (active bleibt null).
+            // Keine aktive Session (active bleibt null) → trotzdem speichern, ohne sessionId.
             val vm = createViewModel()
             advanceUntilIdle()
 
@@ -111,7 +132,9 @@ class HangboardTimerViewModelTest {
             advanceUntilIdle()
 
             assertThat(vm.uiState.value.phase).isEqualTo(TimerPhase.DONE)
-            assertThat(hangboardSessions.created).isEmpty()
+            assertThat(hangboardWorkouts.created).hasSize(1)
+            assertThat(hangboardWorkouts.created.first().workout.sessionId).isNull()
+            assertThat(vm.uiState.value.savedTo).contains("eigenständiges")
         }
 
     @Test
@@ -129,6 +152,45 @@ class HangboardTimerViewModelTest {
         assertThat(state.phase).isEqualTo(TimerPhase.HANG)
         assertThat(state.currentSet).isEqualTo(1)
         assertThat(state.isRunning).isFalse()
+    }
+
+    @Test
+    fun phaseChanges_vibrateWhileHapticsAreEnabled() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.onPlayPause()
+        advanceUntilIdle()
+
+        // 2 Sätze: HANG→REST, REST→HANG (je ein Impuls), dann HANG→DONE (Abschlussmuster).
+        assertThat(haptics.played).containsExactly(
+            HapticPattern.PHASENWECHSEL,
+            HapticPattern.PHASENWECHSEL,
+            HapticPattern.FERTIG,
+        ).inOrder()
+    }
+
+    @Test
+    fun phaseChanges_stayQuietWhenHapticsAreOff() = runTest(mainDispatcherRule.dispatcher) {
+        settings.hapticFeedbackState.value = false
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.onPlayPause()
+        advanceUntilIdle()
+
+        assertThat(haptics.played).isEmpty()
+    }
+
+    @Test
+    fun watchConnection_isReflectedInState() = runTest(mainDispatcherRule.dispatcher) {
+        val vm = createViewModel()
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.watchConnected).isFalse()
+
+        wear.connectedState.value = true
+        advanceUntilIdle()
+        assertThat(vm.uiState.value.watchConnected).isTrue()
     }
 
     @Test

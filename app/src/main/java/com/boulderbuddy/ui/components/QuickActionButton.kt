@@ -26,7 +26,7 @@ import com.boulderbuddy.ui.theme.Dimens
 
 // Schnellaktions-Kachel auf dem Home-Screen ("Session starten", "Boulder hinzufügen").
 // Icon oben, Label unten. Zwei Varianten:
-//  - primary:   dunkel gefüllt (surfaceInverse) + heller Inhalt
+//  - primary:   fillStrong als Füllung + onFillStrong als Inhalt (dreht im Dark Mode)
 //  - secondary: helle Card (surfaceCard) + dunkler Inhalt + dezenter Rand
 // Dieselbe Farblogik wie PrimaryButton/SelectableChip, nur als quadratische Kachel.
 // onClick ist Kern-UI: die Kachel IST ein Button.
@@ -42,8 +42,8 @@ fun QuickActionButton(
         onClick = onClick,
         modifier = modifier,
         shape = MaterialTheme.shapes.medium,
-        color = if (primary) BoulderBuddy.colors.surfaceInverse else BoulderBuddy.colors.surfaceCard,
-        contentColor = if (primary) BoulderBuddy.colors.surfaceBackground else MaterialTheme.colorScheme.onSurface,
+        color = if (primary) BoulderBuddy.colors.fillStrong else BoulderBuddy.colors.surfaceCard,
+        contentColor = if (primary) BoulderBuddy.colors.onFillStrong else MaterialTheme.colorScheme.onSurface,
         border = if (primary) null else BorderStroke(Dimens.borderSubtle, BoulderBuddy.colors.borderSubtle),
     ) {
         Column(
@@ -67,7 +67,7 @@ fun QuickActionButton(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3, widthDp = 360)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4, widthDp = 360)
 @Composable
 private fun QuickActionButtonPreview() {
     BoulderBuddyTheme {

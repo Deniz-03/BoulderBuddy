@@ -1,22 +1,35 @@
 package com.boulderbuddy.wearsync
 
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
-import com.boulderbuddy.data.db.entity.HangboardSessionEntity
-import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
+import com.boulderbuddy.data.db.entity.HangboardWorkoutOrigin
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.SessionRepository
+import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import java.io.File
+import java.io.InputStream
 import javax.inject.Inject
 
 /**
  * Empfängt einen auf der Uhr abgeschlossenen Hangboard-Durchlauf (Wear Data Layer, MessageClient)
- * und trägt ihn — **falls auf dem Phone eine Session aktiv ist** — in genau diese Session.
- *
- * Das spiegelt `HangboardTimerViewModel.recordWorkout()`: gibt es keine aktive Session, wird
- * nichts geschrieben (kein FK-Ziel, kein Clutter). Der Timer auf der Uhr läuft trotzdem eigenständig.
+ * und speichert ihn **immer** als Hangboard-Workout (§0 Säule 2): Läuft auf dem Phone eine
+ * Session, wird er an sie gehängt, sonst als eigenständiges Training (`sessionId = null`).
+ * Die Verknüpfungs-Entscheidung fällt hier — beim Persistieren, nicht auf der Uhr.
  *
  * Vertrag mit der Uhr: `com.boulderbuddy.wear.data.WearSyncContract`
  * (Pfad + Payload-Format identisch dupliziert, da getrennte Module).
@@ -25,10 +38,16 @@ import javax.inject.Inject
 class HangboardWearListenerService : WearableListenerService() {
 
     @Inject lateinit var sessionRepository: SessionRepository
-    @Inject lateinit var hangboardSessionRepository: HangboardSessionRepository
+    @Inject lateinit var hangboardWorkoutRepository: HangboardWorkoutRepository
 
     override fun onMessageReceived(event: MessageEvent) {
-        if (event.path != PATH_HANGBOARD_COMPLETED) return
+        when (event.path) {
+            PATH_HANGBOARD_COMPLETED -> onManualCompleted(event)
+            PATH_HANGBOARD_AUTO_COMPLETED -> onAutoCompleted(event)
+        }
+    }
+
+    private fun onManualCompleted(event: MessageEvent) {
         val run = parse(String(event.data, Charsets.UTF_8)) ?: run {
             Log.w(TAG, "Ungültige Payload: ${String(event.data, Charsets.UTF_8)}")
             return
@@ -36,21 +55,119 @@ class HangboardWearListenerService : WearableListenerService() {
         // onMessageReceived läuft bereits auf einem Hintergrund-Thread → runBlocking ist ok.
         runBlocking {
             val sessionId = sessionRepository.observeActive().first()?.id
-            if (sessionId == null) {
-                Log.d(TAG, "Keine aktive Session — Uhr-Durchlauf wird nicht getrackt.")
-                return@runBlocking
-            }
-            hangboardSessionRepository.create(
-                HangboardSessionEntity(
-                    sessionId = sessionId,
-                    completedSets = run.completedSets,
-                    totalSets = run.totalSets,
-                    hangSec = run.hangSec,
-                    restSec = run.restSec,
-                    date = run.date,
+            // Segmente aus der Vorgabe ableiten (manueller Uhr-Timer, letzter Satz ohne Pause).
+            val segments = List(run.completedSets) { i ->
+                HangboardSegmentEntity(
+                    workoutId = 0,
+                    setIndex = i,
+                    hangMs = run.hangSec * 1000L,
+                    restMs = if (i < run.completedSets - 1) run.restSec * 1000L else 0L,
                 )
+            }
+            // Dauer des Durchlaufs rückrechnen — die Uhr überträgt nur den Abschluss-Zeitpunkt.
+            val durationMs = segments.sumOf { it.hangMs + it.restMs }
+            hangboardWorkoutRepository.create(
+                HangboardWorkoutEntity(
+                    sessionId = sessionId,
+                    mode = HangboardWorkoutMode.MANUAL,
+                    origin = HangboardWorkoutOrigin.WATCH,
+                    startedAt = run.date - durationMs,
+                    endedAt = run.date,
+                    plannedSets = run.totalSets,
+                    plannedHangSec = run.hangSec,
+                    plannedRestSec = run.restSec,
+                ),
+                segments,
             )
-            Log.d(TAG, "Uhr-Durchlauf in Session $sessionId getrackt.")
+            Log.d(
+                TAG,
+                if (sessionId != null) "Uhr-Workout in Session $sessionId gespeichert."
+                else "Uhr-Workout als eigenständiges Training gespeichert.",
+            )
+        }
+    }
+
+    /**
+     * Auto-Workout der Uhr (M4): gemessene Segmente statt Plan-Werte. Gleiche
+     * Speicher-Entscheidung wie beim manuellen Pfad (§0 Säule 2), planned* bleiben null.
+     */
+    private fun onAutoCompleted(event: MessageEvent) {
+        val run = parseAuto(String(event.data, Charsets.UTF_8)) ?: run {
+            Log.w(TAG, "Ungültige Auto-Payload: ${String(event.data, Charsets.UTF_8)}")
+            return
+        }
+        runBlocking {
+            val sessionId = sessionRepository.observeActive().first()?.id
+            hangboardWorkoutRepository.create(
+                HangboardWorkoutEntity(
+                    sessionId = sessionId,
+                    mode = HangboardWorkoutMode.AUTO,
+                    origin = HangboardWorkoutOrigin.WATCH,
+                    startedAt = run.startedAt,
+                    endedAt = run.endedAt,
+                    plannedSets = null,
+                    plannedHangSec = null,
+                    plannedRestSec = null,
+                ),
+                run.segments.mapIndexed { index, (hangMs, restMs) ->
+                    HangboardSegmentEntity(
+                        workoutId = 0,
+                        setIndex = index,
+                        hangMs = hangMs,
+                        restMs = restMs,
+                    )
+                },
+            )
+            Log.d(
+                TAG,
+                if (sessionId != null) {
+                    "Auto-Workout (${run.segments.size} Sätze) in Session $sessionId gespeichert."
+                } else {
+                    "Auto-Workout (${run.segments.size} Sätze) als eigenständiges Training gespeichert."
+                },
+            )
+        }
+    }
+
+    /**
+     * Sensor-Log-Export der Uhr (B.5.1): DataItem mit CSV-Asset → als Datei in den
+     * Downloads ablegen, damit es für die Offline-Kalibrierung (B.5.3) greifbar ist.
+     */
+    override fun onDataChanged(events: DataEventBuffer) {
+        events.forEach { event ->
+            if (event.type != DataEvent.TYPE_CHANGED) return@forEach
+            if (event.dataItem.uri.path != PATH_SENSOR_LOG) return@forEach
+            val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+            val asset = dataMap.getAsset(KEY_SENSOR_LOG_ASSET) ?: return@forEach
+            val name = dataMap.getString(KEY_SENSOR_LOG_NAME) ?: "sensorlog.csv"
+            try {
+                // onDataChanged läuft auf einem Hintergrund-Thread → Tasks.await ist ok.
+                val fd = Tasks.await(Wearable.getDataClient(this).getFdForAsset(asset))
+                fd.inputStream.use { saveToDownloads(name, it) }
+                Log.d(TAG, "Sensor-Log $name in Downloads/$DOWNLOAD_SUBDIR gespeichert.")
+            } catch (e: Exception) {
+                Log.w(TAG, "Sensor-Log $name konnte nicht gespeichert werden.", e)
+            }
+        }
+    }
+
+    private fun saveToDownloads(name: String, input: InputStream) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, name)
+                put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+                put(
+                    MediaStore.Downloads.RELATIVE_PATH,
+                    "${Environment.DIRECTORY_DOWNLOADS}/$DOWNLOAD_SUBDIR",
+                )
+            }
+            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("MediaStore-Insert für $name fehlgeschlagen")
+            contentResolver.openOutputStream(uri)?.use { input.copyTo(it) }
+        } else {
+            // Pre-Q (minSdk 26): app-eigenes externes Verzeichnis, per Dateimanager erreichbar.
+            val dir = File(getExternalFilesDir(null), DOWNLOAD_SUBDIR).apply { mkdirs() }
+            File(dir, name).outputStream().use { input.copyTo(it) }
         }
     }
 
@@ -61,6 +178,33 @@ class HangboardWearListenerService : WearableListenerService() {
         val restSec: Int,
         val date: Long,
     )
+
+    private data class WearAutoRun(
+        val startedAt: Long,
+        val endedAt: Long,
+        /** Gemessene Segmente als (hangMs, restMs). */
+        val segments: List<Pair<Long, Long>>,
+    )
+
+    /** Payload = "startedAt;endedAt;hangMs:restMs,hangMs:restMs,…". */
+    private fun parseAuto(payload: String): WearAutoRun? {
+        val parts = payload.split(';')
+        if (parts.size != 3) return null
+        return try {
+            val segments = parts[2].split(',').map { segment ->
+                val (hangMs, restMs) = segment.split(':')
+                hangMs.toLong() to restMs.toLong()
+            }
+            if (segments.isEmpty()) return null
+            WearAutoRun(
+                startedAt = parts[0].toLong(),
+                endedAt = parts[1].toLong(),
+                segments = segments,
+            )
+        } catch (e: RuntimeException) {
+            null
+        }
+    }
 
     /** Payload = "completedSets;totalSets;hangSec;restSec;date". */
     private fun parse(payload: String): WearRun? {
@@ -81,7 +225,13 @@ class HangboardWearListenerService : WearableListenerService() {
 
     private companion object {
         const val TAG = "WearListener"
-        // Muss mit WearSyncContract.PATH_HANGBOARD_COMPLETED der Uhr übereinstimmen.
+        // Müssen mit dem WearSyncContract der Uhr übereinstimmen (getrennte Module).
         const val PATH_HANGBOARD_COMPLETED = "/boulderbuddy/hangboard_completed"
+        // Teilt bewusst den Präfix von PATH_HANGBOARD_COMPLETED → ein Manifest-Filter für beide.
+        const val PATH_HANGBOARD_AUTO_COMPLETED = "/boulderbuddy/hangboard_completed/auto"
+        const val PATH_SENSOR_LOG = "/boulderbuddy/sensor_log"
+        const val KEY_SENSOR_LOG_ASSET = "log"
+        const val KEY_SENSOR_LOG_NAME = "name"
+        const val DOWNLOAD_SUBDIR = "BoulderBuddy"
     }
 }

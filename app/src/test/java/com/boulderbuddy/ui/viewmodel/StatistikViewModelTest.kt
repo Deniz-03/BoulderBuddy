@@ -3,14 +3,19 @@ package com.boulderbuddy.ui.viewmodel
 import app.cash.turbine.test
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
-import com.boulderbuddy.data.db.entity.HangboardSessionEntity
+import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
+import com.boulderbuddy.data.db.entity.HangboardWorkoutOrigin
+import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.model.RouteStatus
 import com.boulderbuddy.fake.FakeGradeRepository
-import com.boulderbuddy.fake.FakeHangboardSessionRepository
+import com.boulderbuddy.fake.FakeHangboardWorkoutRepository
 import com.boulderbuddy.fake.FakeRouteRepository
 import com.boulderbuddy.fake.FakeSessionRepository
+import com.boulderbuddy.ui.model.Zeitraum
 import com.boulderbuddy.util.MainDispatcherRule
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,7 +37,7 @@ class StatistikViewModelTest {
     private val sessions = FakeSessionRepository()
     private val routes = FakeRouteRepository()
     private val grades = FakeGradeRepository()
-    private val hangboardSessions = FakeHangboardSessionRepository()
+    private val hangboardWorkouts = FakeHangboardWorkoutRepository()
 
     @Test
     fun aggregatesTopsFlashRateHangboardAndDistribution() =
@@ -51,14 +56,26 @@ class StatistikViewModelTest {
                 // Offen → zählt nicht als Top.
                 RouteEntity(id = 3, sessionId = 1, gradeId = 11, status = RouteStatus.OPEN),
             )
-            hangboardSessions.all.value = listOf(
-                HangboardSessionEntity(
-                    id = 1, sessionId = 1, completedSets = 10, totalSets = 10,
-                    hangSec = 7, restSec = 3, date = 0L,
+            // 10 Sätze à 7s Hang (Segmente) — Hängezeit kommt aus den gemessenen Dauern.
+            hangboardWorkouts.all.value = listOf(
+                HangboardWorkoutWithSegments(
+                    workout = HangboardWorkoutEntity(
+                        id = 1, sessionId = 1,
+                        mode = HangboardWorkoutMode.MANUAL,
+                        origin = HangboardWorkoutOrigin.PHONE,
+                        startedAt = 0L, endedAt = 0L,
+                        plannedSets = 10, plannedHangSec = 7, plannedRestSec = 3,
+                    ),
+                    segments = List(10) { i ->
+                        HangboardSegmentEntity(
+                            id = i + 1, workoutId = 1, setIndex = i,
+                            hangMs = 7_000L, restMs = if (i < 9) 3_000L else 0L,
+                        )
+                    },
                 ),
             )
 
-            val vm = StatistikViewModel(sessions, routes, grades, hangboardSessions)
+            val vm = StatistikViewModel(sessions, routes, grades, hangboardWorkouts)
 
             vm.uiState.test {
                 // Auf den berechneten Zustand warten (erstes Item ist der initiale Leerzustand).
@@ -71,8 +88,8 @@ class StatistikViewModelTest {
 
                 assertThat(state.hangboardWorkouts).isEqualTo(1)
                 assertThat(state.hangboardSets).isEqualTo(10)
-                // 10 Sätze × 7s = 70s → "1min".
-                assertThat(state.hangboardHangTime).isEqualTo("1min")
+                // 10 Sätze × 7s = 70s → "1:10min" (Sekunden bleiben sichtbar).
+                assertThat(state.hangboardHangTime).isEqualTo("1:10min")
 
                 // Beide Tops sind "6a" im selben System → ein Balken mit Wert 2.
                 assertThat(state.distributionSystems.map { it.id }).containsExactly(1)
@@ -93,7 +110,7 @@ class StatistikViewModelTest {
                 RouteEntity(id = 1, sessionId = 1, gradeId = null, status = RouteStatus.OPEN),
             )
 
-            val vm = StatistikViewModel(sessions, routes, grades, hangboardSessions)
+            val vm = StatistikViewModel(sessions, routes, grades, hangboardWorkouts)
 
             vm.uiState.test {
                 var state = awaitItem()
@@ -103,6 +120,51 @@ class StatistikViewModelTest {
                 assertThat(state.flashRate).isEqualTo("–")
                 assertThat(state.hangboardHangTime).isEqualTo("–")
                 assertThat(state.distributionBySystem).isEmpty()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    /**
+     * Nur die Verdrahtung: dass beide Verläufe für **alle drei** Körnungen im Zustand liegen.
+     *
+     * Der Umschalter im Screen wechselt ohne neue Datenbankabfrage — er greift in diese Maps.
+     * Fehlte ein Schlüssel, liefe er in einen leeren Zustand. Was die Aggregation *rechnet*,
+     * prüft `StatistikVerlaufTest` mit festem Stichtag; hier wird bewusst nichts über Werte
+     * behauptet, weil das ViewModel `LocalDate.now()` benutzt.
+     */
+    @Test
+    fun `beide Verlaeufe liegen fuer alle drei Koernungen im Zustand`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            grades.systems.value = listOf(GradeSystemEntity(id = 1, gymId = null, name = "Französisch"))
+            grades.grades.value = listOf(GradeEntity(id = 10, systemId = 1, label = "6a", order = 0))
+            sessions.all.value = listOf(
+                SessionEntity(id = 1, gymId = 1, date = System.currentTimeMillis()),
+            )
+            routes.all.value = listOf(
+                RouteEntity(id = 1, sessionId = 1, gradeId = 10, status = RouteStatus.SENT, attempts = 1),
+            )
+
+            val vm = StatistikViewModel(sessions, routes, grades, hangboardWorkouts)
+
+            vm.uiState.test {
+                var state = awaitItem()
+                while (state.totalSessions == 0) state = awaitItem()
+
+                assertThat(state.routenVerlauf.keys).containsExactlyElementsIn(Zeitraum.entries)
+                assertThat(state.gradVerlauf.keys).containsExactlyElementsIn(Zeitraum.entries)
+
+                Zeitraum.entries.forEach { zeitraum ->
+                    // Die Reihe ist vollständig — auch Abschnitte ohne Aktivität stehen drin.
+                    assertThat(state.routenVerlauf.getValue(zeitraum)).hasSize(zeitraum.eimer)
+                    // Das Top von heute liegt im jüngsten Abschnitt; die x-Achsen beider
+                    // Diagramme müssen deckungsgleich sein, sonst liegen sie versetzt
+                    // untereinander.
+                    val kurve = state.gradVerlauf.getValue(zeitraum).getValue(1)
+                    assertThat(kurve.map { it.label })
+                        .isEqualTo(state.routenVerlauf.getValue(zeitraum).map { it.label })
+                    assertThat(kurve.last().wertLabel).isEqualTo("6a")
+                }
 
                 cancelAndIgnoreRemainingEvents()
             }

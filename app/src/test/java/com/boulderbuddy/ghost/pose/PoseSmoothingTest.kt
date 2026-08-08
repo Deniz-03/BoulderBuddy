@@ -165,9 +165,12 @@ class PoseSmoothingTest {
     }
 
     @Test
-    fun `ganz fehlendes landmark wird ueber kurze luecke gehalten`() {
-        // Sichtbar bei 0.9, dann 3 Frames GANZ fehlend. Die ersten beiden werden mit
-        // der letzten Position (x=100) überbrückt; ab dem 3. Fehl-Frame verschwindet es.
+    fun `ganz fehlendes landmark wird nicht mehr an alter position gehalten`() {
+        // S2c: früher wurden die ersten beiden Fehl-Frames mit der letzten Position
+        // überbrückt — das Glied blieb bis zu 250 ms stehen, während der Körper
+        // weiterlief ("das Skelett braucht zu lange, um zu folgen"). Fehlt ein Landmark
+        // ganz, bleibt es jetzt leer; kurze echte Lücken füllt fillLandmarkGaps sauber
+        // zwischen zwei Ankern statt eine veraltete Position festzuhalten.
         val frames = listOf(
             GhostPoseFrame(0L, listOf(GhostLandmark(type = 15, x = 100f, y = 50f, confidence = 0.9f))),
             GhostPoseFrame(83L, emptyList()),
@@ -175,9 +178,9 @@ class PoseSmoothingTest {
             GhostPoseFrame(249L, emptyList()),
         )
         val result = applyVisibilityHysteresis(frames)
-        assertThat(result[1].landmarks).hasSize(1)
-        assertThat(result[1].landmarks.single().x).isEqualTo(100f)
-        assertThat(result[2].landmarks).hasSize(1)
+        assertThat(result[0].landmarks).hasSize(1)
+        assertThat(result[1].landmarks).isEmpty()
+        assertThat(result[2].landmarks).isEmpty()
         assertThat(result[3].landmarks).isEmpty()
     }
 }

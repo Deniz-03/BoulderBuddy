@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 6,
-    "identityHash": "6cc95b62ffe0cb07b407889056719a01",
+    "identityHash": "a4f4fd6cb2a5d3bf0f64692f4bb64a22",
     "entities": [
       {
         "tableName": "gym",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `location` TEXT, `latitude` REAL, `longitude` REAL, `geofenceRadiusMeters` INTEGER NOT NULL, `proximityAlertsEnabled` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `location` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -24,28 +24,6 @@
             "fieldPath": "location",
             "columnName": "location",
             "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "latitude",
-            "columnName": "latitude",
-            "affinity": "REAL"
-          },
-          {
-            "fieldPath": "longitude",
-            "columnName": "longitude",
-            "affinity": "REAL"
-          },
-          {
-            "fieldPath": "geofenceRadiusMeters",
-            "columnName": "geofenceRadiusMeters",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "proximityAlertsEnabled",
-            "columnName": "proximityAlertsEnabled",
-            "affinity": "INTEGER",
-            "notNull": true
           }
         ],
         "primaryKey": {
@@ -422,8 +400,8 @@
         }
       },
       {
-        "tableName": "hangboard_session",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER NOT NULL, `completedSets` INTEGER NOT NULL, `totalSets` INTEGER NOT NULL, `hangSec` INTEGER NOT NULL, `restSec` INTEGER NOT NULL, `date` INTEGER NOT NULL, FOREIGN KEY(`sessionId`) REFERENCES `session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "hangboard_workout",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sessionId` INTEGER, `mode` TEXT NOT NULL, `origin` TEXT NOT NULL, `startedAt` INTEGER NOT NULL, `endedAt` INTEGER NOT NULL, `plannedSets` INTEGER, `plannedHangSec` INTEGER, `plannedRestSec` INTEGER, FOREIGN KEY(`sessionId`) REFERENCES `session`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -434,36 +412,110 @@
           {
             "fieldPath": "sessionId",
             "columnName": "sessionId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mode",
+            "columnName": "mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "completedSets",
-            "columnName": "completedSets",
+            "fieldPath": "endedAt",
+            "columnName": "endedAt",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "totalSets",
-            "columnName": "totalSets",
+            "fieldPath": "plannedSets",
+            "columnName": "plannedSets",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "plannedHangSec",
+            "columnName": "plannedHangSec",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "plannedRestSec",
+            "columnName": "plannedRestSec",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_hangboard_workout_sessionId",
+            "unique": false,
+            "columnNames": [
+              "sessionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_hangboard_workout_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "session",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "sessionId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "hangboard_segment",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `workoutId` INTEGER NOT NULL, `setIndex` INTEGER NOT NULL, `hangMs` INTEGER NOT NULL, `restMs` INTEGER NOT NULL, FOREIGN KEY(`workoutId`) REFERENCES `hangboard_workout`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "hangSec",
-            "columnName": "hangSec",
+            "fieldPath": "workoutId",
+            "columnName": "workoutId",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "restSec",
-            "columnName": "restSec",
+            "fieldPath": "setIndex",
+            "columnName": "setIndex",
             "affinity": "INTEGER",
             "notNull": true
           },
           {
-            "fieldPath": "date",
-            "columnName": "date",
+            "fieldPath": "hangMs",
+            "columnName": "hangMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restMs",
+            "columnName": "restMs",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -476,22 +528,22 @@
         },
         "indices": [
           {
-            "name": "index_hangboard_session_sessionId",
+            "name": "index_hangboard_segment_workoutId",
             "unique": false,
             "columnNames": [
-              "sessionId"
+              "workoutId"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_hangboard_session_sessionId` ON `${TABLE_NAME}` (`sessionId`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_hangboard_segment_workoutId` ON `${TABLE_NAME}` (`workoutId`)"
           }
         ],
         "foreignKeys": [
           {
-            "table": "session",
+            "table": "hangboard_workout",
             "onDelete": "CASCADE",
             "onUpdate": "NO ACTION",
             "columns": [
-              "sessionId"
+              "workoutId"
             ],
             "referencedColumns": [
               "id"
@@ -564,71 +616,11 @@
             "id"
           ]
         }
-      },
-      {
-        "tableName": "gym_visit",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `gymId` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `source` TEXT NOT NULL, FOREIGN KEY(`gymId`) REFERENCES `gym`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "gymId",
-            "columnName": "gymId",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "timestamp",
-            "columnName": "timestamp",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "source",
-            "columnName": "source",
-            "affinity": "TEXT",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": true,
-          "columnNames": [
-            "id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_gym_visit_gymId",
-            "unique": false,
-            "columnNames": [
-              "gymId"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_gym_visit_gymId` ON `${TABLE_NAME}` (`gymId`)"
-          }
-        ],
-        "foreignKeys": [
-          {
-            "table": "gym",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "gymId"
-            ],
-            "referencedColumns": [
-              "id"
-            ]
-          }
-        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6cc95b62ffe0cb07b407889056719a01')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a4f4fd6cb2a5d3bf0f64692f4bb64a22')"
     ]
   }
 }

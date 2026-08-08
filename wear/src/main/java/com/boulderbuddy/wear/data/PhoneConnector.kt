@@ -2,7 +2,10 @@ package com.boulderbuddy.wear.data
 
 import android.content.Context
 import android.util.Log
+import com.google.android.gms.wearable.Asset
+import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
+import java.io.File
 
 /**
  * Sendet Ereignisse der Uhr an das gekoppelte Phone über den Wear Data Layer (MessageClient).
@@ -45,5 +48,63 @@ object PhoneConnector {
                 }
             }
             .addOnFailureListener { e -> Log.w(TAG, "Node-Abfrage fehlgeschlagen", e) }
+    }
+
+    /**
+     * Meldet ein beendetes **Auto**-Workout (gemessene Segmente) an alle verbundenen Nodes.
+     * Das Phone entscheidet beim Persistieren über die Session-Verknüpfung (§0 Säule 2).
+     */
+    fun sendAutoWorkoutCompleted(
+        context: Context,
+        startedAt: Long,
+        endedAt: Long,
+        segments: List<Pair<Long, Long>>,
+    ) {
+        val payload = WearSyncContract.encodeAuto(startedAt, endedAt, segments)
+        val messageClient = Wearable.getMessageClient(context)
+        Wearable.getNodeClient(context).connectedNodes
+            .addOnSuccessListener { nodes ->
+                if (nodes.isEmpty()) {
+                    Log.d(TAG, "Kein verbundener Node — Auto-Workout bleibt lokal auf der Uhr.")
+                    return@addOnSuccessListener
+                }
+                nodes.forEach { node ->
+                    messageClient.sendMessage(
+                        node.id,
+                        WearSyncContract.PATH_HANGBOARD_AUTO_COMPLETED,
+                        payload,
+                    ).addOnFailureListener { e ->
+                        Log.w(TAG, "Senden an ${node.displayName} fehlgeschlagen", e)
+                    }
+                }
+            }
+            .addOnFailureListener { e -> Log.w(TAG, "Node-Abfrage fehlgeschlagen", e) }
+    }
+
+    /**
+     * Überträgt ein aufgezeichnetes Sensor-Log (B.5.1) als DataItem-Asset ans Phone, das es
+     * in den Downloads ablegt. DataItems werden vom System synchronisiert & gecacht — der
+     * Export überlebt damit auch eine kurzzeitig getrennte Verbindung.
+     */
+    fun sendSensorLog(context: Context, file: File, onResult: (Boolean) -> Unit = {}) {
+        val request = PutDataMapRequest.create(WearSyncContract.PATH_SENSOR_LOG).apply {
+            dataMap.putAsset(
+                WearSyncContract.KEY_SENSOR_LOG_ASSET,
+                Asset.createFromBytes(file.readBytes()),
+            )
+            dataMap.putString(WearSyncContract.KEY_SENSOR_LOG_NAME, file.name)
+            // Erzwingt ein "geändertes" DataItem je Export (sonst Deduplizierung durch das System).
+            dataMap.putLong(WearSyncContract.KEY_SENSOR_LOG_TIMESTAMP, System.currentTimeMillis())
+        }.asPutDataRequest().setUrgent()
+
+        Wearable.getDataClient(context).putDataItem(request)
+            .addOnSuccessListener {
+                Log.d(TAG, "Sensor-Log ${file.name} übertragen (${file.length()} Bytes).")
+                onResult(true)
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Sensor-Log-Export fehlgeschlagen", e)
+                onResult(false)
+            }
     }
 }

@@ -7,6 +7,15 @@
     <!-- Haptisches Feedback bei Phasenwechsel/Ende des Hangboard-Timers. -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Sensor-Aufzeichnung (B.5.1) als Foreground Service, sonst schläft die CPU beim Hängen.
+         FGS-Typ health braucht zusätzlich eine der Sensor-Permissions — HIGH_SAMPLING_RATE_SENSORS
+         ist install-time (kein Runtime-Dialog) und deckt die Anforderung ab. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
+    <!-- Kurzer Partial-Wakelock während der Aufzeichnung (Display aus, Arm ruhig). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -23,6 +32,18 @@
         <uses-library
             android:name="com.google.android.wearable"
             android:required="false" />
+
+        <!-- Sensor-Aufzeichnung (B.5.1): läuft nur während einer Kalibrier-Session. -->
+        <service
+            android:name=".sensing.SensorLoggingService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
+
+        <!-- Auto-Hang-Erkennung (M3): Sensorstrom → HangDetector, nur während der Session. -->
+        <service
+            android:name=".sensing.AutoHangService"
+            android:exported="false"
+            android:foregroundServiceType="health" />
 
         <activity
             android:name=".presentation.MainActivity"

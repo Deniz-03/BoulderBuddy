@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
@@ -27,10 +28,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 
 // Eigenständige TopBar-Variante für die beiden Übersicht-Screens (Sessions / Boulder).
 // Statt eines festen Titels trägt sie einen Dropdown ("Sessions ▾" / "Boulder ▾"), über
@@ -47,15 +51,34 @@ fun UebersichtTopBar(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
+    // Trennlinie nach unten, wie bei TopBar: das Chrome dreht mit dem Theme und ist im
+    // Light Mode nahezu so hell wie der Inhalt.
+    val randfarbe = BoulderBuddy.colors.borderSubtle
     Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = BoulderBuddy.colors.surfaceInverse,
+        modifier = modifier
+            .fillMaxWidth()
+            // drawWithContent statt drawBehind: Surface legt seine Füllfarbe NACH dem
+            // übergebenen Modifier auf: eine mit drawBehind gezeichnete Linie wird davon
+            // wieder überdeckt und ist unsichtbar. drawContent() rendert erst Fläche und
+            // Inhalt, danach kommt die Linie darüber.
+            .drawWithContent {
+                drawContent()
+                val staerke = 1.dp.toPx()
+                drawRect(
+                    color = randfarbe,
+                    topLeft = Offset(0f, size.height - staerke),
+                    size = Size(size.width, staerke),
+                )
+            },
+        color = BoulderBuddy.colors.surfaceChrome,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = Dimens.paddingS, vertical = Dimens.paddingM),
+                // Dieselbe Höhe wie TopBar — im Zwei-Pane-Layout stehen beide nebeneinander.
+                .heightIn(min = Dimens.topBarHoehe)
+                .padding(horizontal = Dimens.paddingS, vertical = Dimens.paddingS),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Klickbarer Dropdown-Titel links (nimmt die Restbreite ein).
@@ -74,12 +97,12 @@ fun UebersichtTopBar(
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.SemiBold,
                         ),
-                        color = M3OnPrimary,
+                        color = BoulderBuddy.colors.onChrome,
                     )
                     Icon(
                         imageVector = Icons.Filled.ArrowDropDown,
                         contentDescription = "Ansicht wechseln",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
                 DropdownMenu(
@@ -127,7 +150,7 @@ private fun UebersichtTopBarPreview() {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = "Einstellungen",
-                        tint = M3OnPrimary,
+                        tint = BoulderBuddy.colors.onChrome,
                     )
                 }
             },

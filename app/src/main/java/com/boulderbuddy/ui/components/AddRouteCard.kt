@@ -81,7 +81,7 @@ fun AddRouteCard(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun AddRouteCardPreview() {
     BoulderBuddyTheme {

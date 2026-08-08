@@ -28,9 +28,12 @@ import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SessionListItem
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
+import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
+import com.boulderbuddy.ui.theme.Breite
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.theme.aktuelleBreite
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.HomeUiState
 import com.boulderbuddy.ui.viewmodel.LastSessionUi
 import androidx.compose.ui.graphics.Color
@@ -50,7 +53,12 @@ fun HomeScreen(
     onOpenAllBoulders: () -> Unit = {},
     onOpenLastSession: () -> Unit = {},
 ) {
-    val userName = state.userName
+    // Name kommt aus den Einstellungen (DataStore). Ist keiner gesetzt, grüßt die App neutral,
+    // statt einen Platzhalter-Namen zu erfinden.
+    val greeting = state.userName
+        .takeIf { it.isNotBlank() }
+        ?.let { "Hallo, $it 👋" }
+        ?: "Hallo 👋"
     val hasActiveSession = state.hasActiveSession
 
     // Ermittlung des aktuellen Datums
@@ -61,20 +69,37 @@ fun HomeScreen(
         )
     }
 
+    /*
+     * Die Form der Schnellaktions-Kacheln.
+     *
+     * Hier stand `aspectRatio(1f)` — quadratisch, weil sich die drei Kacheln die Breite teilen.
+     * Am Telefon (~110 dp je Kachel) ergibt das eine handliche Fläche. Die Höhe wächst dabei
+     * aber mit der Fensterbreite mit: am Tablet quer wurden daraus 410-dp-Quadrate, die 60 %
+     * der Bildhöhe füllten und „Letzte Session" aus dem Bild schoben.
+     *
+     * Das Quadrat war nie die Absicht, sondern das Ergebnis der Aufteilung. Sobald genug
+     * Breite da ist, wird die Höhe deshalb gedeckelt — die Kachel wird dann breit statt hoch,
+     * und Icon oben / Label unten funktioniert weiter.
+     */
+    val kachelHoehe = if (aktuelleBreite() == Breite.Kompakt) {
+        Modifier.aspectRatio(1f)
+    } else {
+        Modifier.height(Dimens.kachelMaxHoehe)
+    }
+
     // Scaffold teilt den Bildschirm in feste Bereiche. oben die Menüleiste, unten die NavBar und in der Mitte der Hauptinhalt.
     BoulderBuddyScaffold(
         // Obere Leiste
         topBar = {
             TopBar(
-                // TODO: "$userName" durch echten Nutzernamen aus der Datenbank ersetzen
-                title = "Hallo, $userName 👋",
+                title = greeting,
                 subtitle = dateText,
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Einstellungen",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
@@ -86,7 +111,13 @@ fun HomeScreen(
         content = { _ ->
             // Scrollbare Leiste die nur die Elemente Lädt die gerade auf dem Bildschirm sind -> Spart Leistung
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                // Begrenzt und zentriert statt über die volle Fensterbreite gezogen. Am
+                // Telefon wirkungslos (das Fenster ist schmaler als die Grenze), am Tablet
+                // quer der Unterschied zwischen einem Dashboard und drei auseinandergerissenen
+                // Karten.
+                modifier = Modifier
+                    .fillMaxSize()
+                    .inhaltsBreite(Dimens.spaltenBreiteWeit),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,
@@ -146,9 +177,7 @@ fun HomeScreen(
                                 icon = Icons.Filled.PlayArrow,
                                 onClick = onStartSession,
                                 primary = true,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f),
+                                modifier = Modifier.weight(1f).then(kachelHoehe),
                             )
                             // Nur bei aktiver Session: Boulder direkt in diese Session anlegen.
                             if (hasActiveSession) {
@@ -161,9 +190,7 @@ fun HomeScreen(
                                     // NavHost, solange kein ViewModel existiert).
                                     onClick = onAddBoulderToActiveSession,
                                     primary = false,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f),
+                                    modifier = Modifier.weight(1f).then(kachelHoehe),
                                 )
                             }
                             QuickActionButton(
@@ -171,9 +198,7 @@ fun HomeScreen(
                                 icon = Icons.Filled.GridView,
                                 onClick = onOpenAllBoulders,
                                 primary = false,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f),
+                                modifier = Modifier.weight(1f).then(kachelHoehe),
                             )
                         }
                     }
@@ -208,6 +233,7 @@ private fun HomeScreenPreview() {
     BoulderBuddyTheme {
         HomeScreen(
             state = HomeUiState(
+                userName = "Deniz",
                 sessionsPerWeek = 4,
                 totalTops = 23,
                 topGrade = "6c",

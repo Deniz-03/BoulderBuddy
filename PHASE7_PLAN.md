@@ -505,9 +505,20 @@ Konstanten/Config zentral halten, nicht verstreut hartkodieren.
 
 # Anhang B — Fable-5-Auftrag: Automatische Hangboard-Erkennung (Uhr)
 
+> ⚠️ **ZUERST LESEN: [`FABLE_HANGBOARD_START.md`](FABLE_HANGBOARD_START.md)** (Repo-Root).
+> Dort steht ein **übergeordnetes, einheitliches UX-Konzept (§0, 2026-07-06)** + die finalen
+> B.8-Entscheidungen + Repo-Fakten, die diesen Anhang in Teilen **überschreiben**: DB ist **v5
+> destruktiv** (⇒ nur `version` erhöhen, keine Migration); **vereintes Datenmodell**
+> `HangboardWorkoutEntity` + `HangboardSegmentEntity`, das die feste `HangboardSessionEntity`
+> **ersetzt** (gilt für manuell UND auto); echte **Hardware für Kalibrierung vorhanden**; und —
+> **geändert ggü. der ersten Q4-Antwort** — **„immer speichern, verknüpfen wenn möglich"** statt
+> Session-Gate: ein Workout wird nie verworfen (aktive Session → anhängen, sonst eigenständig),
+> nie blockiert. Damit **entfällt** die bidirektionale Zustandsabfrage; der Data Layer trägt nur
+> noch Ergebnis (Uhr→Phone) + Preset-Sync (Phone→Uhr).
+>
 > **An Fable 5:** Advanced-Ausbau des Wear-Companion-Timers aus 7.2. Baut auf dem `:wear`-Modul
-> (7.2.1) und der Data-Layer-Anbindung (7.2.4) auf — **stelle sicher, dass die stehen, bevor du
-> beginnst.** Lies `03 – Architektur & Tech/Multi-Device-Strategie.md`. Entscheidungen →
+> (7.2.1) und der Data-Layer-Anbindung (7.2.4) auf — **beide stehen bereits & bauen grün.** Lies
+> `03 – Architektur & Tech/Multi-Device-Strategie.md`. Entscheidungen →
 > `04 – Entwicklung/Code-Entscheidungen.md`, Sensor-/Kalibrier-Erkenntnisse zusätzlich in
 > `04 – Entwicklung/Bugs & Fixes.md`.
 
@@ -563,16 +574,15 @@ Signal-Heuristik (Startpunkt, **muss kalibriert werden**, B.5):
 
 Jeder abgeschlossene Zyklus erzeugt ein Segment `{ hangMs, restMsDanach }`.
 
-## B.3 Datenmodell — variable Segmente
+## B.3 Datenmodell — vereintes Workout-Modell (überschrieben durch START-Doc §0/§4)
 
-Die bestehende `HangboardSessionEntity` hat **feste** `hangSec/restSec/totalSets` → passt **nicht**
-für variable Auto-Sessions. Zwei Optionen (kläre B.6 Frage 3):
-- **Option 1 (empfohlen):** neue Entity `AutoHangboardSessionEntity` (`id`, `sessionId` FK nullable,
-  `startedAt`, `endedAt`, `mode = AUTO`) + `HangboardSegmentEntity` (`id`, `parentId` FK, `index`,
-  `hangMs`, `restMs`). Sauber abfragbar für Statistik.
-- **Option 2 (schnell):** Segmentliste als JSON-Feld an einer erweiterten `HangboardSessionEntity`.
-  Weniger Schema-Arbeit, schlechter auswertbar.
-Beides erfordert **Schema-Migration** (aktuell v2 → v3, echte `Migration`).
+> **Aktualisiert 2026-07-06:** Statt einer separaten Auto-Entity neben der festen
+> `HangboardSessionEntity` gilt jetzt **ein vereintes Modell für manuell UND auto**:
+> `HangboardWorkoutEntity` (`id`, `sessionId` FK **nullable**, `mode = MANUAL|AUTO`,
+> `origin = PHONE|WATCH`, `startedAt`, `endedAt`, `plannedSets/Hang/Rest`) +
+> `HangboardSegmentEntity` (`id`, `workoutId` FK CASCADE, `index`, `hangMs`, `restMs`). Es
+> **ersetzt** `HangboardSessionEntity`. **Keine Migration** (DB v5→v6, destruktiv). Details +
+> nachzuziehende Aufrufer: `FABLE_HANGBOARD_START.md` §4.
 
 ## B.4 Sync zur Phone-Session (Data Layer)
 
@@ -580,11 +590,11 @@ Beides erfordert **Schema-Migration** (aktuell v2 → v3, echte `Migration`).
   eigenständig auf der Uhr).
 - Bei **„Session beenden"** auf der Uhr: Gesamtergebnis (Segmentliste + Summen) via `DataClient`/
   `MessageClient` ans Phone senden.
-- Auf dem Phone nimmt ein `WearableListenerService` das entgegen und schreibt es — **falls
-  `sessionRepository.observeActive()` eine aktive Session liefert** — in genau diese Session
-  (analog zum bestehenden `recordWorkout()` im `HangboardTimerViewModel`, aber mit den echten
-  Auto-Segmenten). Keine aktive Session → nur lokal auf der Uhr protokollieren / verwerfen (kläre
-  B.6 Frage 4).
+- Auf dem Phone nimmt ein `WearableListenerService` das entgegen und schreibt es ins vereinte
+  Modell (B.3). **„Immer speichern, verknüpfen wenn möglich" (2026-07-06):** liefert
+  `sessionRepository.observeActive()` eine aktive Session → `sessionId` setzen (anhängen); sonst
+  als **eigenständiges** Hangboard-Workout (`sessionId = null`) speichern. **Nicht verwerfen, nicht
+  blockieren** (ersetzt die alte Q4-Gate-Idee). Gilt identisch für den Phone-`HangboardTimerViewModel`.
 
 ## B.5 Kalibrierung (essentiell — nicht raten)
 
@@ -616,19 +626,19 @@ M3: Live-Auto-Screen auf der Uhr mit Haptik (B.6), lokale Segment-Erfassung (B.3
 M4: Data-Layer-Übertragung ans Phone + Eintrag in aktive Session (B.4).
 M5: Kalibrierung final + Akku-Check.
 
-## B.8 MUSS vor Start geklärt werden (an Deniz/Peer)
+## B.8 MUSS vor Start geklärt werden — **geklärt (2026-07-06)**
 
-1. **Kalibrierdaten/Hardware:** Gibt es Zugang zu **Hangboard + Wear-Gerät** (kein Emulator — der
-   liefert keine echten Sensordaten), um Sensor-Logs aufzunehmen? Ohne echte Daten ist die
-   Detektion nicht kalibrierbar. **Wichtigste Frage.**
-2. **Trage-Arm:** An welchem Arm sitzt die Uhr relativ zum Hängen? Beide Arme hängen — reicht das
-   Signal des Uhr-Arms, oder braucht es Annahmen? (beeinflusst Orientierungsachse in B.2)
-3. **Datenmodell:** Option 1 (`AutoHangboardSessionEntity` + Segmente, empfohlen) oder Option 2
-   (JSON-Segmentliste)? (B.3)
-4. **Keine aktive Phone-Session:** Auto-Session dann nur lokal auf der Uhr behalten, verwerfen, oder
-   als „lose" Hangboard-Session ohne Kletter-Session-Bezug auf dem Phone speichern? (B.4)
-5. **Genauigkeitsanspruch:** Reicht „gut genug für Demo/Doku" (Abgabe-Kontext) oder wird
-   zuverlässige Alltagstauglichkeit erwartet? (steckt den Kalibrieraufwand ab)
+> Verbindliche Fassung + Repo-Anker: **[`FABLE_HANGBOARD_START.md`](FABLE_HANGBOARD_START.md) §1.**
+
+1. ✅ **Kalibrierdaten/Hardware / Genauigkeit:** **Echte Hardware vorhanden** → echte Kalibrierung
+   (Debug-Logging M1 zuerst), nicht nur Defaults. (war Q1 + Q5)
+2. ✅ **Trage-Arm:** **Uhr-Arm hängt mit** → Orientierungsachse „Arm über Kopf" als Startpunkt.
+3. ✅ **Datenmodell:** **Vereintes Modell** `HangboardWorkoutEntity` + `HangboardSegmentEntity`
+   (ersetzt `HangboardSessionEntity`, manuell + auto; DB v5→v6, destruktiv, keine Migration).
+4. ✅ **Keine aktive Phone-Session:** **„Immer speichern, verknüpfen wenn möglich"** — aktive
+   Session → anhängen, sonst eigenständiges Hangboard-Training. Nie verworfen, nie blockiert.
+   **Ersetzt die ursprüngliche Gate-Antwort** (Konsistenz + kein Datenverlust); die bidirektionale
+   Zustandsabfrage entfällt. Details: START-Doc §0 (UX-Konzept).
 
 ---
 
@@ -636,7 +646,9 @@ M5: Kalibrierung final + Akku-Check.
 
 > **Start-Kontext = [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md)** (Repo-Root). Dort stehen alle
 > Repo-Fakten, die verbindlichen Entscheidungen und die Meilensteine M0–M5. Dieser Anhang ist die
-> Kurzfassung/Verankerung im Gesamtplan. **Branch `PushNot`**, DB steht auf **v5**.
+> Kurzfassung/Verankerung im Gesamtplan. **Branch `PushNot`**. Beim Bauen stand die DB auf **v5**;
+> seit dem Merge von `DeviceSync` (Hangboard-Umbau v6, Sync v7) hängt das Feature an **v7→v8** —
+> siehe C.3.
 
 ## C.0 Ziel & Nicht-Ziele
 
@@ -664,7 +676,13 @@ Bewegungs-Live-Tracking, keine Social-Features.
 (Liste + Bearbeiten + Standort-Button) ist Teil des Auftrags** (M1). Details + alle weiteren
 Repo-Anker in [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md).
 
-## C.3 Datenmodell (DB v5→v6, destruktiv — keine Migration)
+## C.3 Datenmodell (DB v7→v8, echte Migration)
+
+> Ursprünglich als v5→v6 destruktiv geplant und so gebaut. `DeviceSync` hatte dieselbe **6** parallel
+> für den Hangboard-Umbau vergeben — auf einem Gerät, das beide Stände sah, verglich Room nur die
+> Nummer, ließ keine Migration laufen und stürzte an der Hash-Prüfung ab. Seit dem Merge ist das
+> Feature **v7→v8** mit `MIGRATION_7_8` in `Migrations.kt`; einen destruktiven Fallback gibt es
+> seit dem Geräte-Abgleich nicht mehr.
 
 - `GymEntity` +`latitude/longitude: Double?`, `geofenceRadiusMeters: Int = 150`,
   `proximityAlertsEnabled: Boolean = true`.
@@ -673,7 +691,7 @@ Repo-Anker in [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md).
 
 ## C.4 Reihenfolge / Meilensteine (jeder = grüner Build = ein Commit)
 
-- **M0** Datenmodell + `GymVisitStats`-Logik (DB v6, Schema-Export). JVM- + DAO-Tests.
+- **M0** Datenmodell + `GymVisitStats`-Logik (DB v8, Schema-Export). JVM- + DAO-Tests.
 - **M1** Gym-Verwaltungs-Screen + „Standort übernehmen" + Foreground-Permission-Flow.
 - **M2** `GeofenceManager` + `GeofenceBroadcastReceiver` + Boot-Re-Register + Background-Permission +
   Manifest + Master-Toggle.

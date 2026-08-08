@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -17,10 +18,9 @@ data class TimerConfig(
 )
 
 /**
- * Kapselt app-weite Einstellungen in einem Preferences-[DataStore].
- *
- * Hält das aktuell gewählte Grade-System (steuert das Grade-Dropdown beim Boulder-Anlegen)
- * und die zuletzt genutzte Timer-Konfiguration. Bewusst schlank — nur die zwei MVP-Werte.
+ * Kapselt app-weite Einstellungen in einem Preferences-[DataStore]:
+ * gewähltes Grade-System (steuert das Grade-Dropdown beim Boulder-Anlegen), zuletzt genutzte
+ * Timer-Konfiguration, Dark-Mode-Override, Haptik-Schalter und der Anzeigename.
  */
 interface SettingsRepository {
     /** ID des gewählten Grade-Systems; `null`, wenn noch nichts gewählt wurde. */
@@ -35,6 +35,12 @@ interface SettingsRepository {
      */
     val darkMode: Flow<Boolean?>
 
+    /** Vibration bei Timer-Phasenwechseln. Default `true` (der Timer wird blind bedient). */
+    val hapticFeedback: Flow<Boolean>
+
+    /** Anzeigename für die Begrüßung auf dem Home-Screen; leer = neutrale Begrüßung. */
+    val userName: Flow<String>
+
     /**
      * Master-Toggle des Gym-Näherungs-Push (M2). Default `false` — das Feature ist Opt-in,
      * weil es Hintergrund-Standort braucht (Permission-Flow beim Einschalten).
@@ -46,6 +52,10 @@ interface SettingsRepository {
     suspend fun setTimerConfig(config: TimerConfig)
 
     suspend fun setDarkMode(enabled: Boolean)
+
+    suspend fun setHapticFeedback(enabled: Boolean)
+
+    suspend fun setUserName(name: String)
 
     suspend fun setProximityAlertsEnabled(enabled: Boolean)
 }
@@ -68,6 +78,12 @@ class SettingsRepositoryImpl @Inject constructor(
     override val darkMode: Flow<Boolean?> =
         dataStore.data.map { it[KEY_DARK_MODE] }
 
+    override val hapticFeedback: Flow<Boolean> =
+        dataStore.data.map { it[KEY_HAPTIC_FEEDBACK] ?: true }
+
+    override val userName: Flow<String> =
+        dataStore.data.map { it[KEY_USER_NAME].orEmpty() }
+
     override val proximityAlertsEnabled: Flow<Boolean> =
         dataStore.data.map { it[KEY_PROXIMITY_ALERTS] ?: false }
 
@@ -87,6 +103,14 @@ class SettingsRepositoryImpl @Inject constructor(
         dataStore.edit { it[KEY_DARK_MODE] = enabled }
     }
 
+    override suspend fun setHapticFeedback(enabled: Boolean) {
+        dataStore.edit { it[KEY_HAPTIC_FEEDBACK] = enabled }
+    }
+
+    override suspend fun setUserName(name: String) {
+        dataStore.edit { it[KEY_USER_NAME] = name.trim() }
+    }
+
     override suspend fun setProximityAlertsEnabled(enabled: Boolean) {
         dataStore.edit { it[KEY_PROXIMITY_ALERTS] = enabled }
     }
@@ -97,6 +121,8 @@ class SettingsRepositoryImpl @Inject constructor(
         val KEY_TIMER_HANG_SEC = intPreferencesKey("timer_hang_sec")
         val KEY_TIMER_REST_SEC = intPreferencesKey("timer_rest_sec")
         val KEY_DARK_MODE = booleanPreferencesKey("dark_mode")
+        val KEY_HAPTIC_FEEDBACK = booleanPreferencesKey("haptic_feedback")
+        val KEY_USER_NAME = stringPreferencesKey("user_name")
         val KEY_PROXIMITY_ALERTS = booleanPreferencesKey("proximity_alerts_enabled")
     }
 }

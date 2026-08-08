@@ -16,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.PillShape
 
 // Pill-förmiges Status-Label ("● Aktiv", "✓ Top", "🔥 Flash").
 // Umrandet in der übergebenen Farbe; Text und Rand teilen sich die Farbe.
@@ -29,8 +30,8 @@ fun StatusBadge(
 ) {
     Box(
         modifier = modifier
-            .clip(MaterialTheme.shapes.extraLarge)
-            .border(BorderStroke(Dimens.borderSubtle, color), MaterialTheme.shapes.extraLarge)
+            .clip(PillShape)
+            .border(BorderStroke(Dimens.borderSubtle, color), PillShape)
             .padding(horizontal = Dimens.paddingM, vertical = Dimens.paddingXS),
     ) {
         Text(
@@ -41,7 +42,7 @@ fun StatusBadge(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun StatusBadgePreview() {
     BoulderBuddyTheme {

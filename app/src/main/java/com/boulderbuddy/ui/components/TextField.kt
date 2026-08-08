@@ -104,7 +104,7 @@ fun TextField(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun TextFieldEmptyPreview() {
     BoulderBuddyTheme {
@@ -119,7 +119,7 @@ private fun TextFieldEmptyPreview() {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun TextFieldNotePreview() {
     BoulderBuddyTheme {

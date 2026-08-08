@@ -18,6 +18,9 @@ datastore = "1.1.7"
 coil = "3.3.0"
 # Media3/ExoPlayer (Phase 7.3c): Video-Wiedergabe im Boulder-Detail.
 media3 = "1.5.1"
+# CameraX: eigener Aufnahme-Screen für Boulder-Fotos/-Videos und Ghost-Climber-Aufnahmen.
+# Eigene Versionslinie, NICHT vom Compose-BOM verwaltet.
+camerax = "1.5.0"
 # Glance (Phase 7.4c): Homescreen-App-Widget. Eigene Versionslinie, nicht vom Compose-BOM.
 glance = "1.1.1"
 # MediaPipe Tasks Pose Landmarker (Phase 7.5b Ghost Climber, Stufe 3): ersetzt ML Kit Pose —
@@ -33,6 +36,8 @@ wearCompose = "1.4.1"
 playServicesWearable = "19.0.0"
 # Gym-Näherungs-Push: FusedLocation (Standort-Button) + Geofencing-API aus einem Artefakt.
 playServicesLocation = "21.3.0"
+# Nearby Connections (Sync-Plan S4): Geraete-Abgleich ohne Konto und ohne fremden Dienst.
+playServicesNearby = "19.3.0"
 errorProneAnnotations = "2.36.0"
 # Tests (Phase 7.6): Coroutine-/Flow-Tests, Room-in-memory, Flow-Assertions.
 coroutines = "1.10.2"
@@ -75,6 +80,14 @@ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplaye
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 
+# CameraX: eigener Aufnahme-Screen statt Kamera-Intent. camera-video liefert den Recorder,
+# camera-view die PreviewView (per AndroidView eingebunden, wie schon die Media3-PlayerView).
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-video = { group = "androidx.camera", name = "camera-video", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+
 # Glance App-Widget (Phase 7.4c): Compose-artiges Homescreen-Widget + M3-Tokens.
 androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
@@ -98,6 +111,7 @@ androidx-wear-compose-navigation = { group = "androidx.wear.compose", name = "co
 play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
 # Gym-Näherungs-Push: FusedLocationProviderClient + GeofencingClient.
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+play-services-nearby = { group = "com.google.android.gms", name = "play-services-nearby", version.ref = "playServicesNearby" }
 # Von Hilt/Dagger generiertem Code referenziert (@CanIgnoreReturnValue im ServiceComponent),
 # aber nur transitiv compileOnly → für javac der generierten Sources explizit nötig (Phase 7.2).
 error-prone-annotations = { group = "com.google.errorprone", name = "error_prone_annotations", version.ref = "errorProneAnnotations" }

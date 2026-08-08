@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -24,6 +26,25 @@ import com.boulderbuddy.ui.theme.Dimens
 
 // Höhe der Balken-Zeichenfläche, lokal gehalten.
 private val BarChartHeight = 160.dp
+
+// Breiteste zulässige Balkenbreite. Bei wenigen Balken auf einem breiten Fenster wäre ein
+// Balken sonst breiter als hoch, und das Verhältnis der Höhen — die eigentliche Aussage des
+// Diagramms — geht neben der Fläche unter.
+private val BarMaxWidth = 56.dp
+
+// Anteil der Zeichenfläche, den auch ein Nullwert behält (~2,5 dp von 160 dp) — gerade genug,
+// um als Grundlinie sichtbar zu sein, zu wenig, um mit einem echten Wert verwechselt zu werden.
+private const val NullStummel = 0.015f
+
+/**
+ * Testmarke am einzelnen Balken.
+ *
+ * Ein Balken ist eine gefärbte Fläche ohne Text — er hat von sich aus nichts, woran ein Test
+ * ihn greifen könnte. Genau das war das Problem: als er durch eine falsche Modifier-Reihenfolge
+ * auf Breite 0 zusammenfiel, blieb der Build grün, die Tests grün, und das Diagramm war leer.
+ * Die Marke ist der Preis dafür, dass `DiagrammBreiteTest` das messen kann.
+ */
+const val BAR_TEST_TAG = "barchart_bar"
 
 // Ein Balken: Beschriftung + Wert + Farbe (i.d.R. die Routenfarbe des Grades).
 data class BarChartEntry(
@@ -64,10 +85,43 @@ fun BarChart(
                 ) {
                     Box(
                         modifier = Modifier
+                            /*
+                             * Gedeckelt, nicht gestreckt. Vorher `fillMaxWidth()`: bei zwei
+                             * Balken auf dem Tablet wurden daraus zwei Farbflächen von je
+                             * 615 dp — eine Flagge, kein Diagramm. Die Spalte behält ihr
+                             * `weight(1f)` (die Abstände bleiben gleichmäßig), nur der Balken
+                             * darin hört auf zu wachsen. Zentriert wird er vom `BottomCenter`
+                             * der umgebenden Box.
+                             *
+                             * Die Reihenfolge ist hier genau umgekehrt zu `inhaltsBreite`:
+                             * erst deckeln, dann füllen. Der Balken ist ein LEERER Kasten —
+                             * er hat keine Eigenbreite, die man begrenzen könnte. `widthIn`
+                             * allein ließe ihn auf 0 zusammenfallen (und das tat es auch:
+                             * die Balken waren schlicht weg). `widthIn` senkt die
+                             * Höchstbreite auf 56 dp, `fillMaxWidth` nimmt sich danach genau
+                             * diese Höchstbreite.
+                             */
+                            .widthIn(max = BarMaxWidth)
                             .fillMaxWidth()
-                            .fillMaxHeight(entry.value / maxValue)
+                            /*
+                             * Ein Wert von 0 bekommt einen sichtbaren Stummel statt Höhe 0.
+                             *
+                             * Nötig geworden mit dem Verlaufs-Diagramm: dort steht eine Woche
+                             * ohne Klettern ausdrücklich mit 0 in der Reihe, und ein Balken
+                             * der Höhe 0 ist schlicht unsichtbar. Aus „acht Wochen, davon
+                             * eine aktiv" wurde optisch „ein einzelner Balken im Nichts" — man
+                             * konnte nicht sehen, dass es die anderen sieben Abschnitte
+                             * überhaupt gibt. Der Stummel ist die Grundlinie, an der man die
+                             * Null abliest.
+                             *
+                             * Für die Grade-Verteilung ändert sich nichts: dort kommen nur
+                             * Zählwerte ab 1 vor, und selbst der kleinste (1 von 8 = 0,125)
+                             * liegt weit über dem Stummel.
+                             */
+                            .fillMaxHeight((entry.value / maxValue).coerceAtLeast(NullStummel))
                             .clip(MaterialTheme.shapes.extraSmall)
-                            .background(entry.color),
+                            .background(entry.color)
+                            .testTag(BAR_TEST_TAG),
                     )
                 }
                 Text(
@@ -81,7 +135,7 @@ fun BarChart(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3, widthDp = 320)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4, widthDp = 320)
 @Composable
 private fun BarChartPreview() {
     BoulderBuddyTheme {

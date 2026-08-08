@@ -25,6 +25,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // MigrationTestHelper liest die exportierten Schemas aus den Test-Assets (Sync-Plan S0).
+    sourceSets {
+        getByName("androidTest").assets.directories.add("$projectDir/schemas")
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -40,6 +45,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // Liefert BuildConfig.VERSION_NAME für die Versionsanzeige in den Einstellungen.
+        buildConfig = true
     }
 }
 
@@ -91,6 +98,15 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
 
+    // CameraX: eigener Aufnahme-Screen (Boulder-Foto/-Video, Ghost-Climber-Aufnahmen).
+    // Der eigene Screen statt des Kamera-Intents, weil Ghost eine berechenbare
+    // Auflösung braucht — der Intent liefert, was die Kamera-App gerade für richtig hält.
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.video)
+    implementation(libs.androidx.camera.view)
+
     // Glance (Phase 7.4c): Homescreen-App-Widget (aktive Session / Tops / Schnellstart Timer).
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
@@ -105,8 +121,15 @@ dependencies {
 
     // Wear Data Layer (Phase 7.2): empfängt fertige Hangboard-Durchläufe von der Uhr.
     implementation(libs.play.services.wearable)
+
     // Gym-Näherungs-Push: FusedLocation (Standort-Button im Gym-Editor) + Geofencing-API.
     implementation(libs.play.services.location)
+
+    // Nearby Connections (Sync-Plan S4): Phone↔Tablet reden direkt miteinander — kein Konto,
+    // kein fremder Dienst, dieselbe Play-Services-Familie wie die Uhr. Nearby hebt selbständig
+    // auf Wi-Fi Direct, die erste Übertragung ist damit Minuten statt eines Nachmittags.
+    implementation(libs.play.services.nearby)
+
     // Für den von Hilt generierten ServiceComponent-Code (@CanIgnoreReturnValue) — Phase 7.2.
     implementation(libs.error.prone.annotations)
 

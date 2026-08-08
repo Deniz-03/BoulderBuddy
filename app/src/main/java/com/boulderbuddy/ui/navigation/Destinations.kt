@@ -43,6 +43,16 @@ object BoulderUebersicht  // -> BoulderUebersichtScreen
 @Serializable
 object GhostClimber       // -> GhostClimberScreen
 
+// Hangboard-Historie (Phase 7 Anhang B, §0 Säule 5): alle Workouts inkl. eigenständiger
+// Trainings; Einstieg über den Hangboard-Block im Statistik-Screen.
+@Serializable
+object HangboardHistorie  // -> HangboardHistorieScreen
+
+// Geräte abgleichen (Sync-Plan S7): Push-Ziel aus den Einstellungen. Bewusst kein Tab —
+// es ist eine Wartungsaufgabe, keine tägliche.
+@Serializable
+object Abgleich           // -> AbgleichScreen
+
 // Gym-Verwaltung (Näherungs-Push M1): Liste der Hallen, erreichbar aus den Einstellungen.
 @Serializable
 object GymVerwaltung      // -> GymVerwaltungScreen
@@ -56,6 +66,13 @@ object GymVerwaltung      // -> GymVerwaltungScreen
 // argumentlose Aufrufe laufen dank Default weiter.
 @Serializable
 data class SessionErstellen(val gymId: Int? = null)   // -> SessionErstellenScreen
+
+// Eigener Aufnahme-Screen auf CameraX (7.4d). `auftrag` ist der Name eines
+// CaptureAuftrag-Eintrags — als String, weil @Serializable-Routen keine Enums tragen.
+// Das Ergebnis geht NICHT über diese Route zurück, sondern über den savedStateHandle des
+// vorigen Back-Stack-Eintrags (siehe KAMERA_ERGEBNIS in AppNavigation).
+@Serializable
+data class KameraAufnahme(val auftrag: String)   // -> KameraScreen
 
 @Serializable
 data class BoulderDetail(val boulderId: Int)   // -> BoulderDetailScreen

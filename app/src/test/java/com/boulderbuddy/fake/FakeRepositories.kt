@@ -1,18 +1,25 @@
 package com.boulderbuddy.fake
 
 import com.boulderbuddy.data.db.entity.GradeEntity
+import com.boulderbuddy.data.haptics.HapticPattern
+import com.boulderbuddy.data.haptics.HapticPlayer
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
-import com.boulderbuddy.data.db.entity.HangboardSessionEntity
+import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
+import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.repository.GradeRepository
+import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.HangboardRepository
-import com.boulderbuddy.data.repository.HangboardSessionRepository
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.data.settings.TimerConfig
+import com.boulderbuddy.wearsync.WearConnection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -20,7 +27,7 @@ import kotlinx.coroutines.flow.map
 /**
  * In-Memory-Fakes der Repository-/Settings-Interfaces für JVM-ViewModel-Tests (Phase 7.6.4).
  * Bewusst schlank: nur so viel Verhalten, wie die Tests brauchen; Schreibpfade sammeln, was
- * das ViewModel erzeugt (z.B. [FakeHangboardSessionRepository.created]).
+ * das ViewModel erzeugt (z.B. [FakeHangboardWorkoutRepository.created]).
  */
 class FakeSettingsRepository(
     initialTimerConfig: TimerConfig = TimerConfig(),
@@ -28,11 +35,15 @@ class FakeSettingsRepository(
     private val _selectedGradeSystemId = MutableStateFlow<Int?>(null)
     val timerConfigState = MutableStateFlow(initialTimerConfig)
     val darkModeState = MutableStateFlow<Boolean?>(null)
+    val hapticFeedbackState = MutableStateFlow(true)
+    val userNameState = MutableStateFlow("")
     val proximityAlertsState = MutableStateFlow(false)
 
     override val selectedGradeSystemId: Flow<Int?> = _selectedGradeSystemId
     override val timerConfig: Flow<TimerConfig> = timerConfigState
     override val darkMode: Flow<Boolean?> = darkModeState
+    override val hapticFeedback: Flow<Boolean> = hapticFeedbackState
+    override val userName: Flow<String> = userNameState
     override val proximityAlertsEnabled: Flow<Boolean> = proximityAlertsState
 
     override suspend fun setSelectedGradeSystem(systemId: Int) {
@@ -47,9 +58,32 @@ class FakeSettingsRepository(
         darkModeState.value = enabled
     }
 
+    override suspend fun setHapticFeedback(enabled: Boolean) {
+        hapticFeedbackState.value = enabled
+    }
+
+    override suspend fun setUserName(name: String) {
+        userNameState.value = name.trim()
+    }
+
     override suspend fun setProximityAlertsEnabled(enabled: Boolean) {
         proximityAlertsState.value = enabled
     }
+}
+
+/** Sammelt die abgespielten Vibrationsmuster, statt das Gerät anzusprechen. */
+class FakeHapticPlayer : HapticPlayer {
+    val played = mutableListOf<HapticPattern>()
+
+    override fun play(pattern: HapticPattern) {
+        played += pattern
+    }
+}
+
+/** Uhr-Verbindung mit umschaltbarem Zustand (Default: nicht verbunden). */
+class FakeWearConnection(initiallyConnected: Boolean = false) : WearConnection {
+    val connectedState = MutableStateFlow(initiallyConnected)
+    override val connected: Flow<Boolean> = connectedState
 }
 
 class FakeSessionRepository : SessionRepository {
@@ -89,6 +123,24 @@ class FakeRouteRepository : RouteRepository {
     override suspend fun update(route: RouteEntity) {}
 }
 
+class FakeGymRepository : GymRepository {
+    val all = MutableStateFlow<List<GymEntity>>(emptyList())
+    private var nextId = 1
+
+    override fun observeAll(): Flow<List<GymEntity>> = all
+    override suspend fun getById(gymId: Int): GymEntity? = all.value.find { it.id == gymId }
+
+    override suspend fun create(gym: GymEntity): Int {
+        val id = nextId++
+        all.value = all.value + gym.copy(id = id)
+        return id
+    }
+
+    override suspend fun update(gym: GymEntity) {
+        all.value = all.value.map { if (it.id == gym.id) gym else it }
+    }
+}
+
 class FakeGradeRepository : GradeRepository {
     val systems = MutableStateFlow<List<GradeSystemEntity>>(emptyList())
     val grades = MutableStateFlow<List<GradeEntity>>(emptyList())
@@ -111,20 +163,28 @@ class FakeGradeRepository : GradeRepository {
     override suspend fun updateGrade(grade: GradeEntity) {}
 }
 
-class FakeHangboardSessionRepository : HangboardSessionRepository {
-    val all = MutableStateFlow<List<HangboardSessionEntity>>(emptyList())
-    /** Alles, was das ViewModel über [create] getrackt hat (Assertion-Ziel). */
-    val created = mutableListOf<HangboardSessionEntity>()
+class FakeHangboardWorkoutRepository : HangboardWorkoutRepository {
+    val all = MutableStateFlow<List<HangboardWorkoutWithSegments>>(emptyList())
+    /** Alles, was das ViewModel über [create] gespeichert hat (Assertion-Ziel). */
+    val created = mutableListOf<HangboardWorkoutWithSegments>()
 
-    override fun observeBySession(sessionId: Int): Flow<List<HangboardSessionEntity>> =
-        all.map { list -> list.filter { it.sessionId == sessionId } }
+    override fun observeBySession(sessionId: Int): Flow<List<HangboardWorkoutWithSegments>> =
+        all.map { list -> list.filter { it.workout.sessionId == sessionId } }
 
-    override fun observeAll(): Flow<List<HangboardSessionEntity>> = all
+    override fun observeAll(): Flow<List<HangboardWorkoutWithSegments>> = all
 
-    override suspend fun create(session: HangboardSessionEntity): Int {
-        created += session
-        all.value = all.value + session
-        return created.size
+    override suspend fun create(
+        workout: HangboardWorkoutEntity,
+        segments: List<HangboardSegmentEntity>,
+    ): Int {
+        val id = created.size + 1
+        val withSegments = HangboardWorkoutWithSegments(
+            workout = workout.copy(id = id),
+            segments = segments.map { it.copy(workoutId = id) },
+        )
+        created += withSegments
+        all.value = all.value + withSegments
+        return id
     }
 }
 

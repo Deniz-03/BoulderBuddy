@@ -21,7 +21,9 @@ import com.boulderbuddy.ui.viewmodel.SessionViewModel
 @Composable
 fun SessionRoute(
     sessionId: Int,
-    onBack: () -> Unit = {},
+    // `null` = kein Zurück-Pfeil. Im Zwei-Pane-Layout des Tablets gibt es kein Zurück:
+    // die Liste steht daneben, der Pfeil führte nur in den Leerzustand.
+    onBack: (() -> Unit)? = {},
     onOpenBoulder: (Int) -> Unit = {},
     onAddRoute: (Int) -> Unit = {},
     // Assisted-Injection: sessionId wird explizit übergeben. key = "session_$sessionId"
@@ -41,7 +43,7 @@ fun SessionRoute(
             startMillis = state.startMillis,
             topGrade = state.topGrade,
             boulders = state.boulders,
-            hangboardSessions = state.hangboardSessions,
+            hangboardWorkouts = state.hangboardWorkouts,
             onBack = onBack,
             onOpenBoulder = onOpenBoulder,
             onAddRoute = { onAddRoute(sessionId) },
@@ -53,6 +55,7 @@ fun SessionRoute(
             durationText = state.durationText,
             notes = state.notes,
             boulders = state.boulders,
+            onNotesChange = viewModel::updateNotes,
             onBack = onBack,
             onOpenBoulder = onOpenBoulder,
         )

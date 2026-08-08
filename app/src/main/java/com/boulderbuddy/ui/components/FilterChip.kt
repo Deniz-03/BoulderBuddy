@@ -18,6 +18,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
+import com.boulderbuddy.ui.theme.PillShape
 
 @Composable
 fun FilterChip(
@@ -30,7 +31,7 @@ fun FilterChip(
     Surface(
         onClick = onClick,
         modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = PillShape,
         color = if (selected) selectedColor else Color.Transparent,
         border = if (selected) null else BorderStroke(Dimens.borderSubtle, BoulderBuddy.colors.borderSubtle),
     ) {
@@ -43,7 +44,7 @@ fun FilterChip(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFFF9F4E3)
+@Preview(showBackground = true, backgroundColor = 0xFFFCF6E4)
 @Composable
 private fun FilterChipPreview() {
     BoulderBuddyTheme {

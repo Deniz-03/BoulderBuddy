@@ -9,11 +9,16 @@ import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.wear.data.PhoneConnector
+import com.boulderbuddy.wear.data.PresetSyncClient
+import com.boulderbuddy.wear.data.WearPreset
+import com.boulderbuddy.wear.data.WearSettings
+import com.boulderbuddy.wear.data.WearTimerConfig
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Phase eines Hangboard-Satzes — spiegelt die Zustandsmaschine des Phone-ViewModels. */
@@ -30,6 +35,8 @@ data class WearTimerUiState(
     val restSec: Int,
     val isRunning: Boolean,
     val isConfigurable: Boolean, // true = Timer im Ausgangszustand → Sätze/Zeiten editierbar
+    /** Vom Phone synchronisierte Presets (§0 Säule 4); leer, wenn (noch) keine bekannt. */
+    val presets: List<WearPreset> = emptyList(),
 )
 
 /**
@@ -42,7 +49,8 @@ data class WearTimerUiState(
  * - Ein bis zum Ende gelaufener Durchlauf wird via [PhoneConnector] ans gekoppelte Phone gemeldet,
  *   das ihn — falls dort eine Session aktiv ist — in genau diese trägt.
  *
- * Companion, Minimal-Scope: keine Persistenz auf der Uhr, die Konfiguration lebt nur im Speicher.
+ * Die Konfiguration wird lokal persistiert ([WearSettings], §0 Säule 4) — die Uhr merkt sich
+ * die zuletzt genutzten Werte, statt bei jedem Öffnen auf 6/7/3 zurückzuspringen.
  */
 class TimerViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -50,6 +58,9 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     private var totalSets = 6
     private var hangSec = 7
     private var restSec = 3
+
+    // Vom Phone synchronisierte Presets (Data Layer, letzter gecachter Stand).
+    private var presets: List<WearPreset> = emptyList()
 
     // Interner Lauf-Zustand (getrennt vom UI-State, damit Pause/Resume die Restsekunden behält).
     private var currentSet = 1
@@ -64,6 +75,28 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
     val uiState: StateFlow<WearTimerUiState> = _uiState.asStateFlow()
 
     private val vibrator: Vibrator? by lazy { resolveVibrator(app) }
+
+    init {
+        // Zuletzt genutzte Konfiguration laden (einmalig; Änderungen laufen über updateConfig).
+        viewModelScope.launch {
+            val config = WearSettings.timerConfig(app).first()
+            totalSets = config.sets
+            hangSec = config.hangSec
+            restSec = config.restSec
+            onReset()
+        }
+        // Presets vom Phone beobachten (ändern nur die Auswahl, nicht den Lauf-Zustand).
+        viewModelScope.launch {
+            PresetSyncClient.observePresets(app).collect {
+                presets = it
+                _uiState.value = snapshot()
+            }
+        }
+    }
+
+    /** Übernimmt ein synchronisiertes Preset als aktuelle Config (nur im Ausgangszustand). */
+    fun applyPreset(preset: WearPreset) =
+        updateConfig(sets = preset.sets, hang = preset.hangSec, rest = preset.restSec)
 
     fun onPlayPause() {
         if (running) pause() else start()
@@ -98,6 +131,13 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
         hangSec = hang.coerceIn(1, 120)
         restSec = rest.coerceIn(0, 300)
         onReset()
+        // Als „zuletzt genutzt" merken (§0 Säule 4).
+        viewModelScope.launch {
+            WearSettings.setTimerConfig(
+                getApplication(),
+                WearTimerConfig(sets = totalSets, hangSec = hangSec, restSec = restSec),
+            )
+        }
     }
 
     private fun start() {
@@ -178,6 +218,7 @@ class TimerViewModel(app: Application) : AndroidViewModel(app) {
             restSec = restSec,
             isRunning = running,
             isConfigurable = isConfigurable(),
+            presets = presets,
         )
     }
 

@@ -34,7 +34,8 @@ import kotlin.math.abs
 /**
  * Side-by-Side-Vergleich (M4, P7): links das Referenz-Video (mit Controls, führend),
  * rechts das Vergleichs-Video — OHNE eigene Controls, es läuft 1:1 mit der Referenz
- * mit (echter Wiedergabe, gespiegeltes Play/Pause, Seek nur zur Drift-Korrektur).
+ * mit (echter Wiedergabe, gespiegeltes Play/Pause, Drift über eine kleine Tempo-
+ * korrektur ausgeregelt statt weggeseekt).
  *
  * BEWUSST OHNE DTW-Zeitwarp: das Vergleichs-Video in die Referenzzeit zu warpen ließ
  * es ruckeln/springen (ständiges Seeken eines pausierten Players). Side-by-Side zeigt
@@ -95,17 +96,28 @@ fun GhostSideBySidePlayer(
             delay(33)
         }
     }
-    // Vergleich läuft 1:1 mit der Referenz: Play/Pause spiegeln, Position nur bei
-    // spürbarer Drift (> 200 ms, z.B. nach einem Scrub) nachziehen — sonst normal
-    // dekodieren lassen, damit die Wiedergabe flüssig bleibt (kein Seek-Stepping).
+    // Vergleich läuft 1:1 mit der Referenz: Play/Pause spiegeln, Drift kontinuierlich
+    // über die ABSPIELGESCHWINDIGKEIT ausregeln.
+    //
+    // Vorher wurde bei > 200 ms Drift hart geseekt. Das ist konstruktiv sprunghaft:
+    // driften die Player systematisch auseinander (andere Bildrate, anderer Decoder-
+    // Durchsatz), reißt die Schwelle zyklisch und der Vergleich springt jedes Mal
+    // sichtbar — dasselbe Seek-Stepping, das schon den DTW-Warp in diesem Modus
+    // unbrauchbar gemacht hatte, nur mit langsamerem Takt. Eine kleine Tempokorrektur
+    // holt dieselbe Drift unsichtbar auf; geseekt wird nur noch bei echten Sprüngen
+    // (Scrub, Neustart), wo ein harter Schnitt ohnehin erwartet wird.
     LaunchedEffect(refPlayer, cmpPlayer) {
         while (true) {
             if (refPlayer.isPlaying && !cmpPlayer.isPlaying) cmpPlayer.play()
             if (!refPlayer.isPlaying && cmpPlayer.isPlaying) cmpPlayer.pause()
-            if (abs(cmpPlayer.currentPosition - refPlayer.currentPosition) > 200) {
+            val driftMs = cmpPlayer.currentPosition - refPlayer.currentPosition
+            if (needsHardResync(driftMs)) {
                 cmpPlayer.seekTo(refPlayer.currentPosition)
+                cmpPlayer.setPlaybackSpeed(1f)
+            } else {
+                cmpPlayer.setPlaybackSpeed(followerSpeed(driftMs))
             }
-            delay(200)
+            delay(SYNC_INTERVAL_MS)
         }
     }
 
@@ -161,3 +173,33 @@ fun GhostSideBySidePlayer(
         }
     }
 }
+
+// =============================================================================
+// Drift-Ausregelung des Folge-Players (reine Funktionen, damit testbar)
+// =============================================================================
+
+/** Prüfintervall der Synchronisation in ms. */
+private const val SYNC_INTERVAL_MS = 200L
+
+/** Ab dieser Drift wird hart geseekt statt ausgeregelt — so viel holt eine
+ *  Tempokorrektur nicht mehr unauffällig auf, und so groß wird die Drift nur durch
+ *  einen echten Sprung (Scrub, Neustart), wo ein harter Schnitt erwartet wird. */
+private const val HARD_RESYNC_MS = 1_000L
+
+/** Tempoänderung je Sekunde Drift. 0,25 heißt: 200 ms Vorsprung → 5 % langsamer,
+ *  aufgeholt in gut vier Sekunden. Bewusst träge — die Korrektur soll unsichtbar
+ *  bleiben, nicht schnell sein. */
+private const val DRIFT_GAIN = 0.25f
+
+/** Grenzen der Tempokorrektur; darüber wäre sie als Zeitlupe/Zeitraffer sichtbar. */
+private const val MIN_SPEED = 0.92f
+private const val MAX_SPEED = 1.08f
+
+internal fun needsHardResync(driftMs: Long): Boolean = abs(driftMs) > HARD_RESYNC_MS
+
+/**
+ * Abspieltempo des Folge-Players bei [driftMs] Vorsprung (positiv = zu weit vorn).
+ * Proportionalregler: Vorsprung → langsamer, Rückstand → schneller.
+ */
+internal fun followerSpeed(driftMs: Long): Float =
+    (1f - (driftMs / 1000f) * DRIFT_GAIN).coerceIn(MIN_SPEED, MAX_SPEED)

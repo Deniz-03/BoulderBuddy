@@ -1,24 +1,23 @@
 package com.boulderbuddy.ui.viewmodel
 
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.model.toBoulderStatus
-import com.boulderbuddy.ui.navigation.BoulderDetail
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.screens.BoulderStatus
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class BoulderDetailUiState(
     val loading: Boolean = true,
@@ -36,15 +35,22 @@ data class BoulderDetailUiState(
     val isSessionActive: Boolean = false,
 )
 
-@HiltViewModel
-class BoulderDetailViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+// Assisted Injection: die boulderId wird explizit übergeben statt aus den Nav-Argumenten
+// gelesen. Genau wie beim SessionViewModel — derselbe ViewModel bedient damit sowohl die
+// klassische BoulderDetail-Route als auch den Detail-Pane der Boulder-Übersicht auf dem
+// Tablet, wo es keine eigenen Nav-Argumente gibt.
+@HiltViewModel(assistedFactory = BoulderDetailViewModel.Factory::class)
+class BoulderDetailViewModel @AssistedInject constructor(
+    @Assisted private val boulderId: Int,
     private val routeRepository: RouteRepository,
     gradeRepository: GradeRepository,
     sessionRepository: SessionRepository,
 ) : ViewModel() {
 
-    private val boulderId: Int = savedStateHandle.toRoute<BoulderDetail>().boulderId
+    @AssistedFactory
+    interface Factory {
+        fun create(boulderId: Int): BoulderDetailViewModel
+    }
 
     val uiState: StateFlow<BoulderDetailUiState> = combine(
         routeRepository.observeAll(),

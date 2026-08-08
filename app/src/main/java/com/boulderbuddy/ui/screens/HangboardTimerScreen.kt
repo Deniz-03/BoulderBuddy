@@ -17,7 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Watch
+import androidx.compose.material.icons.outlined.WatchOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,7 +44,6 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 
 // Phase eines Hangboard-Satzes. Steuert Label-Text und Ring-Farbe.
 // HANG = aktiv hängen (grün), REST = Pause (orange), DONE = alle Sätze fertig.
@@ -73,6 +73,12 @@ data class HangboardTimerUiState(
     val hangSec: Int,
     val restSec: Int,
     val isRunning: Boolean,
+    // Kurz-Zusammenfassung nach DONE (z.B. "6 Sätze · 00:42 Hängezeit"); null solange läuft.
+    val doneSummary: String? = null,
+    // Wohin das Workout gespeichert wurde (Session vs. eigenständig); null bis gespeichert.
+    val savedTo: String? = null,
+    /** Ob eine Uhr verbunden ist — steuert den Smartwatch-Indikator in der Top-Bar. */
+    val watchConnected: Boolean = false,
     val presets: List<TimerPreset> = emptyList(),
 )
 
@@ -110,15 +116,30 @@ fun HangboardTimerScreen(
             TopBar(
                 title = "Hangboard-Timer",
                 actions = {
-                    // Smartwatch-Indikator (laut Screen-Konzept im Header dieses Screens).
-                    // TODO: Echten Verbindungsstatus anzeigen + Wear-OS-Sync anstoßen.
-                    IconButton(onClick = { /* TODO: Wear-OS-Verbindung/Status */ }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Smartwatch",
-                            tint = M3OnPrimary,
-                        )
-                    }
+                    // Smartwatch-Indikator: reine Statusanzeige, kein Button — die Kopplung
+                    // passiert in der Wear-App, hier gäbe es nichts zu tippen. Getrennt =
+                    // durchgestrichenes Icon + abgeschwächte Farbe.
+                    Icon(
+                        imageVector = if (state.watchConnected) {
+                            Icons.Outlined.Watch
+                        } else {
+                            Icons.Outlined.WatchOff
+                        },
+                        contentDescription = if (state.watchConnected) {
+                            "Smartwatch verbunden"
+                        } else {
+                            "Smartwatch nicht verbunden"
+                        },
+                        // Beide Farben sitzen auf dem Chrome und drehen deshalb mit dem
+                        // Theme. Der getrennte Zustand nimmt textTertiary statt eines
+                        // Alpha-Werts: 40 % Deckkraft ergab auf hellem Chrome 2,4:1.
+                        tint = if (state.watchConnected) {
+                            BoulderBuddy.colors.onChrome
+                        } else {
+                            BoulderBuddy.colors.textTertiary
+                        },
+                        modifier = Modifier.padding(horizontal = Dimens.paddingM),
+                    )
                 }
             )
         },
@@ -149,6 +170,23 @@ fun HangboardTimerScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textTertiary,
                 )
+
+                // Nach dem Ende: Kurz-Zusammenfassung + wohin gespeichert wurde (§0 Säule 3).
+                if (state.doneSummary != null) {
+                    Spacer(Modifier.height(Dimens.paddingM))
+                    Text(
+                        text = state.doneSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (state.savedTo != null) {
+                        Text(
+                            text = state.savedTo,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = BoulderBuddy.colors.textTertiary,
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(Dimens.paddingXL))
 

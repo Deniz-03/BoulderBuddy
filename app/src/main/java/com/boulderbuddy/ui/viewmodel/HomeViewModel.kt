@@ -36,7 +36,8 @@ data class LastSessionUi(
 
 /** Reiner Anzeige-Zustand des Home-Screens (aus Room abgeleitet). */
 data class HomeUiState(
-    val userName: String = "Deniz",
+    /** Anzeigename aus den Einstellungen; leer = neutrale Begrüßung ohne Namen. */
+    val userName: String = "",
     val sessionsPerWeek: Int = 0,
     val totalTops: Int = 0,
     /** Höchster getoppter Grad im meistgenutzten System (systemintern verglichen). */
@@ -79,10 +80,11 @@ class HomeViewModel @Inject constructor(
         },
         gradeRepository.observeAllSystems(),
         settingsRepository.selectedGradeSystemId,
-    ) { core, systems, selectedSystemId ->
+        settingsRepository.userName,
+    ) { core, systems, selectedSystemId, userName ->
         buildState(
             core.sessions, core.active, core.routes, core.gyms, core.grades,
-            systems, selectedSystemId,
+            systems, selectedSystemId, userName,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -98,6 +100,7 @@ class HomeViewModel @Inject constructor(
         grades: List<GradeEntity>,
         systems: List<GradeSystemEntity>,
         selectedSystemId: Int?,
+        userName: String,
     ): HomeUiState {
         val gradesById = grades.associateBy { it.id }
         val gymsById = gyms.associateBy { it.id }
@@ -141,6 +144,7 @@ class HomeViewModel @Inject constructor(
         }
 
         return HomeUiState(
+            userName = userName,
             sessionsPerWeek = sessionsPerWeek,
             totalTops = totalTops,
             topGrade = topGrade,

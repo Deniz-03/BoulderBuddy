@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.data.model.RouteStatus
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.ColorPicker
+import com.boulderbuddy.ui.components.MedienQuelleDialog
 import com.boulderbuddy.ui.components.PhotoPicker
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SelectableChip
@@ -52,7 +55,9 @@ import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.theme.aktuelleBreite
+import com.boulderbuddy.ui.theme.Breite
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.theme.keyForRouteColor
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.theme.routeColorPalette
@@ -69,6 +74,12 @@ fun RouteHinzufuegenScreen(
     state: RouteFormUiState = RouteFormUiState(ready = true),
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     onBack: () -> Unit = {},
+    // Öffnet den eigenen Aufnahme-Screen (CameraX, 7.4d).
+    onOpenKamera: () -> Unit = {},
+    // Fertige Aufnahme, die von dort zurückkam; null = keine. Wird einmal übernommen und
+    // danach über onAufnahmeVerbraucht gelöscht, sonst käme sie bei jeder Rückkehr erneut.
+    aufnahmeUri: String? = null,
+    onAufnahmeVerbraucht: () -> Unit = {},
     // Übergibt die Formulareingabe nach oben; Speichern + Navigation macht der NavHost.
     onSave: (RouteFormInput) -> Unit = {},
 ) {
@@ -113,6 +124,34 @@ fun RouteHinzufuegenScreen(
         }
     }
 
+    // Quellenwahl beim Antippen des Slots: eigener Aufnahme-Screen oder Galerie.
+    var zeigeQuellenwahl by remember { mutableStateOf(false) }
+
+    // Aufnahme aus dem Kamera-Screen übernehmen. Sie ist eine app-eigene FileProvider-URI und
+    // braucht deshalb KEIN takePersistableUriPermission — die Datei gehört uns bereits.
+    LaunchedEffect(aufnahmeUri) {
+        aufnahmeUri?.let {
+            mediaUri = it
+            onAufnahmeVerbraucht()
+        }
+    }
+
+    if (zeigeQuellenwahl) {
+        MedienQuelleDialog(
+            onAufnehmen = {
+                zeigeQuellenwahl = false
+                onOpenKamera()
+            },
+            onGalerie = {
+                zeigeQuellenwahl = false
+                photoPicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo),
+                )
+            },
+            onDismiss = { zeigeQuellenwahl = false },
+        )
+    }
+
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
@@ -122,33 +161,29 @@ fun RouteHinzufuegenScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Zurück",
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
             )
         },
         content = { _ ->
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = Dimens.paddingL, vertical = Dimens.paddingL),
-                verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
-            ) {
-                PhotoPicker(
-                    onClick = {
-                        photoPicker.launch(
-                            PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.ImageAndVideo
-                            )
-                        )
-                    },
-                    imageUri = mediaUri,
-                    isVideo = isVideo,
-                )
+            /*
+             * ZWEISPALTIG AB TABLET-BREITE: Medien links, Eingaben rechts.
+             *
+             * Die Vorschau ist über `aspectRatio` gebaut und damit so hoch wie breit × 9/16.
+             * In einer einspaltigen 600-dp-Formularspalte sind das ~340 dp — die halbe
+             * Bildhöhe, bevor das erste Eingabefeld kommt. Man scrollte an einem großen
+             * leeren Rahmen vorbei, um zu den Feldern zu gelangen, während rechts daneben
+             * 600 dp Platz frei blieben.
+             *
+             * Nebeneinander passt das ganze Formular auf eine Seite, und die Vorschau steht
+             * dort, wo man sie beim Ausfüllen sehen will: neben den Feldern, nicht darüber.
+             */
+            val zweispaltig = aktuelleBreite() == Breite.Weit
 
+            // Die Eingabefelder — in beiden Anordnungen dieselben, nur einmal geschrieben.
+            val felder: @Composable ColumnScope.() -> Unit = {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
@@ -268,6 +303,48 @@ fun RouteHinzufuegenScreen(
                         )
                     },
                 )
+            }
+
+            val medien: @Composable () -> Unit = {
+                PhotoPicker(
+                    onClick = { zeigeQuellenwahl = true },
+                    label = "Foto/Video aufnehmen oder wählen",
+                    imageUri = mediaUri,
+                    isVideo = isVideo,
+                )
+            }
+
+            if (zweispaltig) {
+                Row(
+                    modifier = Modifier
+                        .inhaltsBreite(Dimens.spaltenBreiteWeit)
+                        .navigationBarsPadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = Dimens.paddingL, vertical = Dimens.paddingL),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.paddingXL),
+                ) {
+                    // Die Vorschau oben ausgerichtet: sie ist so hoch, wie ihr
+                    // Seitenverhältnis es vorgibt, und soll nicht mit der Feldspalte mitwachsen.
+                    Column(modifier = Modifier.weight(1f)) { medien() }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
+                        content = felder,
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        // Formularspalte statt Fensterbreite — siehe SessionErstellenScreen.
+                        .inhaltsBreite()
+                        .navigationBarsPadding()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = Dimens.paddingL, vertical = Dimens.paddingL),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
+                ) {
+                    medien()
+                    felder()
+                }
             }
         }
     )

@@ -1,5 +1,7 @@
 package com.boulderbuddy.di
 
+import com.boulderbuddy.data.haptics.HapticPlayer
+import com.boulderbuddy.data.haptics.SystemHapticPlayer
 import com.boulderbuddy.data.repository.GhostAnalysisRepository
 import com.boulderbuddy.data.repository.GhostAnalysisRepositoryImpl
 import com.boulderbuddy.data.repository.GradeRepository
@@ -12,12 +14,14 @@ import com.boulderbuddy.data.repository.HangboardRepository
 import com.boulderbuddy.data.repository.HangboardRepositoryImpl
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.RouteRepositoryImpl
-import com.boulderbuddy.data.repository.HangboardSessionRepository
-import com.boulderbuddy.data.repository.HangboardSessionRepositoryImpl
+import com.boulderbuddy.data.repository.HangboardWorkoutRepository
+import com.boulderbuddy.data.repository.HangboardWorkoutRepositoryImpl
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.repository.SessionRepositoryImpl
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.data.settings.SettingsRepositoryImpl
+import com.boulderbuddy.wearsync.WearConnection
+import com.boulderbuddy.wearsync.WearNodeConnection
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -54,9 +58,9 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindHangboardSessionRepository(
-        impl: HangboardSessionRepositoryImpl,
-    ): HangboardSessionRepository
+    abstract fun bindHangboardWorkoutRepository(
+        impl: HangboardWorkoutRepositoryImpl,
+    ): HangboardWorkoutRepository
 
     @Binds
     @Singleton
@@ -67,6 +71,14 @@ abstract class RepositoryModule {
     abstract fun bindGhostAnalysisRepository(
         impl: GhostAnalysisRepositoryImpl,
     ): GhostAnalysisRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindHapticPlayer(impl: SystemHapticPlayer): HapticPlayer
+
+    @Binds
+    @Singleton
+    abstract fun bindWearConnection(impl: WearNodeConnection): WearConnection
 
     @Binds
     @Singleton
