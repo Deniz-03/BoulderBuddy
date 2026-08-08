@@ -450,6 +450,39 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
     }
 }
 
+/**
+ * v10 → v11: `grade_system.istStandard` — „gehört zur App" wird von „hat keine Halle" getrennt.
+ *
+ * Bis hierher galt `gymId == null` als Beleg dafür, dass ein System geschützt ist. Das war eine
+ * Verwechslung zweier Dinge, die seit v10 auseinanderlaufen: das Löschen einer Halle setzt
+ * `gymId` auf `NULL`, und das eigene System der Halle wurde damit unlöschbar und trug in den
+ * Einstellungen den Hinweis „Standard". Seit selbst angelegte Systeme gar keine Halle mehr
+ * bekommen (sie legten vorher stillschweigend eine Halle „Meine Halle" an), träfe das jedes
+ * von ihnen.
+ *
+ * Hier ausnahmsweise `ALTER TABLE ADD COLUMN` **mit** `DEFAULT`, entgegen der Begründung in
+ * [MIGRATION_1_2] und [MIGRATION_7_8]: dort scheiterte Rooms Prüfung, weil die Klausel im
+ * Schema stand, die Entity sie aber nicht kannte. Hier kennt sie sie
+ * (`@ColumnInfo(defaultValue = "0")`), Erwartung und Wirklichkeit stimmen also überein — und
+ * der Standardwert im Schema ist genau das, was die `NOT NULL`-Fallen dieses Projekts von
+ * vornherein verhindert hätte.
+ *
+ * Geschützt wird, was das Seed mitgebracht hat. Erkannt am Namen und nicht an der ID: die IDs
+ * 2 und 3 vergibt zwar das Seed, aber ein Bestand, der aus einem Abgleich stammt, muss sich
+ * darauf nicht verlassen lassen. Umbenennen kann man Systeme nicht, der Name ist damit stabil.
+ */
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE `grade_system` ADD COLUMN `istStandard` INTEGER NOT NULL DEFAULT 0",
+        )
+        db.execSQL(
+            "UPDATE `grade_system` SET `istStandard` = 1 " +
+                "WHERE `gymId` IS NULL AND `name` IN ('V-Scale', 'Französisch')",
+        )
+    }
+}
+
 /** Alle Migrationen in einer Liste — so kann `DatabaseModule` sie am Stück übergeben. */
 val ALLE_MIGRATIONEN: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -461,4 +494,5 @@ val ALLE_MIGRATIONEN: Array<Migration> = arrayOf(
     MIGRATION_7_8,
     MIGRATION_8_9,
     MIGRATION_9_10,
+    MIGRATION_10_11,
 )

@@ -62,6 +62,9 @@ import com.boulderbuddy.data.db.entity.StandMetaEntity
     // v10: Hallen sind löschbar, ohne Historie mitzunehmen — session.gymId und
     // grade_system.gymId auf SET NULL (vorher CASCADE) + session.gymName als Beleg, in
     // welcher Halle eine Session lief, wenn es die Halle nicht mehr gibt.
+    // v11: grade_system.istStandard — ob ein System zur App gehört, hing bis dahin an
+    // `gymId == null`. Seit v10 bedeutet das aber auch „Halle wurde gelöscht", und selbst
+    // angelegte Systeme haben ohnehin keine Halle mehr: der Marker muss eigenständig sein.
     //
     // Das Feature war auf seinem Branch einmal v6 — dieselbe Nummer, die der Hangboard-Umbau
     // schon vergeben hatte. Auf einem Gerät, das beide Stände nacheinander sah, verglich Room
@@ -71,7 +74,7 @@ import com.boulderbuddy.data.db.entity.StandMetaEntity
     // Ab dem Geräte-Abgleich (Sync-Plan S0) gibt es echte Migrationen für jeden Schritt:
     // siehe Migrations.kt. Wer die Version erhöht, schreibt dort die passende Migration —
     // einen destruktiven Fallback gibt es nicht mehr.
-    version = 10,
+    version = 11,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

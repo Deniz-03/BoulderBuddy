@@ -58,8 +58,16 @@ object SeedData : RoomDatabase.Callback() {
         }
 
         // Globale Standard-Gradsysteme (gymId = NULL → hallenübergreifend wählbar).
-        db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (2, NULL, 'V-Scale')")
-        db.execSQL("INSERT INTO grade_system (id, gymId, name) VALUES (3, NULL, 'Französisch')")
+        // `istStandard = 1` schützt sie vor dem Löschen — der Marker hängt seit v11 nicht mehr
+        // an `gymId`, weil das inzwischen auch „Halle wurde gelöscht" bedeuten kann.
+        db.execSQL(
+            "INSERT INTO grade_system (id, gymId, name, istStandard) " +
+                "VALUES (2, NULL, 'V-Scale', 1)"
+        )
+        db.execSQL(
+            "INSERT INTO grade_system (id, gymId, name, istStandard) " +
+                "VALUES (3, NULL, 'Französisch', 1)"
+        )
 
         // Ab ID 6 weiter, da die Halle-Grade oben 1..5 belegen.
         var nextGradeId = grades.size + 1

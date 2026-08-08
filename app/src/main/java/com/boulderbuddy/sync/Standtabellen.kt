@@ -62,7 +62,8 @@ val STAND_TABELLEN: List<Tabelle> = listOf(
     ),
     Tabelle(
         name = "grade_system",
-        spalten = listOf("gymId", "name"),
+        // `istStandard` reist mit: ob ein System zur App gehört, ist keine Geräte-Eigenschaft.
+        spalten = listOf("gymId", "name", "istStandard"),
         // Seit v10 AUF_NULL statt KASKADE: eine gelöschte Halle nimmt ihr Gradsystem nicht
         // mit, es wird global. Sonst verlören Boulder, die es weiter gibt, ihre Schwierigkeit.
         eltern = listOf(Elternbezug("gymId", "gym", Loeschregel.AUF_NULL)),
