@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.NotificationsOff
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -37,13 +39,15 @@ import com.boulderbuddy.ui.viewmodel.GymVerwaltungUiState
 
 /**
  * Hallen-Verwaltung (Gym-Näherungs-Push, M1): listet alle Hallen mit Standort-Status.
- * Tippen öffnet den Editor ([GymBearbeitenScreen]). Hallen entstehen weiterhin implizit
- * beim Session-Anlegen ("find-or-create by name") — hier werden sie nur gepflegt.
+ * Tippen öffnet den Editor ([GymBearbeitenScreen]) — für eine bestehende Halle wie für eine
+ * neue. Hallen entstehen seit der Auswahl im Session-Formular nicht mehr nebenbei aus einem
+ * Textfeld, sondern immer über diesen Editor; deshalb führt auch von hier ein Weg dorthin.
  */
 @Composable
 fun GymVerwaltungScreen(
     state: GymVerwaltungUiState = GymVerwaltungUiState(),
     onOpenGym: (Int) -> Unit = {},
+    onNeueHalle: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
     BoulderBuddyScaffold(
@@ -77,8 +81,8 @@ fun GymVerwaltungScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "Noch keine Hallen — sie entstehen automatisch, " +
-                                "wenn du eine Session mit Ort anlegst.",
+                            text = "Noch keine Hallen — leg deine erste an, dann kannst du " +
+                                "Sessions darin starten.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = BoulderBuddy.colors.textSecondary,
                         )
@@ -95,6 +99,16 @@ fun GymVerwaltungScreen(
                         GymRow(gym = gym, onClick = { onOpenGym(gym.id) })
                     }
                 }
+
+                PrimaryButton(
+                    text = "Neue Halle",
+                    icon = Icons.Outlined.Add,
+                    onClick = onNeueHalle,
+                    modifier = Modifier.padding(
+                        horizontal = Dimens.paddingL,
+                        vertical = Dimens.paddingL,
+                    ),
+                )
             }
         },
     )

@@ -81,9 +81,12 @@ data class BoulderDetail(val boulderId: Int)   // -> BoulderDetailScreen
 data class Session(val sessionId: Int)         // -> SessionRoute (aktiv/beendet)
 
 // Gym-Editor (Näherungs-Push M1): Name/Adresse + Koordinaten (Standort-Button),
-// Geofence-Radius und Pro-Gym-Erinnerungs-Toggle.
+// Geofence-Radius, Pro-Gym-Erinnerungs-Toggle und das Standard-Gradsystem der Halle.
+// gymId null = neue Halle anlegen. Derselbe Screen für beides — eine Halle soll beim
+// Anlegen dieselben Felder haben wie beim Bearbeiten, sonst entstehen wieder Hallen, denen
+// alles fehlt außer dem Namen.
 @Serializable
-data class GymBearbeiten(val gymId: Int)       // -> GymBearbeitenScreen
+data class GymBearbeiten(val gymId: Int? = null)   // -> GymBearbeitenScreen
 
 // sessionId nullable: Annahme laut Plan ist "mit sessionId", aber die offene Frage
 // (Boulder ohne aktive Session anlegen?) bleibt bewusst offen -> default null.

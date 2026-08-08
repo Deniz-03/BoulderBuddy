@@ -78,6 +78,17 @@ import com.boulderbuddy.widget.WidgetIntent
  */
 const val KAMERA_ERGEBNIS = "kamera_ergebnis_uri"
 
+/**
+ * Schlüssel, unter dem der Gym-Editor die ID einer **neu angelegten** Halle im
+ * `savedStateHandle` des vorigen Back-Stack-Eintrags ablegt.
+ *
+ * Dasselbe Muster wie [KAMERA_ERGEBNIS] und aus demselben Grund: das Session-Formular schickt
+ * den Nutzer zum Anlegen weg und muss danach wissen, *welche* Halle daraus wurde — sonst müsste
+ * er sie in der Chip-Liste noch einmal suchen. Der Aufrufer liest die ID, wählt die Halle aus
+ * und **löscht den Wert**; sonst spränge die Auswahl bei jedem erneuten Betreten wieder dorthin.
+ */
+const val GYM_ERGEBNIS = "gym_ergebnis_id"
+
 // =============================================================================
 // AppNavigation — der NavHost: verbindet jede Route aus Destinations.kt mit
 //                  dem passenden Screen und stellt die gemeinsame BottomNav.
@@ -264,6 +275,7 @@ fun AppNavigation(
                 GymVerwaltungScreen(
                     state = state,
                     onOpenGym = { gymId -> navController.navigate(GymBearbeiten(gymId)) },
+                    onNeueHalle = { navController.navigate(GymBearbeiten()) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -276,11 +288,20 @@ fun AppNavigation(
                     onLocationChange = viewModel::setLocation,
                     onRadiusChange = viewModel::setRadius,
                     onAlertsEnabledChange = viewModel::setAlertsEnabled,
+                    onDefaultGradeSystemChange = viewModel::setDefaultGradeSystem,
                     onCaptureLocation = viewModel::captureCurrentLocation,
                     onSetCoordinates = viewModel::setCoordinates,
                     onClearCoordinates = viewModel::clearCoordinates,
                     onLocationErrorShown = viewModel::consumeLocationError,
-                    onSave = { viewModel.save { navController.popBackStack() } },
+                    // Die gespeicherte ID geht an den Aufrufer zurück. Nur das Session-Formular
+                    // wertet sie aus; die Hallen-Liste ignoriert den Wert schlicht.
+                    onSave = {
+                        viewModel.save { gymId ->
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle?.set(GYM_ERGEBNIS, gymId)
+                            navController.popBackStack()
+                        }
+                    },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -354,17 +375,26 @@ fun AppNavigation(
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable<SessionErstellen> {
+            composable<SessionErstellen> { entry ->
                 val viewModel: SessionErstellenViewModel = hiltViewModel()
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
+                // Halle, die gerade im Gym-Editor angelegt wurde; null, solange keine zurückkam.
+                val neueHalleId by entry.savedStateHandle
+                    .getStateFlow<Int?>(GYM_ERGEBNIS, null)
+                    .collectAsStateWithLifecycle()
                 SessionErstellenScreen(
                     state = state,
                     onBack = { navController.popBackStack() },
+                    // Dieselbe Maske wie aus den Einstellungen — mit Standort, Radius und
+                    // Standard-Grading, statt eines bloßen Namensfelds.
+                    onNeueHalle = { navController.navigate(GymBearbeiten()) },
+                    neueHalleId = neueHalleId,
+                    onNeueHalleVerbraucht = { entry.savedStateHandle[GYM_ERGEBNIS] = null },
                     // Session anlegen (Room) und danach zur neuen aktiven Session navigieren;
                     // das Erstellen-Formular wird dabei vom Back-Stack genommen, damit Back von
                     // der Session direkt nach Home führt.
-                    onCreateSession = { halle, gradeSystemId, notiz ->
-                        viewModel.createSession(halle, gradeSystemId, notiz) { newSessionId ->
+                    onCreateSession = { gymId, gradeSystemId, notiz ->
+                        viewModel.createSession(gymId, gradeSystemId, notiz) { newSessionId ->
                             navController.navigate(Session(newSessionId)) {
                                 // Reified-Variante: matcht die Route unabhängig vom gymId-Argument.
                                 popUpTo<SessionErstellen> { inclusive = true }

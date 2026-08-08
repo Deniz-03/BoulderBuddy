@@ -30,19 +30,12 @@ import javax.inject.Inject
  * Nicht [GymUi] aus der Gym-Verwaltung: die trägt Adresse, Koordinaten-Status und
  * Erinnerungs-Schalter, und nichts davon gehört in eine Auswahlliste beim Session-Start.
  */
-data class HalleUi(val id: Int, val name: String)
-
-/**
- * Welche Halle der Nutzer gewählt hat.
- *
- * Als Summentyp statt „ID oder Name, je nachdem": eine bestehende Halle ist über ihre **ID**
- * bestimmt und kann nicht mehr durch einen abweichenden Text verloren gehen. Nur der
- * ausdrückliche Neu-Fall reicht einen Namen weiter.
- */
-sealed interface Hallenwahl {
-    data class Bestehende(val gymId: Int) : Hallenwahl
-    data class Neue(val name: String) : Hallenwahl
-}
+data class HalleUi(
+    val id: Int,
+    val name: String,
+    /** Standard-Gradsystem dieser Halle; `null` = keins gesetzt. */
+    val defaultGradeSystemId: Int? = null,
+)
 
 /** Anzeige-Zustand des "Neue Session"-Screens: wählbare Hallen + Grading-Systeme. */
 data class SessionErstellenUiState(
@@ -105,7 +98,16 @@ class SessionErstellenViewModel @Inject constructor(
             systems = systems.map {
                 GradeSystemUi(id = it.id, name = it.name, gradeCount = countBySystem[it.id] ?: 0)
             },
-            gyms = sortiert.map { HalleUi(id = it.id, name = it.name) },
+            gyms = sortiert.map {
+                HalleUi(
+                    id = it.id,
+                    name = it.name,
+                    // Eine tote ID (System gelöscht) wird hier zu `null` — der Screen fiele
+                    // sonst auf einen Chip zurück, den es nicht mehr gibt.
+                    defaultGradeSystemId = it.defaultGradeSystemId
+                        ?.takeIf { id -> systems.any { s -> s.id == id } },
+                )
+            },
             // Der Deep-Link gewinnt; sonst die zuletzt benutzte Halle. `takeIf` fängt eine
             // Gym-ID ab, die es nicht (mehr) gibt — sonst stünde eine Auswahl da, zu der kein
             // Chip gehört.
@@ -121,35 +123,23 @@ class SessionErstellenViewModel @Inject constructor(
     /**
      * Legt eine neue, aktive Session an (`endedAt = null`) und meldet die neue ID zurück.
      *
-     * Die Halle kommt als [Hallenwahl]: eine bestehende über ihre ID, eine neue über den Namen.
-     * Vorher trug **jede** Session nur einen freien Text, aus dem hier per "find-or-create" eine
-     * Halle wurde. Ein abgewandelter Name legte damit stillschweigend eine zweite Halle an — die
-     * Session hing danach woanders als der Geofence, und die Näherungs-Politik sah für die
-     * eigentliche Halle nie eine Session ([com.boulderbuddy.proximity.ProximityNotificationPolicy]).
+     * Die Halle kommt als **ID** herein, nicht als Text. Früher trug jede Session nur einen
+     * freien Ort-String, aus dem hier per "find-or-create" eine Halle wurde; ein abgewandelter
+     * Name legte stillschweigend eine zweite an, die Session hing danach woanders als der
+     * Geofence, und die Näherungs-Politik sah für die eigentliche Halle nie eine Session
+     * ([com.boulderbuddy.proximity.ProximityNotificationPolicy]). Neue Hallen entstehen jetzt
+     * ausschließlich im Gym-Editor — mit Koordinaten, Radius und Standard-Grading.
      *
      * [gradeSystemId] wird auf der Session gespeichert und steuert später die Grade-Auswahl beim
-     * Boulder-Anlegen.
+     * Boulder-Anlegen. Vorbelegt ist das Standard-Grading der Halle, überschreibbar bleibt es.
      */
     fun createSession(
-        halle: Hallenwahl,
+        gymId: Int,
         gradeSystemId: Int?,
         notiz: String,
         onCreated: (Int) -> Unit,
     ) {
         viewModelScope.launch {
-            val gymId = when (halle) {
-                is Hallenwahl.Bestehende -> halle.gymId
-                is Hallenwahl.Neue -> {
-                    val name = halle.name.trim().ifBlank { "Meine Halle" }
-                    // Auch im Neu-Fall erst suchen: wer den Namen einer bestehenden Halle
-                    // abtippt, meint sie und soll keine Dublette bekommen.
-                    gymRepository.observeAll().first()
-                        .firstOrNull { it.name.equals(name, ignoreCase = true) }
-                        ?.id
-                        ?: gymRepository.create(GymEntity(name = name))
-                }
-            }
-
             val startedAt = System.currentTimeMillis()
             val newId = sessionRepository.create(
                 SessionEntity(

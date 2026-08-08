@@ -48,9 +48,16 @@ val STAND_TABELLEN: List<Tabelle> = listOf(
         // sie sehen auf Phone und Tablet gleich aus und gehören damit in den Vergleich. Der
         // *globale* Näherungs-Schalter dagegen steht im DataStore und wird nie abgeglichen —
         // welches Gerät den Push schickt, ist eine Geräte-Entscheidung.
+        //
+        // `defaultGradeSystemId` zeigt auf `grade_system`, steht hier aber NICHT als
+        // [Elternbezug]: `grade_system.gymId` verweist bereits zurück auf `gym`, und ein
+        // zweiter Bezug in die Gegenrichtung machte aus dem Baum einen Zyklus — die
+        // Reihenfolge „Eltern vor Kindern" gäbe es dann nicht mehr. Die Spalte reist als
+        // gewöhnlicher Wert mit; zeigt sie nach einem Abgleich ins Leere, liest der Editor
+        // „kein Standard" (siehe GymEntity).
         spalten = listOf(
             "name", "location", "latitude", "longitude",
-            "geofenceRadiusMeters", "proximityAlertsEnabled",
+            "geofenceRadiusMeters", "proximityAlertsEnabled", "defaultGradeSystemId",
         ),
     ),
     Tabelle(

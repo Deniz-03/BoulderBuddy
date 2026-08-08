@@ -244,10 +244,30 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun v8_zu_v9_laesst_bestandshallen_ohne_standard_grading() {
+        helper.createDatabase(TEST_DB, 8).use { db ->
+            db.execSQL(
+                "INSERT INTO gym (id, name, location, latitude, longitude, " +
+                    "geofenceRadiusMeters, proximityAlertsEnabled) " +
+                    "VALUES (1, 'Halle Nord', NULL, NULL, NULL, 150, 1)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(TEST_DB, 9, true, *ALLE_MIGRATIONEN).use { db ->
+            db.query("SELECT name, defaultGradeSystemId FROM gym WHERE id = 1").use { c ->
+                assertThat(c.moveToFirst()).isTrue()
+                assertThat(c.getString(0)).isEqualTo("Halle Nord")
+                // Kein Standard gesetzt — die Halle verhält sich wie vorher.
+                assertThat(c.isNull(1)).isTrue()
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
 
         /** Mitziehen, wenn die Schema-Version steigt — hier steht das Ziel des Voll-Durchlaufs. */
-        const val NEUESTE = 8
+        const val NEUESTE = 9
     }
 }

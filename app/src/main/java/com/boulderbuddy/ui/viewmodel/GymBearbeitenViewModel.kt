@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.boulderbuddy.data.db.entity.GymEntity
+import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.GymVisitRepository
 import com.boulderbuddy.proximity.GeofenceManager
@@ -14,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.format.TextStyle
@@ -24,6 +26,12 @@ import javax.inject.Inject
 data class GymBearbeitenUiState(
     /** `false`, solange das Gym noch geladen wird. */
     val ready: Boolean = false,
+    /** `true`, wenn gerade eine neue Halle angelegt wird (Titel + Button-Text hängen daran). */
+    val neu: Boolean = false,
+    /** Wählbare Gradsysteme für den Hallen-Standard. */
+    val systems: List<GradeSystemUi> = emptyList(),
+    /** Standard-Gradsystem der Halle; `null` = keins gesetzt. */
+    val defaultGradeSystemId: Int? = null,
     val name: String = "",
     /** Freitext-Adresse (bleibt bewusst von den Koordinaten getrennt). */
     val location: String = "",
@@ -46,33 +54,54 @@ class GymBearbeitenViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val gymRepository: GymRepository,
     private val gymVisitRepository: GymVisitRepository,
+    gradeRepository: GradeRepository,
     private val locationClient: GymLocationClient,
     private val geofenceManager: GeofenceManager,
 ) : ViewModel() {
 
-    private val gymId = savedStateHandle.toRoute<GymBearbeiten>().gymId
+    /** `null` = neue Halle. Die ID der frisch angelegten steht danach in [angelegteGymId]. */
+    private val gymId: Int? = savedStateHandle.toRoute<GymBearbeiten>().gymId
 
     private val _uiState = MutableStateFlow(GymBearbeitenUiState())
     val uiState: StateFlow<GymBearbeitenUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            gymRepository.getById(gymId)?.let { gym ->
-                _uiState.update {
-                    it.copy(
-                        ready = true,
-                        name = gym.name,
-                        location = gym.location.orEmpty(),
-                        latitude = gym.latitude,
-                        longitude = gym.longitude,
-                        radiusMeters = gym.geofenceRadiusMeters,
-                        alertsEnabled = gym.proximityAlertsEnabled,
-                    )
+            if (gymId == null) {
+                // Neue Halle: leeres Formular, aber sofort bedienbar.
+                _uiState.update { it.copy(ready = true, neu = true) }
+            } else {
+                gymRepository.getById(gymId)?.let { gym ->
+                    _uiState.update {
+                        it.copy(
+                            ready = true,
+                            name = gym.name,
+                            location = gym.location.orEmpty(),
+                            latitude = gym.latitude,
+                            longitude = gym.longitude,
+                            radiusMeters = gym.geofenceRadiusMeters,
+                            alertsEnabled = gym.proximityAlertsEnabled,
+                            defaultGradeSystemId = gym.defaultGradeSystemId,
+                        )
+                    }
                 }
             }
         }
-        // Gelerntes Besuchsmuster live anzeigen (M3): "8 Besuche · meist dienstags".
+        // Wählbare Gradsysteme für den Hallen-Standard (Standards + Custom).
         viewModelScope.launch {
+            combine(
+                gradeRepository.observeAllSystems(),
+                gradeRepository.observeAllGrades(),
+            ) { systems, grades ->
+                val countBySystem = grades.groupingBy { it.systemId }.eachCount()
+                systems.map {
+                    GradeSystemUi(id = it.id, name = it.name, gradeCount = countBySystem[it.id] ?: 0)
+                }
+            }.collect { systems -> _uiState.update { it.copy(systems = systems) } }
+        }
+        // Gelerntes Besuchsmuster live anzeigen (M3): "8 Besuche · meist dienstags".
+        // Eine noch nicht angelegte Halle hat keine Besuche — dann gibt es nichts zu beobachten.
+        if (gymId != null) viewModelScope.launch {
             gymVisitRepository.observeStats(gymId).collect { stats ->
                 val summary = if (stats.totalVisits == 0) {
                     null
@@ -100,6 +129,14 @@ class GymBearbeitenViewModel @Inject constructor(
     fun setRadius(meters: Int) = _uiState.update { it.copy(radiusMeters = meters) }
 
     fun setAlertsEnabled(enabled: Boolean) = _uiState.update { it.copy(alertsEnabled = enabled) }
+
+    /**
+     * Setzt das Standard-Gradsystem der Halle; nochmal auf dasselbe getippt hebt es wieder auf.
+     * Kein Standard ist ein gültiger Zustand — nicht jede Halle hat ein festes System.
+     */
+    fun setDefaultGradeSystem(systemId: Int) = _uiState.update {
+        it.copy(defaultGradeSystemId = if (it.defaultGradeSystemId == systemId) null else systemId)
+    }
 
     /** Manuelle Koordinaten-Eingabe (Notnagel, wenn der Standort-Button nicht nutzbar ist). */
     fun setCoordinates(latitude: Double, longitude: Double) =
@@ -147,26 +184,44 @@ class GymBearbeitenViewModel @Inject constructor(
     /** Bestätigt, dass die Standort-Fehlermeldung angezeigt wurde (leert sie). */
     fun consumeLocationError() = _uiState.update { it.copy(locationError = null) }
 
-    /** Persistiert den Editor-Zustand und meldet Erfolg zurück (Screen navigiert dann zurück). */
-    fun save(onSaved: () -> Unit) {
+    /**
+     * Persistiert den Editor-Zustand und meldet die ID der Halle zurück — beim Bearbeiten die
+     * bestehende, beim Anlegen die neu vergebene. Der Aufrufer (Session-Formular) wählt die
+     * Halle damit direkt aus, statt sie in der Liste suchen zu müssen.
+     *
+     * Ohne Namen passiert nichts: eine Halle ohne Namen wäre in der Auswahl nicht wiederzufinden.
+     */
+    fun save(onSaved: (gymId: Int) -> Unit) {
         val state = _uiState.value
         if (!state.ready || state.name.isBlank()) return
         viewModelScope.launch {
-            val existing = gymRepository.getById(gymId) ?: return@launch
-            gymRepository.update(
-                existing.copy(
-                    name = state.name.trim(),
-                    location = state.location.trim().ifBlank { null },
-                    latitude = state.latitude,
-                    longitude = state.longitude,
-                    geofenceRadiusMeters = state.radiusMeters,
-                    proximityAlertsEnabled = state.alertsEnabled,
-                )
+            // Beim Bearbeiten auf der geladenen Zeile aufsetzen, damit Spalten erhalten
+            // bleiben, die der Editor gar nicht anfasst. Ist sie zwischenzeitlich gelöscht
+            // worden, gibt es nichts zu speichern — und keine leere Halle als Ersatz.
+            val basis = if (gymId == null) {
+                GymEntity(name = "")
+            } else {
+                gymRepository.getById(gymId) ?: return@launch
+            }
+            val entwurf = basis.copy(
+                name = state.name.trim(),
+                location = state.location.trim().ifBlank { null },
+                latitude = state.latitude,
+                longitude = state.longitude,
+                geofenceRadiusMeters = state.radiusMeters,
+                proximityAlertsEnabled = state.alertsEnabled,
+                defaultGradeSystemId = state.defaultGradeSystemId,
             )
+            val gespeicherteId = if (gymId == null) {
+                gymRepository.create(entwurf)
+            } else {
+                gymRepository.update(entwurf)
+                gymId
+            }
             // Koordinaten/Radius/Toggle können sich geändert haben → Geofences neu
             // registrieren (M2). Idempotent, daher bedenkenlos bei jedem Save.
             geofenceManager.refreshGeofences()
-            onSaved()
+            onSaved(gespeicherteId)
         }
     }
 }

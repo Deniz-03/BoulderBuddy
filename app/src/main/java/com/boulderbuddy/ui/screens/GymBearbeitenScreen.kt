@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,6 +41,7 @@ import androidx.core.content.ContextCompat
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SectionHeader
+import com.boulderbuddy.ui.components.SelectableChip
 import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.ToggleSwitch
 import com.boulderbuddy.ui.components.TopBar
@@ -47,6 +49,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 import com.boulderbuddy.ui.viewmodel.GymBearbeitenUiState
 import java.util.Locale
 
@@ -63,6 +66,7 @@ fun GymBearbeitenScreen(
     onLocationChange: (String) -> Unit = {},
     onRadiusChange: (Int) -> Unit = {},
     onAlertsEnabledChange: (Boolean) -> Unit = {},
+    onDefaultGradeSystemChange: (Int) -> Unit = {},
     onCaptureLocation: () -> Unit = {},
     onSetCoordinates: (Double, Double) -> Unit = { _, _ -> },
     onClearCoordinates: () -> Unit = {},
@@ -119,7 +123,7 @@ fun GymBearbeitenScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Halle bearbeiten",
+                title = if (state.neu) "Neue Halle" else "Halle bearbeiten",
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -152,6 +156,41 @@ fun GymBearbeitenScreen(
                     label = "ADRESSE (OPTIONAL)",
                     placeholder = "z.B. Musterstraße 1",
                 )
+
+                // --- Standard-Gradsystem ------------------------------------------
+                // Was hier steht, ist beim Session-Anlegen in dieser Halle vorgewählt. Der
+                // Text sagt ausdrücklich, dass es ein Vorschlag bleibt: sonst liest sich eine
+                // Einstellung an der Halle wie eine Festlegung für jede Session dort.
+                SectionHeader(text = "Standard-Grading")
+                Text(
+                    text = "Wird beim Session-Anlegen in dieser Halle vorgewählt — in der " +
+                        "Session lässt es sich weiter umstellen (z.B. fürs Moonboard).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BoulderBuddy.colors.textSecondary,
+                )
+                if (state.systems.isEmpty()) {
+                    Text(
+                        text = "Noch keine Grading-Systeme vorhanden.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BoulderBuddy.colors.textSecondary,
+                    )
+                } else {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                    ) {
+                        state.systems.forEach { system ->
+                            SelectableChip(
+                                label = system.name,
+                                selected = system.id == state.defaultGradeSystemId,
+                                // Nochmal auf dasselbe tippen hebt die Wahl auf — "kein
+                                // Standard" muss erreichbar bleiben, ohne einen Extra-Chip.
+                                onClick = { onDefaultGradeSystemChange(system.id) },
+                            )
+                        }
+                    }
+                }
 
                 // --- Näherungs-Erinnerung -----------------------------------------
                 SectionHeader(text = "Näherungs-Erinnerung")
@@ -240,7 +279,7 @@ fun GymBearbeitenScreen(
                 }
 
                 PrimaryButton(
-                    text = "Speichern",
+                    text = if (state.neu) "Halle anlegen" else "Speichern",
                     onClick = onSave,
                 )
             }
@@ -308,6 +347,12 @@ private fun KoordinatenDialog(
     )
 }
 
+private val vorschauSysteme = listOf(
+    GradeSystemUi(id = 1, name = "Halle Nord", gradeCount = 5),
+    GradeSystemUi(id = 2, name = "V-Scale", gradeCount = 11),
+    GradeSystemUi(id = 3, name = "Französisch", gradeCount = 14),
+)
+
 @Preview(showBackground = true)
 @Composable
 private fun GymBearbeitenScreenPreview() {
@@ -315,6 +360,8 @@ private fun GymBearbeitenScreenPreview() {
         GymBearbeitenScreen(
             state = GymBearbeitenUiState(
                 ready = true,
+                systems = vorschauSysteme,
+                defaultGradeSystemId = 1,
                 name = "Boulderhalle Nord",
                 location = "Musterstraße 1",
                 latitude = 52.520008,
@@ -322,6 +369,17 @@ private fun GymBearbeitenScreenPreview() {
                 radiusMeters = 150,
                 alertsEnabled = true,
             ),
+        )
+    }
+}
+
+// Anlegen-Modus: leeres Formular, anderer Titel, anderer Button — derselbe Screen.
+@Preview(showBackground = true, name = "Neue Halle")
+@Composable
+private fun GymAnlegenScreenPreview() {
+    BoulderBuddyTheme {
+        GymBearbeitenScreen(
+            state = GymBearbeitenUiState(ready = true, neu = true, systems = vorschauSysteme),
         )
     }
 }

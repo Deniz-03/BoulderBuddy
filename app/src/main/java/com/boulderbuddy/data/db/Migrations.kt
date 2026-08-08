@@ -357,6 +357,23 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+/**
+ * v8→v9: `gym` bekommt ein Standard-Gradsystem (`defaultGradeSystemId`).
+ *
+ * Reines `ALTER TABLE ADD COLUMN` reicht hier: die Spalte ist nullable und braucht damit keine
+ * `DEFAULT`-Klausel, die im Schema stehen bliebe. `NULL` heißt „kein Standard gesetzt" — genau
+ * das trifft auf jede Bestandshalle zu.
+ *
+ * Kein Fremdschlüssel, obwohl der Wert auf `grade_system.id` zeigt: die Begründung steht bei
+ * [com.boulderbuddy.data.db.entity.GymEntity.defaultGradeSystemId] (Zyklus mit
+ * `grade_system.gymId`, den die Reihenfolge des Abgleichs nicht auflösen kann).
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `gym` ADD COLUMN `defaultGradeSystemId` INTEGER")
+    }
+}
+
 /** Alle Migrationen in einer Liste — so kann `DatabaseModule` sie am Stück übergeben. */
 val ALLE_MIGRATIONEN: Array<Migration> = arrayOf(
     MIGRATION_1_2,
@@ -366,4 +383,5 @@ val ALLE_MIGRATIONEN: Array<Migration> = arrayOf(
     MIGRATION_5_6,
     MIGRATION_6_7,
     MIGRATION_7_8,
+    MIGRATION_8_9,
 )

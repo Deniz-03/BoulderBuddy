@@ -33,12 +33,17 @@ Halle — und daran hängt eine Falle, siehe unten.
 ### Wie eine Session an eine Halle kommt
 
 Im „Neue Session"-Formular wird die Halle **aus den bestehenden ausgewählt** (Chips, zuletzt
-benutzte zuerst); „+ Neue Halle" blendet ein Namensfeld ein. Die Auswahl reicht eine `gymId` nach
-unten, keinen Text — Punkt 8 vergleicht damit dieselbe Identität, die auch der Geofence trägt.
+benutzte zuerst); „+ Neue Halle" führt in denselben Gym-Editor wie aus den Einstellungen. Die
+Auswahl reicht eine `gymId` nach unten, keinen Text — Punkt 8 vergleicht damit dieselbe Identität,
+die auch der Geofence trägt.
 
 Kommt man über den Notification-Tap, ist die Halle aus dem Deep-Link **vorausgewählt** und gewinnt
 gegen die zuletzt benutzte. Zum Testen von Punkt 8 genügt also: Session starten, beenden, und der
 Fall tritt an der richtigen Halle ein.
+
+**Praktisch fürs Testen:** Weil „+ Neue Halle" im Editor landet, kannst du eine Testhalle in einem
+Zug anlegen *und* ihr direkt Koordinaten geben — Workflow 1 braucht dann keinen zweiten Weg über
+die Einstellungen. Die neu angelegte Halle ist beim Zurückkommen automatisch ausgewählt.
 
 > **Vorher war das anders**, und in älteren Aufzeichnungen taucht es noch auf: bis
 > `SessionErstellenScreen` die Auswahl bekam, stand hier ein freies Textfeld, aus dem per
@@ -77,7 +82,8 @@ du musst nie raten.
 Prüft die komplette Kette am echten Gerät: Geofence-Registrierung, DWELL-Trigger, Besuchs-Logging,
 Politik, Notification, Deep-Link.
 
-1. Einstellungen → **Hallen verwalten** → eine Halle öffnen (oder anlegen).
+1. Einstellungen → **Hallen verwalten** → eine Halle öffnen oder **„Neue Halle"**. (Derselbe
+   Editor öffnet sich auch über „+ Neue Halle" im Session-Formular.)
 2. **„Aktuellen Standort übernehmen"** — du stehst gerade zuhause, also ist die Halle jetzt dein
    Wohnzimmer. Alternativ „Koordinaten manuell eingeben".
 3. Radius auf **50 m** (Minimum des Reglers). Klein halten, sonst deckt der Geofence die halbe

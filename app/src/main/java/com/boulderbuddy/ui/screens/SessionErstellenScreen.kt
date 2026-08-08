@@ -16,6 +16,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +36,6 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 import com.boulderbuddy.ui.viewmodel.HalleUi
-import com.boulderbuddy.ui.viewmodel.Hallenwahl
 import com.boulderbuddy.ui.viewmodel.SessionErstellenUiState
 
 
@@ -47,32 +47,52 @@ fun SessionErstellenScreen(
     onBack: () -> Unit = {},
     // Übergibt die Formularwerte (inkl. gewähltem Gradsystem) nach oben; das Anlegen + die
     // Navigation zur neuen Session übernimmt der NavHost via SessionErstellenViewModel.
-    onCreateSession: (halle: Hallenwahl, gradeSystemId: Int?, notiz: String) -> Unit =
-        { _, _, _ -> },
+    onCreateSession: (gymId: Int, gradeSystemId: Int?, notiz: String) -> Unit = { _, _, _ -> },
+    // Führt in den Gym-Editor (dieselbe Maske wie aus den Einstellungen). Die neu angelegte
+    // Halle kommt über [neueHalleId] zurück.
+    onNeueHalle: () -> Unit = {},
+    // ID einer gerade im Editor angelegten Halle; null = keine offene Rückmeldung.
+    neueHalleId: Int? = null,
+    onNeueHalleVerbraucht: () -> Unit = {},
 ) {
     // Gewählte Halle (ID); null = noch nichts aktiv angetippt → Fallback auf die Vorauswahl.
     var selectedGymId by remember { mutableStateOf<Int?>(null) }
-    // Der Nutzer hat ausdrücklich "Neue Halle" gewählt.
-    var neueHalleGewaehlt by remember { mutableStateOf(false) }
-    var neueHalle by remember { mutableStateOf("") }
-    // Gewähltes Gradsystem (ID); null = noch nichts aktiv gewählt → Fallback aufs erste System.
+    // Gewähltes Gradsystem (ID); null = noch nichts aktiv gewählt → Standard der Halle.
     var selectedSystemId by remember { mutableStateOf<Int?>(null) }
     var notiz by remember { mutableStateOf("") }
 
-    /*
-     * Beides abgeleitet statt gespeichert — dieselbe Form wie beim Gradsystem darunter.
-     *
-     * Die Vorauswahl kommt asynchron aus dem ViewModel (Deep-Link-Halle bzw. zuletzt benutzte).
-     * Sie in einen `LaunchedEffect` zu schreiben hieße, sie könnte eine spätere eigene Auswahl
-     * des Nutzers wieder überschreiben. So gewinnt immer, was zuletzt angetippt wurde.
-     *
-     * Ohne jede Halle gibt es nichts zu wählen: dann ist der Neu-Fall der einzige Fall.
-     */
-    val neueHalleAktiv = neueHalleGewaehlt || state.gyms.isEmpty()
-    val effectiveGymId = if (neueHalleAktiv) null else selectedGymId ?: state.vorauswahlGymId
+    // Rückkehr aus dem Editor: die frisch angelegte Halle ist die gemeinte, also auswählen.
+    // Danach quittieren, sonst spränge die Auswahl bei jeder Recomposition wieder dorthin.
+    LaunchedEffect(neueHalleId) {
+        neueHalleId?.let {
+            selectedGymId = it
+            // Die neue Halle bringt ihr eigenes Standard-Grading mit — eine Auswahl, die noch
+            // zur vorherigen Halle gehörte, wäre jetzt falsch.
+            selectedSystemId = null
+            onNeueHalleVerbraucht()
+        }
+    }
 
-    // Effektiv gewähltes System: die aktive Auswahl, sonst das erste vorhandene.
-    val effectiveSystemId = selectedSystemId ?: state.systems.firstOrNull()?.id
+    /*
+     * Abgeleitet statt gespeichert: die Vorauswahl kommt asynchron aus dem ViewModel
+     * (Deep-Link-Halle bzw. zuletzt benutzte). Sie in einen `LaunchedEffect` zu schreiben hieße,
+     * sie könnte eine spätere eigene Auswahl des Nutzers wieder überschreiben. So gewinnt immer,
+     * was zuletzt angetippt wurde.
+     */
+    val effectiveGymId = selectedGymId ?: state.vorauswahlGymId
+    val gewaehlteHalle = state.gyms.firstOrNull { it.id == effectiveGymId }
+
+    /*
+     * Gradsystem: eigene Wahl schlägt Hallen-Standard schlägt erstes vorhandenes System.
+     *
+     * Der Hallen-Standard ist ein Vorschlag, keine Bindung — wer fürs Moonboard ein anderes
+     * System braucht, tippt es an und behält es. Nur ein Hallenwechsel setzt die eigene Wahl
+     * zurück (siehe `onClick` am Hallen-Chip): dann ist der Vorschlag der neuen Halle gemeint,
+     * nicht der stehengebliebene der alten.
+     */
+    val effectiveSystemId = selectedSystemId
+        ?: gewaehlteHalle?.defaultGradeSystemId
+        ?: state.systems.firstOrNull()?.id
 
     BoulderBuddyScaffold(
         topBar = {
@@ -111,8 +131,11 @@ fun SessionErstellenScreen(
                  * "find-or-create" eine Halle machte. Wer den vorbefüllten Namen abwandelte,
                  * legte damit unbemerkt eine zweite Halle an — ohne Koordinaten, ohne Geofence,
                  * und die Näherungs-Politik sah für die eigentliche Halle nie eine Session.
-                 * Eine Auswahl gibt der Halle eine sichtbare Identität; getippt wird nur noch,
-                 * was es wirklich noch nicht gibt.
+                 *
+                 * "+ Neue Halle" führt deshalb in den Gym-Editor statt in ein Namensfeld: eine
+                 * Halle soll beim Anlegen dieselben Felder bekommen wie beim Bearbeiten —
+                 * Standort, Radius, Standard-Grading. Sonst entstehen wieder Hallen, denen
+                 * alles fehlt außer dem Namen.
                  */
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     Text(
@@ -120,36 +143,29 @@ fun SessionErstellenScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = BoulderBuddy.colors.textTertiary,
                     )
-                    if (state.gyms.isNotEmpty()) {
-                        // Zuletzt benutzte zuerst (Reihenfolge kommt so aus dem ViewModel), der
-                        // Neu-Chip immer am Ende — er ist der seltene Fall.
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-                            verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-                        ) {
-                            state.gyms.forEach { gym ->
-                                SelectableChip(
-                                    label = gym.name,
-                                    selected = gym.id == effectiveGymId,
-                                    onClick = {
-                                        selectedGymId = gym.id
-                                        neueHalleGewaehlt = false
-                                    },
-                                )
-                            }
+                    // Zuletzt benutzte zuerst (Reihenfolge kommt so aus dem ViewModel), der
+                    // Neu-Chip immer am Ende — er ist der seltene Fall.
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                    ) {
+                        state.gyms.forEach { gym ->
                             SelectableChip(
-                                label = "+ Neue Halle",
-                                selected = neueHalleAktiv,
-                                onClick = { neueHalleGewaehlt = true },
+                                label = gym.name,
+                                selected = gym.id == effectiveGymId,
+                                onClick = {
+                                    selectedGymId = gym.id
+                                    // Hallenwechsel: der Grading-Vorschlag der neuen Halle
+                                    // ist jetzt gemeint, nicht die Wahl zur alten.
+                                    selectedSystemId = null
+                                },
                             )
                         }
-                    }
-                    if (neueHalleAktiv) {
-                        TextField(
-                            value = neueHalle,
-                            onChange = { neueHalle = it },
-                            placeholder = "z.B. Boulderhalle Nord",
+                        SelectableChip(
+                            label = "+ Neue Halle",
+                            selected = false,
+                            onClick = onNeueHalle,
                         )
                     }
                 }
@@ -219,19 +235,22 @@ fun SessionErstellenScreen(
                 // freien Platz der Column, sodass "Session starten" unten klebt.
                 Spacer(Modifier.weight(1f))
 
-                PrimaryButton(
-                    text = "Session starten",
-                    icon = Icons.Filled.PlayArrow,
-                    // Halle + gewähltes Gradsystem + Notiz nach oben reichen; das ViewModel
-                    // legt die Session an. Ein leerer Name im Neu-Fall fällt dort weiterhin auf
-                    // "Meine Halle" zurück — der Button bleibt bedienbar.
-                    onClick = {
-                        val halle = effectiveGymId
-                            ?.let { Hallenwahl.Bestehende(it) }
-                            ?: Hallenwahl.Neue(neueHalle)
-                        onCreateSession(halle, effectiveSystemId, notiz)
-                    },
-                )
+                // Ohne jede Halle gibt es nichts zu starten — dann führt der Button dorthin,
+                // wo es weitergeht, statt eine namenlose Halle im Hintergrund zu erfinden.
+                if (effectiveGymId == null) {
+                    PrimaryButton(
+                        text = "Erste Halle anlegen",
+                        onClick = onNeueHalle,
+                    )
+                } else {
+                    PrimaryButton(
+                        text = "Session starten",
+                        icon = Icons.Filled.PlayArrow,
+                        // Halle + gewähltes Gradsystem + Notiz nach oben reichen; das ViewModel
+                        // legt die Session an.
+                        onClick = { onCreateSession(effectiveGymId, effectiveSystemId, notiz) },
+                    )
+                }
             }
         },
     )
@@ -249,8 +268,10 @@ private fun SessionErstellenScreenPreview() {
                     GradeSystemUi(id = 3, name = "Französisch", gradeCount = 14),
                 ),
                 gyms = listOf(
-                    HalleUi(id =1, name = "Boulder World München"),
-                    HalleUi(id =2, name = "Halle Nord"),
+                    // Standard-Grading der Halle: "Halle Nord" ist dadurch vorgewählt, ohne
+                    // dass jemand es antippen musste.
+                    HalleUi(id = 1, name = "Boulder World München", defaultGradeSystemId = 1),
+                    HalleUi(id = 2, name = "Kletterhalle Nord"),
                 ),
                 vorauswahlGymId = 1,
             ),
@@ -258,8 +279,8 @@ private fun SessionErstellenScreenPreview() {
     }
 }
 
-// Erster Start: noch keine Halle angelegt — dann gibt es nichts auszuwählen und der Screen
-// zeigt direkt das Namensfeld, ohne einen einsamen "+ Neue Halle"-Chip darüber.
+// Erster Start: noch keine Halle angelegt. Dann gibt es nichts auszuwählen, und der Button
+// führt zum Anlegen statt eine namenlose Halle zu erfinden.
 @Preview(showBackground = true, name = "Ohne bestehende Hallen")
 @Composable
 private fun SessionErstellenScreenOhneHallenPreview() {

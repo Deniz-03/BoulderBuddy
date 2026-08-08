@@ -23,6 +23,20 @@ data class GymEntity(
     val geofenceRadiusMeters: Int = DEFAULT_GEOFENCE_RADIUS_METERS,
     /** Näherungs-Erinnerungen pro Gym abschaltbar (zusätzlich zum globalen Master-Toggle). */
     val proximityAlertsEnabled: Boolean = true,
+    /**
+     * Gradsystem, das beim Anlegen einer Session in dieser Halle vorgewählt wird; `null` =
+     * kein Standard, dann greift das erste vorhandene System. Die Vorwahl ist ein Vorschlag,
+     * keine Bindung — in der Session lässt sich weiter jedes System wählen (Moonboard & Co.).
+     *
+     * **Bewusst ohne `ForeignKey`, obwohl die Spalte auf `grade_system.id` zeigt.**
+     * `grade_system.gymId` verweist bereits zurück auf `gym`; ein echter Fremdschlüssel in
+     * dieser Richtung machte daraus einen Zyklus. Der Geräte-Abgleich schreibt seine Tabellen
+     * strikt „Eltern vor Kindern" (siehe `sync/Standtabellen.kt`) — in einem Zyklus gibt es
+     * diese Reihenfolge nicht, und das Einfügen der ersten Tabelle verletzte den jeweils
+     * anderen Fremdschlüssel. Deshalb eine lose Referenz: verschwindet das System, bleibt
+     * hier eine tote ID stehen, und wer sie liest, fällt still auf „kein Standard" zurück.
+     */
+    val defaultGradeSystemId: Int? = null,
 ) {
     companion object {
         const val DEFAULT_GEOFENCE_RADIUS_METERS = 150

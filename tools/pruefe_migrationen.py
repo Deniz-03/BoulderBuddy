@@ -291,7 +291,30 @@ else:
     fehler.append("gym_visit nicht leer")
     print("[FEHLER] gym_visit hat", anzahl, "Zeilen")
 
-# 6. Fremdschluessel sind nach der Migration konsistent.
+# 6. v8 -> v9: das Standard-Gradsystem kommt dazu, Bestandshallen haben keins.
+con = neu(8)
+con.executescript("""
+INSERT INTO gym VALUES (1, 'Boulderwelt', NULL, NULL, NULL, 150, 1);
+""")
+fahre(con, migrationen, 8, 9)
+zeile = con.execute("SELECT name, defaultGradeSystemId FROM gym WHERE id = 1").fetchone()
+if zeile == ("Boulderwelt", None):
+    print("[ok] Bestandshallen ueberstehen v8 -> v9 ohne Standard-Gradsystem")
+else:
+    print("[FEHLER] gym nach v8->v9:", zeile, "erwartet ('Boulderwelt', None)")
+    fehler.append("gym v8->v9")
+
+# Bewusst KEIN Fremdschluessel auf grade_system: der zeigte zurueck auf gym und machte aus dem
+# Abgleichs-Baum einen Zyklus (siehe GymEntity). Hier wird geprueft, dass wirklich keiner steht —
+# sonst faellt es erst beim Abgleich auf, und dort zur Laufzeit.
+bezuege = con.execute("PRAGMA foreign_key_list(`gym`)").fetchall()
+if not bezuege:
+    print("[ok] gym hat weiterhin keinen Fremdschluessel (kein Zyklus mit grade_system)")
+else:
+    print("[FEHLER] gym hat Fremdschluessel:", bezuege)
+    fehler.append("gym-Fremdschluessel")
+
+# 7. Fremdschluessel sind nach der Migration konsistent.
 con.execute("PRAGMA foreign_keys=ON")
 verletzt = con.execute("PRAGMA foreign_key_check").fetchall()
 if not verletzt:

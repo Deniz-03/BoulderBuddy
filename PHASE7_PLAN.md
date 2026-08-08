@@ -679,9 +679,22 @@ Repo-Anker in [`FABLE_GYMPUSH_START.md`](FABLE_GYMPUSH_START.md).
 **Nachtrag:** Das freie Textfeld beim Session-Anlegen blieb dabei zunächst stehen und war die letzte
 Stelle, an der eine Halle ihre Identität verlieren konnte — ein abgewandelter Name legte eine
 zweite, koordinatenlose Halle an, und die Näherungs-Politik sah für die eigentliche nie eine
-Session. Seit dem Umbau auf eine **Auswahl bestehender Hallen** (Chips, zuletzt benutzte zuerst,
-plus „+ Neue Halle") reicht der Screen eine `gymId` weiter statt eines Textes; getippt wird nur
-noch, was es wirklich noch nicht gibt.
+Session. Seit dem Umbau auf eine **Auswahl bestehender Hallen** (Chips, zuletzt benutzte zuerst)
+reicht der Screen eine `gymId` weiter statt eines Textes.
+
+„+ Neue Halle" führt dabei in **denselben Gym-Editor** wie aus den Einstellungen, nicht in ein
+Namensfeld: eine Halle soll beim Anlegen dieselben Felder bekommen wie beim Bearbeiten — sonst
+entstehen wieder Hallen, denen alles fehlt außer dem Namen, und der Näherungs-Push hätte nichts,
+woran er ansetzen könnte. Die neu angelegte Halle kommt über den `savedStateHandle` zurück
+(Muster wie `KAMERA_ERGEBNIS`) und ist danach ausgewählt. Implizit entstehen Hallen seitdem
+nirgends mehr.
+
+Dazu trägt jede Halle ein **Standard-Gradsystem** (`gym.defaultGradeSystemId`, DB v9), das beim
+Session-Anlegen vorgewählt wird. Es ist ein Vorschlag, keine Bindung: die Auswahl in der Session
+bleibt frei (Moonboard u.Ä.), und nur ein Hallenwechsel setzt sie auf den Vorschlag der neuen
+Halle zurück. Die Spalte hat bewusst **keinen Fremdschlüssel** — `grade_system.gymId` zeigt bereits
+zurück auf `gym`, ein Bezug in die Gegenrichtung machte aus dem Abgleichs-Baum einen Zyklus
+(Begründung in `GymEntity` und `sync/Standtabellen.kt`).
 
 ## C.3 Datenmodell (DB v7→v8, echte Migration)
 
