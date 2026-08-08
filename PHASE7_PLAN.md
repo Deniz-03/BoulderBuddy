@@ -705,11 +705,17 @@ Hardware demonstrierbar korrekte Kern; Geofencing/Notification drumherum sind d�
 
 ## C.5 MUSS vor/bei M5 mit Deniz geklärt/getestet werden
 
-1. **Hardware/echter Standort:** Geofence-Auslösung nur mit echtem Standortwechsel prüfbar (physisch
-   zum Gym, oder Emulator-Location / `adb emu geo fix` / Mock-Location). **Wichtigster Punkt für M5.**
+> Konkrete Abläufe dafür: **[`PUSHNOT_TESTEN.md`](PUSHNOT_TESTEN.md)**.
+
+1. **Hardware/echter Standort:** ~~nur mit echtem Standortwechsel prüfbar~~ — **erledigt als
+   Annahme**: der Geofence wird mit `INITIAL_TRIGGER_DWELL` registriert, ein Gerät *innerhalb* des
+   Radius löst also beim Registrieren aus. Eine Halle mit den eigenen Wohnungskoordinaten ist damit
+   ein vollwertiger Testfall ohne Fahrt und ohne Mock-Location (Workflow 1). Die *Ankunft* von
+   draußen braucht weiter einen bewegten Standort → Emulator mit Play Services (Workflow 2).
 2. **Hintergrund-Verhalten:** Doze / geschlossene App / Hersteller-Akku-Killer sind geräteabhängig —
-   evtl. Batterieoptimierung-Ausnahme; nur am echten Gerät seriös testbar.
+   evtl. Batterieoptimierung-Ausnahme; nur am echten Gerät seriös testbar. **Bleibt offen.**
 3. **Kalibrierung:** finaler Radius (Start 150 m), `loiteringDelay`, Cooldown-Länge, Definition
    „typischer Slot" — empirisch, nicht raten. Als benannte Default-Konstanten mit Kommentar.
+   **Bleibt offen** — die Tabelle in PUSHNOT_TESTEN.md listet alle sechs Schrauben mit Fundort.
 4. **Cooldown-Persistenz:** DataStore-Key pro Gym vs. `lastNotifiedAt`-Spalte auf `GymEntity` —
-   Fable entscheidet + dokumentiert (beides ok).
+   **entschieden**: DataStore-Key `gym_notified_<id>` (Begründung in `ProximityPushStateStore`).
