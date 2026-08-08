@@ -4,7 +4,7 @@ Durchgeführt am 08.08.2026 auf Branch `PixelBugfixes` nach dem [Plan](EMULATOR_
 Geräte: Wear OS Large Round (`emulator-5556`, Android 14, 227 dp rund) und Pixel Tablet
 (`emulator-5554`, Android 15, 1280×800 dp).
 
-**Drei Befunde, zwei davon behoben.** Kein Absturz auf beiden Geräten über den ganzen Lauf.
+**Drei Befunde, alle behoben.** Kein Absturz auf beiden Geräten über den ganzen Lauf.
 
 ---
 
@@ -38,7 +38,7 @@ kein Phone verbunden"**. Das richtige Muster stand zwei Dateien weiter längst b
 > verloren — er wird nur nicht mehr als angekommen ausgegeben. Eine lokale Warteschlange wäre
 > ein Feature, kein Fix, und gehört entschieden statt nebenbei gebaut.
 
-### T1 — Nach dem Drehen bleibt das Tablet im Telefon-Layout ⚠️ offen
+### T1 — Nach dem Drehen bleibt das Tablet im Telefon-Layout ✅ behoben
 
 Der riskanteste Punkt des Plans, und er trägt:
 
@@ -53,10 +53,24 @@ nicht geben sollte: dort ist das Detail ein *Pane*, kein Screen. Kein Absturz, k
 und mit einem Zurück wieder in Ordnung — aber die Zusage des Tablet-Layouts („kein Zurück-Pfeil,
 solange die Liste daneben steht") ist in genau diesem Zustand gebrochen.
 
-**Bewusst nicht behoben.** Die Korrektur ist keine Zeile, sondern eine Entscheidung: soll das
-Drehen die Auswahl in die Zwei-Pane-Ansicht übernehmen (dann braucht `SessionsListDetail` eine
-vorgewählte Session von außen) oder den Push-Screen schließen? Das gehört entschieden, nicht
-geraten.
+**Behoben — aber nicht als Redirect.** Der Fund sah nach Layout aus und war Architektur: die
+Beziehung „Liste → Detail" existierte zweimal, breit als Pane und schmal als NavHost-Ziel. Die
+Breiten-Verzweigung ist deshalb ganz entfallen; `ListDetailPaneScaffold` gilt jetzt für alle
+Breiten. Es konnte den schmalen Fall die ganze Zeit selbst — es wurde nur nie gefragt. Zwei
+`if`-Zweige fallen weg, kein neuer Mechanismus kommt hinzu.
+
+**Der Gewinn ist größer als der Fund:** vorher verlor schon das reine Drehen von quer nach hoch
+die Auswahl vollständig. Jetzt überlebt sie in beide Richtungen — am Tablet-Emulator geprüft
+(quer → hoch → zurück: Zwei-Pane, dieselbe Session, kein Zurück-Pfeil) und am Pixel 6a
+(Detail mit Zurück-Pfeil, Zurück-Kette Liste → Home, zwei Drehungen ohne Verlust).
+
+`Session(sessionId)` und `BoulderDetail(boulderId)` bleiben als Routen für Sprünge von außerhalb
+des Tabs; `SessionDetailScreen` hat dafür `inhaltsBreite` bekommen — als einziger Detail-Screen
+fehlte es ihm, daher der 2500-px-Balken.
+
+**Eine Nebenwirkung am Telefon:** die BottomNav bleibt im Session-Detail stehen, weil das Detail
+jetzt im Tab liegt statt darüber. Vom Nutzer nicht entschieden, deshalb so gewählt, wie es sich
+aus der Änderung ergibt — mit einer Zeile umkehrbar.
 
 ---
 
