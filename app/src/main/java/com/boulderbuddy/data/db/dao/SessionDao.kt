@@ -20,6 +20,14 @@ interface SessionDao {
     @Query("UPDATE session SET endedAt = :endedAt WHERE id = :sessionId")
     suspend fun endSession(sessionId: Int, endedAt: Long)
 
+    /**
+     * Schreibt nur die Notiz — eine einzelne Anweisung statt Laden, Kopieren, Zurückschreiben.
+     * Die Notiz wird beim Tippen gespeichert (siehe `AlteSessionScreen`), und dafür soll ein
+     * Tastendruck nicht drei Datenbankzugriffe kosten.
+     */
+    @Query("UPDATE session SET notes = :notes WHERE id = :sessionId")
+    suspend fun updateNotes(sessionId: Int, notes: String?)
+
     @Query("SELECT * FROM session WHERE id = :sessionId")
     suspend fun getById(sessionId: Int): SessionEntity?
 

@@ -105,6 +105,10 @@ class FakeSessionRepository : SessionRepository {
         all.value = all.value.map { if (it.id == session.id) session else it }
     }
 
+    override suspend fun updateNotes(sessionId: Int, notes: String?) {
+        all.value = all.value.map { if (it.id == sessionId) it.copy(notes = notes) else it }
+    }
+
     override suspend fun endSession(sessionId: Int, endedAt: Long) {
         all.value = all.value.map { if (it.id == sessionId) it.copy(endedAt = endedAt) else it }
         if (active.value?.id == sessionId) active.value = null
