@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -39,6 +38,7 @@ import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.components.appendSpokenNote
 import com.boulderbuddy.ui.theme.BoulderBuddy
+import com.boulderbuddy.ui.theme.inhaltsAbstandMitTastatur
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.inhaltsBreite
@@ -223,7 +223,7 @@ fun AlteSessionScreen(
                 hostState = snackbarHostState,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding(),
+                    .inhaltsAbstandMitTastatur(),
             )
           }
         },

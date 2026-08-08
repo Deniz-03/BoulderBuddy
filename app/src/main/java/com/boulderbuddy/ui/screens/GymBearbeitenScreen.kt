@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -32,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +46,7 @@ import com.boulderbuddy.ui.components.TextField
 import com.boulderbuddy.ui.components.ToggleSwitch
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
+import com.boulderbuddy.ui.theme.inhaltsAbstandMitTastatur
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
@@ -119,7 +120,7 @@ fun GymBearbeitenScreen(
         }
     }
 
-    var showManualDialog by remember { mutableStateOf(false) }
+    var showManualDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     BoulderBuddyScaffold(
@@ -141,7 +142,7 @@ fun GymBearbeitenScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .navigationBarsPadding()
+                    .inhaltsAbstandMitTastatur()
                     .verticalScroll(rememberScrollState())
                     .padding(Dimens.paddingL),
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
@@ -283,6 +284,9 @@ fun GymBearbeitenScreen(
                 PrimaryButton(
                     text = if (state.neu) "Halle anlegen" else "Speichern",
                     onClick = onSave,
+                    // Ohne Namen speichert das ViewModel ohnehin nicht — der Knopf sagt das
+                    // jetzt, statt den Tap stillschweigend verfallen zu lassen.
+                    enabled = state.name.isNotBlank(),
                 )
 
                 // Löschen nur für bestehende Hallen, und bewusst unauffällig: ein TextButton
@@ -381,8 +385,8 @@ private fun KoordinatenDialog(
     onConfirm: (Double, Double) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var latText by remember { mutableStateOf(initialLatitude?.toString() ?: "") }
-    var lngText by remember { mutableStateOf(initialLongitude?.toString() ?: "") }
+    var latText by rememberSaveable { mutableStateOf(initialLatitude?.toString() ?: "") }
+    var lngText by rememberSaveable { mutableStateOf(initialLongitude?.toString() ?: "") }
 
     fun parse(text: String): Double? = text.trim().replace(',', '.').toDoubleOrNull()
     val lat = parse(latText)

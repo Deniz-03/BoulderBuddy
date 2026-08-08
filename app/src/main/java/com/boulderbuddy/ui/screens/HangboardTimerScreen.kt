@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,7 +97,7 @@ fun HangboardTimerScreen(
 ) {
     // Der Einstellungs-Dialog wird lokal auf diesem Screen gesteuert (kein Navigieren mehr
     // in die allgemeinen App-Einstellungen).
-    var showConfigDialog by remember { mutableStateOf(false) }
+    var showConfigDialog by rememberSaveable { mutableStateOf(false) }
 
     // Phasenabhängige Anzeige aus dem State ableiten. Die Color kommt aus dem Theme
     // und kann daher nicht im UiState liegen (das ist theme-unabhängig).
@@ -232,13 +233,13 @@ private fun TimerConfigDialog(
     onDeletePreset: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var sets by remember { mutableIntStateOf(initialSets) }
-    var hangSec by remember { mutableIntStateOf(initialHangSec) }
-    var restSec by remember { mutableIntStateOf(initialRestSec) }
+    var sets by rememberSaveable { mutableIntStateOf(initialSets) }
+    var hangSec by rememberSaveable { mutableIntStateOf(initialHangSec) }
+    var restSec by rememberSaveable { mutableIntStateOf(initialRestSec) }
     // Schaltet die Preset-Chips in einen Lösch-Modus (Chip zeigt dann ein X).
     var deleteMode by remember { mutableStateOf(false) }
     // Zeigt den Name-Eingabe-Dialog zum Speichern des aktuellen Presets.
-    var showSaveDialog by remember { mutableStateOf(false) }
+    var showSaveDialog by rememberSaveable { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -333,7 +334,7 @@ private fun SavePresetDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var name by remember { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Preset speichern") },
