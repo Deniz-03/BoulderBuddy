@@ -276,6 +276,8 @@ fun EinstellungenScreen(
                         trailing = {
                             Icon(
                                 imageVector = Icons.Outlined.ChevronRight,
+                                // null: das Winkelzeichen wiederholt nur, dass die Zeile
+                                // weiterführt — das sagt ihr Klickverhalten schon.
                                 contentDescription = null,
                                 tint = BoulderBuddy.colors.textTertiary,
                                 modifier = Modifier.size(Dimens.iconS),
@@ -296,6 +298,7 @@ fun EinstellungenScreen(
                                 )
                                 Icon(
                                     imageVector = Icons.Outlined.ChevronRight,
+                                    // null: wie oben — reines Weiter-Zeichen.
                                     contentDescription = null,
                                     tint = BoulderBuddy.colors.textTertiary,
                                     modifier = Modifier.size(Dimens.iconS),

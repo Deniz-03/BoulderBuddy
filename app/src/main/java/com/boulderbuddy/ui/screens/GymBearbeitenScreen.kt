@@ -270,6 +270,7 @@ fun GymBearbeitenScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Notifications,
+                        // null: "Erinnerungen für diese Halle" steht daneben.
                         contentDescription = null,
                         tint = BoulderBuddy.colors.textSecondary,
                         modifier = Modifier.size(Dimens.iconS),

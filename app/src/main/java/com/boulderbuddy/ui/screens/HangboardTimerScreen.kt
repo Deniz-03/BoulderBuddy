@@ -319,6 +319,7 @@ private fun TimerConfigDialog(
                 TextButton(onClick = { showSaveDialog = true }) {
                     Icon(
                         Icons.Filled.Add,
+                        // null: "Als Preset speichern" steht direkt daneben.
                         contentDescription = null,
                         modifier = Modifier.size(Dimens.iconS),
                     )

@@ -313,6 +313,7 @@ private fun LaufendeSessionHinweis(laufende: LaufendeSessionUi) {
     ) {
         Icon(
             imageVector = Icons.Outlined.Info,
+            // null: der Hinweistext daneben ist die ganze Information.
             contentDescription = null,
             tint = BoulderBuddy.colors.textTertiary,
             modifier = Modifier.size(Dimens.iconS),

@@ -132,6 +132,8 @@ private fun GymRow(
     ) {
         Icon(
             imageVector = Icons.Outlined.LocationOn,
+            // null: die Farbe unterscheidet Hallen mit und ohne Standort, der Text
+            // darunter sagt dasselbe in Worten — nur der zählt für TalkBack.
             contentDescription = null,
             // Gyms mit Koordinaten (geofenced) heben sich farblich ab.
             tint = if (gym.hasCoordinates) {
@@ -167,6 +169,7 @@ private fun GymRow(
         }
         Icon(
             imageVector = Icons.Outlined.ChevronRight,
+            // null: reines Weiter-Zeichen der klickbaren Zeile.
             contentDescription = null,
             tint = BoulderBuddy.colors.textTertiary,
             modifier = Modifier.size(Dimens.iconS),

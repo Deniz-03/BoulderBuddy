@@ -85,6 +85,7 @@ fun PhotoPicker(
             ) {
                 Icon(
                     imageVector = Icons.Filled.PlayCircleOutline,
+                    // null: "Video ausgewählt" steht darunter.
                     contentDescription = null,
                     tint = BoulderBuddy.colors.textTertiary,
                     modifier = Modifier.size(Dimens.iconL),

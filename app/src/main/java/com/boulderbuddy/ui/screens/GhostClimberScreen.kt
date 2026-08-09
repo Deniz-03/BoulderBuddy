@@ -352,6 +352,7 @@ private fun SavedAnalysisRow(
     ) {
         Icon(
             imageVector = Icons.Outlined.History,
+            // null: Datum und Vorschlag daneben sagen, was die Zeile ist.
             contentDescription = null,
             tint = BoulderBuddy.colors.textSecondary,
         )
