@@ -423,6 +423,18 @@ auslösbar. Die Nachbarn sind alle korrekt beschriftet (`Abbrechen`, `Foto`, `Vi
 Gehört zum TODO-Punkt „16 Stellen mit `contentDescription = null` durchgehen"; dies ist die
 Stelle, an der es eine Funktion unbenutzbar macht statt nur eine Dekoration unbenannt zu lassen.
 
+**Behoben am 09.08.2026.** Der Knopf trägt seinen Namen jetzt selbst (`Modifier.semantics` mit
+`Role.Button`), und der Name nennt den Modus. Die Beschriftung am Stopp-Icon ist entfallen —
+sonst hätte TalkBack sie zusammen mit der des Knopfes zweimal vorgelesen.
+
+Am Gerät gegengeprüft, alle drei Zustände:
+
+| Zustand | Vorgelesen |
+|---|---|
+| Foto-Modus | `Foto aufnehmen` |
+| Video-Modus, bereit | `Aufnahme starten` |
+| Video-Modus, läuft | `Aufnahme beenden` (genau einmal) |
+
 ### F16 — Ablehnungstext verweist unnötig in die System-Einstellungen
 
 Nach **einer** Ablehnung der Kamera-Freigabe verschwindet der „Freigeben"-Knopf, und der Text
@@ -431,6 +443,21 @@ genügt es, den Bildschirm zu verlassen und erneut zu öffnen — dann steht „
 und Android zeigt den Dialog ein zweites Mal. Keine Sackgasse, aber der Text schickt den Nutzer
 einen Umweg, den er nicht gehen muss. (Der Hinweis auf die Galerie als Alternative steht
 korrekt daneben.)
+
+**Behoben am 09.08.2026.** Der Kommentar im Code nannte die Regel schon richtig — „Android zeigt
+den Systemdialog nach der **zweiten** Ablehnung nicht mehr" — nur behandelte der Code bereits die
+erste so. `shouldShowRequestPermissionRationale` unterscheidet die beiden Fälle; daraus sind drei
+Zustände statt zwei geworden. Der Knopf verschwindet erst, wenn Android wirklich nicht mehr
+fragt: ein Knopf, der einen Dialog verspricht, der nicht mehr kommt, wäre schlimmer als keiner.
+
+Am Gerät gegengeprüft (mit `pm reset-permissions` für einen unberührten Ausgangsstand — ohne das
+zählt Android frühere Ablehnungen derselben Sitzung mit und der erste Fall ist nicht messbar):
+
+| Zustand | Text | Knopf |
+|---|---|---|
+| noch nicht gefragt | „Zum Aufnehmen braucht die App Zugriff …" | `Freigeben` |
+| einmal abgelehnt | „… gleich hier noch einmal erteilen" | `Erneut fragen` → Dialog kommt wirklich |
+| zweimal abgelehnt | „… nur noch in den System-Einstellungen" | keiner |
 
 ## T14.1 — Ghost Climber bis zur Analyse: bestanden
 
