@@ -19,4 +19,83 @@
     <string name="ghost_analyse_abbrechen">Abbrechen</string>
     <string name="ghost_video_referenz">Referenz</string>
     <string name="ghost_video_vergleich">Vergleich</string>
+
+    <!--
+      Ab hier die Oberflaeche. Vorher stand jedes Wort der App im Kotlin-Code; das hier ist
+      derselbe Text, nur an der Stelle, an der Android ihn erwartet.
+
+      Namensschema: <bereich>_<sache>. Woerter, die in jedem Dialog vorkommen, stehen einmal
+      unter "aktion_" - wer "Abbrechen" aendert, soll es nicht an neun Stellen aendern muessen.
+    -->
+
+    <!-- Knoepfe, die ueberall gleich heissen. -->
+    <string name="aktion_zurueck">Zurück</string>
+    <string name="aktion_abbrechen">Abbrechen</string>
+    <string name="aktion_speichern">Speichern</string>
+    <string name="aktion_loeschen">Löschen</string>
+    <string name="aktion_schliessen">Schließen</string>
+    <string name="aktion_anlegen">Anlegen</string>
+    <string name="aktion_fertig">Fertig</string>
+
+    <!-- Ein Grad ist eine Schwierigkeit, kein Grad Celsius - der Plural steht hier, damit
+         "1 Grade" gar nicht erst entstehen kann. -->
+    <plurals name="grad_anzahl">
+        <item quantity="one">%d Grad</item>
+        <item quantity="other">%d Grade</item>
+    </plurals>
+
+    <!-- Einstellungen -->
+    <string name="einstellungen_titel">Einstellungen</string>
+    <string name="einstellungen_gruppe_klettern">Klettern</string>
+    <string name="einstellungen_gruppe_geraet">Gerät</string>
+    <string name="einstellungen_gruppe_app">App</string>
+    <string name="einstellungen_gruppe_experimental">Experimental</string>
+    <string name="einstellungen_standard_grading">Standard-Grading</string>
+    <!-- Steht als Wert, solange kein System gewaehlt ist. -->
+    <string name="einstellungen_kein_wert">—</string>
+    <string name="einstellungen_grading_erstellen">Grading-System erstellen</string>
+    <string name="einstellungen_hallen_verwalten">Hallen verwalten</string>
+    <string name="einstellungen_grading_verwalten">Grading-Systeme verwalten</string>
+    <string name="einstellungen_smartwatch">Smartwatch</string>
+    <string name="einstellungen_smartwatch_verbunden">Verbunden</string>
+    <string name="einstellungen_smartwatch_getrennt">Nicht verbunden</string>
+    <string name="einstellungen_haptik">Haptisches Feedback</string>
+    <string name="einstellungen_haptik_hinweis">Vibration bei Timer-Phasenwechseln</string>
+    <string name="einstellungen_gym_erinnerungen">Gym-Erinnerungen</string>
+    <string name="einstellungen_dark_mode">Dark Mode</string>
+    <string name="einstellungen_export">Sessions exportieren (CSV)</string>
+    <string name="einstellungen_export_dateiname">boulderbuddy_sessions.csv</string>
+    <string name="einstellungen_abgleich">Geräte abgleichen</string>
+    <string name="einstellungen_abgleich_hinweis">Phone und Tablet auf denselben Stand bringen</string>
+    <string name="einstellungen_name">Name</string>
+    <string name="einstellungen_name_leer">Nicht gesetzt</string>
+    <string name="einstellungen_ueber">Über BoulderBuddy</string>
+    <string name="einstellungen_version">v%1$s</string>
+    <string name="einstellungen_ghost">Ghost Climber</string>
+    <string name="einstellungen_ghost_beta">Beta</string>
+
+    <!-- Einstellungen: die drei Berechtigungs-Absagen des Naeherungs-Push. Sie sagen, was
+         dadurch NICHT geht - eine Absage ohne Folge braucht niemand zu lesen. -->
+    <string name="einstellungen_ohne_notification">Ohne Benachrichtigungs-Erlaubnis können keine Erinnerungen erscheinen.</string>
+    <string name="einstellungen_ohne_hintergrund_standort">Erinnerungen funktionieren nur mit Standort „Immer erlauben“ (App-Einstellungen).</string>
+    <string name="einstellungen_ohne_standort">Ohne Standort-Berechtigung sind Gym-Erinnerungen nicht möglich.</string>
+
+    <!-- Einstellungen: Dialoge -->
+    <string name="einstellungen_name_hinweis">Wird auf dem Home-Screen zur Begrüßung genutzt. Leer lassen für eine neutrale Begrüßung.</string>
+    <string name="einstellungen_grading_systeme">Grading-Systeme</string>
+    <string name="einstellungen_grading_leer">Noch keine Grading-Systeme vorhanden.</string>
+    <string name="einstellungen_grading_standard">Standard</string>
+    <string name="einstellungen_grading_loeschen">System löschen</string>
+    <string name="einstellungen_grading_loeschen_titel">System löschen?</string>
+    <string name="einstellungen_grading_loeschen_text">„%1$s“ wird gelöscht. Boulder dieses Systems behalten ihre Farbe, verlieren aber ihre Grad-Zuordnung.</string>
+    <string name="einstellungen_grading_neu">Neues Grading-System</string>
+    <string name="einstellungen_grading_name_label">NAME</string>
+    <string name="einstellungen_grading_name_platzhalter">z.B. Meine Skala</string>
+    <string name="einstellungen_grading_grade_hinweis">Grade (von leicht nach schwer)</string>
+    <!-- Beispiel-Grad im leeren Feld; die Zahl ist die Zeilennummer. -->
+    <string name="einstellungen_grading_grad_platzhalter">z.B. V%1$d</string>
+    <string name="einstellungen_grading_grad_entfernen">Grad entfernen</string>
+    <string name="einstellungen_grading_grad_hinzufuegen">+ Grad hinzufügen</string>
+    <!-- Beispiel: „V-Scale · 11 Grade" -->
+    <string name="einstellungen_grading_chip">%1$s · %2$s</string>
 </resources>

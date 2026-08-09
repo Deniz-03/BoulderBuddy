@@ -52,8 +52,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.BuildConfig
+import com.boulderbuddy.R
 import com.boulderbuddy.proximity.hasBackgroundLocationPermission
 import com.boulderbuddy.proximity.hasFineLocationPermission
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
@@ -136,7 +139,7 @@ fun EinstellungenScreen(
         if (!granted) {
             Toast.makeText(
                 context,
-                "Ohne Benachrichtigungs-Erlaubnis können keine Erinnerungen erscheinen.",
+                context.getString(R.string.einstellungen_ohne_notification),
                 Toast.LENGTH_LONG,
             ).show()
         }
@@ -157,8 +160,7 @@ fun EinstellungenScreen(
         if (!granted) {
             Toast.makeText(
                 context,
-                "Erinnerungen funktionieren nur mit Standort „Immer erlauben“ " +
-                    "(App-Einstellungen).",
+                context.getString(R.string.einstellungen_ohne_hintergrund_standort),
                 Toast.LENGTH_LONG,
             ).show()
         }
@@ -172,7 +174,7 @@ fun EinstellungenScreen(
         if (!granted) {
             Toast.makeText(
                 context,
-                "Ohne Standort-Berechtigung sind Gym-Erinnerungen nicht möglich.",
+                context.getString(R.string.einstellungen_ohne_standort),
                 Toast.LENGTH_LONG,
             ).show()
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
@@ -212,12 +214,12 @@ fun EinstellungenScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Einstellungen",
+                title = stringResource(R.string.einstellungen_titel),
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
+                            contentDescription = stringResource(R.string.aktion_zurueck),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -244,7 +246,7 @@ fun EinstellungenScreen(
                 // --- Gruppe: Klettern ---
                 Column {
                     SectionHeader(
-                        text = "Klettern",
+                        text = stringResource(R.string.einstellungen_gruppe_klettern),
                         modifier = Modifier.padding(
                             horizontal = Dimens.paddingL,
                             vertical = Dimens.paddingS,
@@ -252,23 +254,24 @@ fun EinstellungenScreen(
                     )
                     // Wert-Zeile: öffnet den Auswahldialog, zeigt das gewählte System rechts.
                     val selectedSystemName = state.systems
-                        .firstOrNull { it.id == state.selectedGradeSystemId }?.name ?: "—"
+                        .firstOrNull { it.id == state.selectedGradeSystemId }?.name
+                        ?: stringResource(R.string.einstellungen_kein_wert)
                     SettingsRow(
                         icon = Icons.Outlined.Tune,
-                        label = "Standard-Grading",
+                        label = stringResource(R.string.einstellungen_standard_grading),
                         value = selectedSystemName,
                         onClick = { showGradingDialog = true },
                     )
                     // Öffnet den Anlege-Dialog fürs Custom-Grading-System.
                     SettingsRow(
                         icon = Icons.Outlined.Add,
-                        label = "Grading-System erstellen",
+                        label = stringResource(R.string.einstellungen_grading_erstellen),
                         onClick = { showCreateGradingDialog = true },
                     )
                     // Hallen-Verwaltung (Näherungs-Push M1): Koordinaten, Radius, Erinnerungen.
                     SettingsRow(
                         icon = Icons.Outlined.LocationOn,
-                        label = "Hallen verwalten",
+                        label = stringResource(R.string.einstellungen_hallen_verwalten),
                         onClick = onOpenGymVerwaltung,
                         trailing = {
                             Icon(
@@ -282,7 +285,7 @@ fun EinstellungenScreen(
                     // Öffnet die Verwaltung (Systeme ansehen/löschen). Zeigt die Anzahl als Kontext.
                     SettingsRow(
                         icon = Icons.Outlined.Edit,
-                        label = "Grading-Systeme verwalten",
+                        label = stringResource(R.string.einstellungen_grading_verwalten),
                         onClick = { showManageGradingDialog = true },
                         trailing = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -305,7 +308,7 @@ fun EinstellungenScreen(
                 // --- Gruppe: Gerät ---
                 Column {
                     SectionHeader(
-                        text = "Gerät",
+                        text = stringResource(R.string.einstellungen_gruppe_geraet),
                         modifier = Modifier.padding(
                             horizontal = Dimens.paddingL,
                             vertical = Dimens.paddingS,
@@ -315,13 +318,16 @@ fun EinstellungenScreen(
                     // Systemeinstellungen — ein Schalter hier würde Steuerbarkeit vortäuschen.
                     SettingsRow(
                         icon = Icons.Outlined.Watch,
-                        label = "Smartwatch",
-                        value = if (state.watchConnected) "Verbunden" else "Nicht verbunden",
+                        label = stringResource(R.string.einstellungen_smartwatch),
+                        value = stringResource(
+                            if (state.watchConnected) R.string.einstellungen_smartwatch_verbunden
+                            else R.string.einstellungen_smartwatch_getrennt,
+                        ),
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Vibration,
-                        label = "Haptisches Feedback",
-                        subtitle = "Vibration bei Timer-Phasenwechseln",
+                        label = stringResource(R.string.einstellungen_haptik),
+                        subtitle = stringResource(R.string.einstellungen_haptik_hinweis),
                         trailing = {
                             ToggleSwitch(
                                 checked = state.hapticFeedback,
@@ -334,7 +340,7 @@ fun EinstellungenScreen(
                     // Standort-Permission-Flow an.
                     SettingsRow(
                         icon = Icons.Outlined.NotificationsActive,
-                        label = "Gym-Erinnerungen",
+                        label = stringResource(R.string.einstellungen_gym_erinnerungen),
                         trailing = {
                             ToggleSwitch(
                                 checked = state.proximityAlertsEnabled,
@@ -350,7 +356,7 @@ fun EinstellungenScreen(
                 // --- Gruppe: App ---
                 Column {
                     SectionHeader(
-                        text = "App",
+                        text = stringResource(R.string.einstellungen_gruppe_app),
                         modifier = Modifier.padding(
                             horizontal = Dimens.paddingL,
                             vertical = Dimens.paddingS,
@@ -358,7 +364,7 @@ fun EinstellungenScreen(
                     )
                     SettingsRow(
                         icon = Icons.Outlined.DarkMode,
-                        label = "Dark Mode",
+                        label = stringResource(R.string.einstellungen_dark_mode),
                         trailing = {
                             ToggleSwitch(
                                 checked = darkMode,
@@ -368,32 +374,40 @@ fun EinstellungenScreen(
                     )
                     SettingsRow(
                         icon = Icons.Outlined.FileDownload,
-                        label = "Sessions exportieren (CSV)",
-                        onClick = { exportLauncher.launch("boulderbuddy_sessions.csv") },
+                        label = stringResource(R.string.einstellungen_export),
+                        onClick = {
+                            exportLauncher.launch(
+                                context.getString(R.string.einstellungen_export_dateiname),
+                            )
+                        },
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Sync,
-                        label = "Geräte abgleichen",
-                        subtitle = "Phone und Tablet auf denselben Stand bringen",
+                        label = stringResource(R.string.einstellungen_abgleich),
+                        subtitle = stringResource(R.string.einstellungen_abgleich_hinweis),
                         onClick = onOpenAbgleich,
                     )
+                    val nichtGesetzt = stringResource(R.string.einstellungen_name_leer)
                     SettingsRow(
                         icon = Icons.Outlined.Person,
-                        label = "Name",
-                        value = state.userName.ifBlank { "Nicht gesetzt" },
+                        label = stringResource(R.string.einstellungen_name),
+                        value = state.userName.ifBlank { nichtGesetzt },
                         onClick = { showNameDialog = true },
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Info,
-                        label = "Über BoulderBuddy",
-                        value = "v${BuildConfig.VERSION_NAME}",
+                        label = stringResource(R.string.einstellungen_ueber),
+                        value = stringResource(
+                            R.string.einstellungen_version,
+                            BuildConfig.VERSION_NAME,
+                        ),
                     )
                 }
 
                 // --- Gruppe: Experimental (7.5) ---
                 Column {
                     SectionHeader(
-                        text = "Experimental",
+                        text = stringResource(R.string.einstellungen_gruppe_experimental),
                         modifier = Modifier.padding(
                             horizontal = Dimens.paddingL,
                             vertical = Dimens.paddingS,
@@ -401,8 +415,8 @@ fun EinstellungenScreen(
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Science,
-                        label = "Ghost Climber",
-                        value = "Beta",
+                        label = stringResource(R.string.einstellungen_ghost),
+                        value = stringResource(R.string.einstellungen_ghost_beta),
                         onClick = onOpenGhostClimber,
                     )
                 }
@@ -456,11 +470,13 @@ fun EinstellungenScreen(
     pendingDelete?.let { system ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("System löschen?") },
+            title = { Text(stringResource(R.string.einstellungen_grading_loeschen_titel)) },
             text = {
                 Text(
-                    "„${system.name}\" wird gelöscht. Boulder dieses Systems behalten ihre Farbe, " +
-                        "verlieren aber ihre Grad-Zuordnung."
+                    stringResource(
+                        R.string.einstellungen_grading_loeschen_text,
+                        system.name,
+                    ),
                 )
             },
             confirmButton = {
@@ -469,10 +485,12 @@ fun EinstellungenScreen(
                         onDeleteGradeSystem(system.id)
                         pendingDelete = null
                     },
-                ) { Text("Löschen") }
+                ) { Text(stringResource(R.string.aktion_loeschen)) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Abbrechen") }
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.aktion_abbrechen))
+                }
             },
         )
     }
@@ -490,7 +508,7 @@ private fun NameAendernDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Name") },
+        title = { Text(stringResource(R.string.einstellungen_name)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                 // Kein Platzhalter-Beispiel: bei einem Feld, das genau eine offensichtliche
@@ -501,16 +519,21 @@ private fun NameAendernDialog(
                     onChange = { name = it },
                 )
                 Text(
-                    text = "Wird auf dem Home-Screen zur Begrüßung genutzt. Leer lassen für eine " +
-                        "neutrale Begrüßung.",
+                    text = stringResource(R.string.einstellungen_name_hinweis),
                     // Ein Satz gehört in einen Body-Stil, nicht in den Versalien-Label-Stil.
                     style = MaterialTheme.typography.bodySmall,
                     color = BoulderBuddy.colors.textSecondary,
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(name) }) { Text("Speichern") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        confirmButton = {
+            TextButton(onClick = { onSave(name) }) {
+                Text(stringResource(R.string.aktion_speichern))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
+        },
     )
 }
 
@@ -524,11 +547,11 @@ private fun GradingSystemeVerwaltenDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Grading-Systeme") },
+        title = { Text(stringResource(R.string.einstellungen_grading_systeme)) },
         text = {
             if (systems.isEmpty()) {
                 Text(
-                    text = "Noch keine Grading-Systeme vorhanden.",
+                    text = stringResource(R.string.einstellungen_grading_leer),
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textSecondary,
                 )
@@ -546,7 +569,11 @@ private fun GradingSystemeVerwaltenDialog(
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
-                                    text = "${system.gradeCount} Grade",
+                                    text = pluralStringResource(
+                                        R.plurals.grad_anzahl,
+                                        system.gradeCount,
+                                        system.gradeCount,
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = BoulderBuddy.colors.textSecondary,
                                 )
@@ -555,13 +582,17 @@ private fun GradingSystemeVerwaltenDialog(
                                 IconButton(onClick = { onDeleteRequest(system) }) {
                                     Icon(
                                         imageVector = Icons.Outlined.Delete,
-                                        contentDescription = "System löschen",
+                                        contentDescription = stringResource(
+                                            R.string.einstellungen_grading_loeschen,
+                                        ),
                                         tint = BoulderBuddy.colors.textSecondary,
                                     )
                                 }
                             } else {
                                 Text(
-                                    text = "Standard",
+                                    text = stringResource(
+                                        R.string.einstellungen_grading_standard,
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = BoulderBuddy.colors.textSecondary,
                                 )
@@ -572,7 +603,9 @@ private fun GradingSystemeVerwaltenDialog(
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_schliessen)) }
+        },
     )
 }
 
@@ -589,7 +622,7 @@ private fun GradingSystemAnlegenDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Neues Grading-System") },
+        title = { Text(stringResource(R.string.einstellungen_grading_neu)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -598,11 +631,13 @@ private fun GradingSystemAnlegenDialog(
                 TextField(
                     value = name,
                     onChange = { name = it },
-                    label = "NAME",
-                    placeholder = "z.B. Meine Skala",
+                    label = stringResource(R.string.einstellungen_grading_name_label),
+                    placeholder = stringResource(
+                        R.string.einstellungen_grading_name_platzhalter,
+                    ),
                 )
                 Text(
-                    text = "Grade (von leicht nach schwer)",
+                    text = stringResource(R.string.einstellungen_grading_grade_hinweis),
                     style = MaterialTheme.typography.bodySmall,
                     color = BoulderBuddy.colors.textSecondary,
                 )
@@ -614,26 +649,38 @@ private fun GradingSystemAnlegenDialog(
                         TextField(
                             value = label,
                             onChange = { labels[index] = it },
-                            placeholder = "z.B. V$index",
+                            placeholder = stringResource(
+                                R.string.einstellungen_grading_grad_platzhalter,
+                                index,
+                            ),
                             modifier = Modifier.weight(1f),
                         )
                         IconButton(
                             onClick = { if (labels.size > 1) labels.removeAt(index) },
                         ) {
-                            Icon(Icons.Filled.Remove, contentDescription = "Grad entfernen")
+                            Icon(
+                                Icons.Filled.Remove,
+                                contentDescription = stringResource(
+                                    R.string.einstellungen_grading_grad_entfernen,
+                                ),
+                            )
                         }
                     }
                 }
-                TextButton(onClick = { labels.add("") }) { Text("+ Grad hinzufügen") }
+                TextButton(onClick = { labels.add("") }) {
+                    Text(stringResource(R.string.einstellungen_grading_grad_hinzufuegen))
+                }
             }
         },
         confirmButton = {
             TextButton(
                 enabled = name.isNotBlank() && labels.any { it.isNotBlank() },
                 onClick = { onCreate(name, labels.toList()) },
-            ) { Text("Anlegen") }
+            ) { Text(stringResource(R.string.aktion_anlegen)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
+        },
     )
 }
 
@@ -648,11 +695,11 @@ private fun GradingAuswahlDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Standard-Grading") },
+        title = { Text(stringResource(R.string.einstellungen_standard_grading)) },
         text = {
             if (systems.isEmpty()) {
                 Text(
-                    text = "Noch keine Grade-Systeme vorhanden.",
+                    text = stringResource(R.string.einstellungen_grading_leer),
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textSecondary,
                 )
@@ -660,7 +707,15 @@ private fun GradingAuswahlDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     systems.forEach { system ->
                         SelectableChip(
-                            label = "${system.name} · ${system.gradeCount} Grade",
+                            label = stringResource(
+                                R.string.einstellungen_grading_chip,
+                                system.name,
+                                pluralStringResource(
+                                    R.plurals.grad_anzahl,
+                                    system.gradeCount,
+                                    system.gradeCount,
+                                ),
+                            ),
                             selected = system.id == selectedId,
                             onClick = {
                                 onSelect(system.id)
@@ -675,7 +730,7 @@ private fun GradingAuswahlDialog(
         // Auswahl erfolgt per Chip-Tap, daher kein Bestätigen-Button nötig.
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
         },
     )
 }
