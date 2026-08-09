@@ -348,3 +348,92 @@ adb -s 29231JEGR18629 shell svc power stayon false
 ```bash
 adb -s 29231JEGR18629 shell settings put system accelerometer_rotation 1
 ```
+
+---
+
+# Zweiter Durchlauf — 09.08.2026, Branch `Abgabefeinschliff`
+
+Gerät wie oben. Build vom heutigen Stand, `pm clear` vorweg, Ausgangslage also Seed-Daten.
+Abgearbeitet: **T9.4** (CSV-Export) und **Teil 10** (Medien, Kamera, Spracheingabe) — die beiden
+Bereiche, die der erste Durchlauf ausdrücklich offen ließ.
+
+**Wieder kein einziger Absturz**: der `crash`-Puffer blieb über den gesamten Lauf leer, kein ANR.
+
+## T9.4 — CSV-Export: bestanden
+
+Geprüft mit vorsätzlich feindlichen Daten (über die DB gesetzt, damit Zeilenumbruch und
+Anführungszeichen exakt sitzen): Session-Notiz `guter Tag, aber "die Ecke" nicht\nzweite Zeile;
+drittens`, Boulder-Name `Der "Ofen", oben`, Boulder-Notiz mit Umlaut und Geviertstrich, dazu eine
+zweite Session **ohne** Boulder.
+
+Die exportierte Datei byte-genau nachgerechnet:
+
+| Erwartung | Ergebnis |
+|---|---|
+| UTF-8-BOM am Anfang (Excel-Umlaute) | `EF BB BF` ✓ |
+| CRLF als Zeilenende | 5 × `\r\n`; die 3 nackten `\n` sitzen ausschließlich *innerhalb* gequoteter Felder ✓ |
+| `"` verdoppelt | `"Der ""Ofen"", oben"` ✓ |
+| Komma-Felder gequotet | ✓ |
+| Semikolon **nicht** gequotet | ✓ (bei Komma-Trennung richtig — der Unit-Test hält das ausdrücklich fest, damit es niemand „repariert") |
+| Umlaute, Geviertstrich | `München`, `Übergriff`, `—` alle heil ✓ |
+| Session ohne Boulder behält ihre Zeile | ✓, mit sieben leeren Route-Spalten |
+| laufende Session | steht als `aktiv` ✓ |
+| IDs gegen Namen aufgelöst | Halle, Gradsystem, Grad-Label ✓ |
+| Abbruch (Dateiauswahl mit Zurück verlassen) | zurück in den Einstellungen, kein Toast, kein Absturz ✓ |
+
+**Damit ist auch der heute geschriebene `SessionCsvTest` belegt:** er behauptet genau dieses
+Verhalten, und das Gerät bestätigt es Zeichen für Zeichen.
+
+## Teil 10 — Medien: drei Befunde, keiner schwer
+
+| Test | Ergebnis |
+|---|---|
+| T10.1 Foto aufnehmen | **OK** — Datei in `files/aufnahmen`, im Formular und im Detail sichtbar |
+| T10.2 Video aufnehmen | **OK bis auf den Ton**, siehe F14 |
+| T10.3 Kamera-Freigabe verweigert | **OK**, siehe F16 für eine Ungenauigkeit im Text |
+| T10.4 Galerie-Weg | **OK** — Bild überlebt `force-stop`, kein `SecurityException` |
+| T10.5 Aufnahme abbrechen | **OK** — Formular unverändert |
+| T10.6 keine Doppelübernahme | **OK** — nach Abbruch *und* nach Drehen steht genau das zuletzt gewählte Medium |
+| T10.7 Spracheingabe | **Ablehnungszweig OK**, die Erkennung selbst nicht prüfbar (kein Mikrofonsignal über adb) |
+
+### F14 — Boulder-Videos sind immer stumm
+
+`RECORD_AUDIO` wird im Kamera-Pfad **nie erfragt**. Die Aufnahme selbst ist korrekt abgesichert
+([CameraCaptureController.kt:159](app/src/main/java/com/boulderbuddy/data/camera/CameraCaptureController.kt:159)):
+Ton nur, wenn die Freigabe schon vorliegt, sonst stumm statt `SecurityException`. Das ist als
+Entscheidung dokumentiert und richtig — die Folge ist trotzdem, dass praktisch **jedes** Video
+ohne Ton entsteht, weil dem Nutzer die Wahl nie angeboten wird.
+
+Am Gerät belegt: `RECORD_AUDIO granted=false`, und die 34-MB-Datei enthält keinen `soun`-Handler,
+nur `vide`. Der Testplan erwartet unter T10.2 ausdrücklich „Ton vorhanden".
+
+**Entscheidung nötig** (Produktfrage, kein Fix): Mikrofon im Video-Modus erfragen, oder das
+stumme Video als gewollt dokumentieren und die Erwartung im Testplan streichen.
+
+### F15 — Der Auslöser hat keine Beschriftung
+
+Auf dem Kamera-Screen ist der Auslöser bei (540, 2180) klickbar, trägt aber weder `text` noch
+`content-desc` — auch auf keinem Kindknoten. Mit TalkBack ist die Aufnahme damit nicht
+auslösbar. Die Nachbarn sind alle korrekt beschriftet (`Abbrechen`, `Foto`, `Video`,
+`Kamera wechseln`), und **während** einer laufenden Videoaufnahme trägt derselbe Knopf
+`Aufnahme beenden` — es fehlt also nur der Ruhezustand.
+
+Gehört zum TODO-Punkt „16 Stellen mit `contentDescription = null` durchgehen"; dies ist die
+Stelle, an der es eine Funktion unbenutzbar macht statt nur eine Dekoration unbenannt zu lassen.
+
+### F16 — Ablehnungstext verweist unnötig in die System-Einstellungen
+
+Nach **einer** Ablehnung der Kamera-Freigabe verschwindet der „Freigeben"-Knopf, und der Text
+sagt, man könne die Freigabe „in den System-Einstellungen der App nachtragen". Tatsächlich
+genügt es, den Bildschirm zu verlassen und erneut zu öffnen — dann steht „Freigeben" wieder da
+und Android zeigt den Dialog ein zweites Mal. Keine Sackgasse, aber der Text schickt den Nutzer
+einen Umweg, den er nicht gehen muss. (Der Hinweis auf die Galerie als Alternative steht
+korrekt daneben.)
+
+## Weiterhin nicht geprüft
+
+* **T11.1–11.5 Widget** — nicht angefasst.
+* **T12 Näherungs-Push** — nicht angefasst; braucht die Berechtigungskette und 2–8 min je Durchgang.
+* **T14.1 Ghost Climber** — nicht angefasst (Videos dafür liegen in `Downloads`).
+* **T13 Funk-Abgleich** — zweites Gerät fehlt.
+* **T10.7 Erkennung** — über adb kein Mikrofonsignal einspielbar.
