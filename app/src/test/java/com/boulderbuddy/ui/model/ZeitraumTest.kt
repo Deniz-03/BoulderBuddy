@@ -98,17 +98,16 @@ class ZeitraumTest {
         assertThat(eimerLabel(start, Zeitraum.Woche)).isEqualTo("3.8.")
         assertThat(eimerLabel(start, Zeitraum.Jahr)).isEqualTo("2026")
 
-        // Der Monatsname hängt an der Locale; geprüft wird deshalb nur, dass er kurz ist und
-        // nicht der volle Name — sonst passen zwölf Monate nicht unter das Diagramm.
-        //
         // Über ALLE zwölf Monate, nicht nur über den einen oben. Die erste Fassung dieses
         // Tests prüfte nur den August („Aug.", 4 Zeichen) und wäre an „Sept." vorbeigelaufen.
+        //
+        // Höchstens DREI Zeichen: bei zwölf Spalten auf Telefonbreite (~26 dp je Spalte)
+        // brach schon „Sept." um und versetzte die Balken gegeneinander. Die frühere
+        // Schranke von 5 hat genau diesen Fall durchgelassen.
         (1..12).forEach { monatNr ->
             val monat = eimerLabel(LocalDate.of(2026, monatNr, 1), Zeitraum.Monat)
             assertWithMessage("Monatslabel '$monat' ist zu lang für die Achse")
-                .that(monat.length).isAtMost(5)
-            assertWithMessage("Monatslabel '$monat' ist der volle Name")
-                .that(monat).doesNotContain("ember")
+                .that(monat.length).isAtMost(3)
         }
     }
 
