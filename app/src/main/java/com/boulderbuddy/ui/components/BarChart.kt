@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -128,6 +129,15 @@ fun BarChart(
                     text = entry.label,
                     style = MaterialTheme.typography.labelSmall,
                     color = BoulderBuddy.colors.textTertiary,
+                    /*
+                     * Einzeilig erzwungen. Bricht ein Label um (zwölf Monats-Spalten auf
+                     * Telefonbreite), wird seine Spalte höher und der Balken darüber kürzer —
+                     * die Balken stehen dann sichtbar gegeneinander versetzt. Ein zu breites
+                     * Label darf deshalb nur überstehen (Visible), nie das Layout verschieben.
+                     */
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
                     modifier = Modifier.padding(top = Dimens.paddingXS),
                 )
             }

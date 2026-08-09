@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -161,6 +162,11 @@ fun LineChart(
                     style = MaterialTheme.typography.labelSmall,
                     color = BoulderBuddy.colors.textTertiary,
                     textAlign = TextAlign.Center,
+                    // Einzeilig wie im BarChart: ein umgebrochenes Label ruiniert die
+                    // Zeitachse; ein zu breites darf nur überstehen (Visible).
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Visible,
                     modifier = Modifier.weight(1f),
                 )
             }

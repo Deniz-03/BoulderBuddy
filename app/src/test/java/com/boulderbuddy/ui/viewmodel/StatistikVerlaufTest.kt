@@ -154,7 +154,7 @@ class StatistikVerlaufTest {
         val monate = routenVerlauf(routes, sessions, Zeitraum.Monat, heute)
         // 12 Monate, jüngster zuletzt: Juli 2026 = Index 11, April 2026 = Index 8.
         assertThat(monate.last().value).isEqualTo(1f)
-        assertThat(monate.last().label).isEqualTo("Juli")
+        assertThat(monate.last().label).isEqualTo("Jul")
         assertThat(monate[8].value).isEqualTo(1f)
 
         val jahre = routenVerlauf(routes, sessions, Zeitraum.Jahr, heute)

@@ -59,6 +59,9 @@ fun eimerLabel(start: LocalDate, zeitraum: Zeitraum): String = when (zeitraum) {
     // Das Datum des Montags — kürzer und eindeutiger als eine Kalenderwochen-Nummer, die
     // kaum jemand im Kopf hat.
     Zeitraum.Woche -> start.format(wochenFormat)
-    Zeitraum.Monat -> start.format(monatsFormat)
+    // Auf drei Zeichen gekappt: `MMM` liefert auf Deutsch bis zu fünf („Sept.", „März"),
+    // und bei zwölf Spalten auf Telefonbreite bricht das um — die Spalte wird zweizeilig
+    // und ihr Balken sitzt höher als die Nachbarn. „Jan Feb Mär … Dez" bleibt eindeutig.
+    Zeitraum.Monat -> start.format(monatsFormat).take(3)
     Zeitraum.Jahr -> start.year.toString()
 }
