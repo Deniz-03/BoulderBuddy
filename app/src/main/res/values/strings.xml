@@ -325,4 +325,36 @@
     <string name="halle_laengengrad">LÄNGENGRAD</string>
     <string name="halle_laengengrad_platzhalter">z.B. 13.404954</string>
     <string name="halle_koordinaten_uebernehmen">Übernehmen</string>
+
+    <!-- Hangboard-Timer. Die drei Phasenwoerter stehen gross auf dem Ring und sind
+         absichtlich kurz - sie muessen aus zwei Metern Abstand am Board lesbar sein. -->
+    <string name="timer_titel">Hangboard-Timer</string>
+    <string name="timer_phase_hang">HANG</string>
+    <string name="timer_phase_rest">REST</string>
+    <string name="timer_phase_fertig">FERTIG</string>
+    <string name="timer_uhr_verbunden">Smartwatch verbunden</string>
+    <string name="timer_uhr_getrennt">Smartwatch nicht verbunden</string>
+    <!-- Beispiel: „Satz 3 / 6 · Rest 00:42" -->
+    <string name="timer_satz_stand">Satz %1$d / %2$d · Rest %3$s</string>
+
+    <!-- Hangboard-Timer: Einstell-Dialog -->
+    <string name="timer_einstellen">Timer einstellen</string>
+    <string name="timer_voreinstellungen">Voreinstellungen</string>
+    <string name="timer_preset_loeschen">%1$s löschen</string>
+    <string name="timer_presets_bearbeiten">Presets bearbeiten</string>
+    <string name="timer_saetze">Sätze</string>
+    <string name="timer_hang_sekunden">Hang (s)</string>
+    <string name="timer_pause_sekunden">Pause (s)</string>
+    <string name="timer_als_preset_speichern">Als Preset speichern</string>
+    <string name="timer_uebernehmen">Übernehmen</string>
+    <string name="timer_preset_speichern_titel">Preset speichern</string>
+    <string name="timer_preset_name">Name</string>
+    <!-- Stepper: die beiden Knoepfe tragen den Namen des Werts, den sie aendern - allein
+         "erhoehen" sagt bei drei Steppern untereinander nichts. -->
+    <string name="timer_verringern">%1$s verringern</string>
+    <string name="timer_erhoehen">%1$s erhöhen</string>
+
+    <!-- Hangboard-Historie -->
+    <string name="historie_titel">Hangboard-Historie</string>
+    <string name="historie_leer">Noch keine Hangboard-Workouts. Starte den Timer — jeder abgeschlossene Durchlauf landet hier.</string>
 </resources>

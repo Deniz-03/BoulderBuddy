@@ -14,7 +14,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SessionListItem
 import com.boulderbuddy.ui.components.TopBar
@@ -39,12 +41,12 @@ fun HangboardHistorieScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Hangboard-Historie",
+                title = stringResource(R.string.historie_titel),
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
+                            contentDescription = stringResource(R.string.aktion_zurueck),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -54,8 +56,7 @@ fun HangboardHistorieScreen(
         content = { _ ->
             if (!state.loading && state.entries.isEmpty()) {
                 Text(
-                    text = "Noch keine Hangboard-Workouts. Starte den Timer — jeder " +
-                        "abgeschlossene Durchlauf landet hier.",
+                    text = stringResource(R.string.historie_leer),
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textSecondary,
                     modifier = Modifier.fillMaxSize().padding(Dimens.paddingXL),
