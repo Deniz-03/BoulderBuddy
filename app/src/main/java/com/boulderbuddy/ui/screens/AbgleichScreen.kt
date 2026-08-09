@@ -18,7 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Sync
-import androidx.compose.material.icons.outlined.Undo
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -250,7 +250,7 @@ fun AbgleichScreen(
                         text = stringResource(R.string.abgleich_rueckgaengig_ueberschrift),
                     )
                     SettingsRow(
-                        icon = Icons.Outlined.Undo,
+                        icon = Icons.AutoMirrored.Outlined.Undo,
                         label = stringResource(R.string.abgleich_rueckgaengig),
                         subtitle = stringResource(R.string.abgleich_rueckgaengig_hinweis),
                         onClick = onRueckgaengig,

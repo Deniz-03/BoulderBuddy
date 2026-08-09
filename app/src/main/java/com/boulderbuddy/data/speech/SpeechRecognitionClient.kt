@@ -1,5 +1,6 @@
 package com.boulderbuddy.data.speech
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -256,6 +257,9 @@ class SystemSpeechRecognitionClient(
     override fun kannModellLaden(): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && onDeviceAvailable()
 
+    // kannModellLaden() verlangt SDK 33; ohne das bleibt der Recognizer null und die Funktion
+    // steigt vorher aus. Lint folgt der Prüfung nicht über die Hilfsfunktion hinweg.
+    @SuppressLint("NewApi")
     override fun ladeModell(languageTag: String): Flow<ModellDownload> = callbackFlow {
         val recognizer = if (kannModellLaden()) {
             runCatching { SpeechRecognizer.createOnDeviceSpeechRecognizer(context) }.getOrNull()

@@ -29,12 +29,4 @@
     <color name="widget_fill">#FF262521</color>        <!-- HEX_LIGHT_FILL_STRONG -->
     <color name="widget_on_fill">#FFF7F2E2</color>     <!-- HEX_LIGHT_ON_FILL_STRONG -->
     <color name="widget_fill_muted">#FFE9E0C2</color>  <!-- HEX_LIGHT_SURFACE_HIGHEST -->
-
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
 </resources>

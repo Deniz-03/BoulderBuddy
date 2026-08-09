@@ -126,6 +126,15 @@ fun EinstellungenScreen(
         }
     }
 
+    // Texte, die aus Rückrufen heraus gebraucht werden: einmal hier aus der Composition
+    // holen. In einem Launcher-Rückruf gibt es keine Composition mehr — ein getString dort
+    // liest die Ressourcen an der Composition vorbei und bekommt nach einem Sprachwechsel
+    // die alte Fassung.
+    val ohneNotification = stringResource(R.string.einstellungen_ohne_notification)
+    val ohneHintergrundStandort = stringResource(R.string.einstellungen_ohne_hintergrund_standort)
+    val ohneStandort = stringResource(R.string.einstellungen_ohne_standort)
+    val exportDateiname = stringResource(R.string.einstellungen_export_dateiname)
+
     // Hintergrund-Standort-Flow des Gym-Näherungs-Push (M2). Android erzwingt die
     // Reihenfolge: erst Foreground (FINE) gewähren lassen, DANN Background anfragen —
     // ab API 30 öffnet die Background-Anfrage den System-Settings-Flow ("Immer erlauben").
@@ -139,7 +148,7 @@ fun EinstellungenScreen(
         if (!granted) {
             Toast.makeText(
                 context,
-                context.getString(R.string.einstellungen_ohne_notification),
+                ohneNotification,
                 Toast.LENGTH_LONG,
             ).show()
         }
@@ -160,7 +169,7 @@ fun EinstellungenScreen(
         if (!granted) {
             Toast.makeText(
                 context,
-                context.getString(R.string.einstellungen_ohne_hintergrund_standort),
+                ohneHintergrundStandort,
                 Toast.LENGTH_LONG,
             ).show()
         }
@@ -174,7 +183,7 @@ fun EinstellungenScreen(
         if (!granted) {
             Toast.makeText(
                 context,
-                context.getString(R.string.einstellungen_ohne_standort),
+                ohneStandort,
                 Toast.LENGTH_LONG,
             ).show()
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
@@ -378,11 +387,7 @@ fun EinstellungenScreen(
                     SettingsRow(
                         icon = Icons.Outlined.FileDownload,
                         label = stringResource(R.string.einstellungen_export),
-                        onClick = {
-                            exportLauncher.launch(
-                                context.getString(R.string.einstellungen_export_dateiname),
-                            )
-                        },
+                        onClick = { exportLauncher.launch(exportDateiname) },
                     )
                     SettingsRow(
                         icon = Icons.Outlined.Sync,

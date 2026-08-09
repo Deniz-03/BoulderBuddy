@@ -44,7 +44,7 @@ import com.boulderbuddy.ui.theme.Dimens
 fun PhotoPicker(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "Foto/Video aufnehmen",
+    label: String = stringResource(R.string.medien_standard_label),
     imageUri: String? = null,
     isVideo: Boolean = false,
 ) {

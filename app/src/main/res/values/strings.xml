@@ -385,7 +385,7 @@
     <string name="session_halle_neu">+ Neue Halle</string>
     <string name="session_grading_label">GRADING-SYSTEM</string>
     <string name="session_notiz_label">NOTIZ (OPTIONAL)</string>
-    <string name="session_notiz_platzhalter">Ziel für heute...</string>
+    <string name="session_notiz_platzhalter">Ziel für heute …</string>
     <string name="session_erste_halle">Erste Halle anlegen</string>
     <string name="session_starten">Session starten</string>
 
@@ -553,9 +553,23 @@
     <!-- Widget -->
     <string name="widget_titel">BoulderBuddy</string>
     <string name="widget_aktualisieren">↻</string>
-    <string name="widget_laeuft">läuft gerade · %1$d Boulder · %2$d Tops</string>
+    <!-- „laeuft gerade · 5 Boulder · 1 Top". Zwei Zahlen in einer Zeile, deshalb zwei
+         plurals und eine Vorlage, die sie zusammensetzt. Bei Boulder ist die Mehrzahl
+         gleich, bei Top nicht - und ein einzelner Top ist der Normalfall am Anfang. -->
+    <string name="widget_laeuft">läuft gerade · %1$s · %2$s</string>
+    <plurals name="widget_boulder">
+        <item quantity="one">%d Boulder</item>
+        <item quantity="other">%d Boulder</item>
+    </plurals>
+    <plurals name="widget_tops">
+        <item quantity="one">%d Top</item>
+        <item quantity="other">%d Tops</item>
+    </plurals>
     <string name="widget_keine_session">Keine aktive Session</string>
-    <string name="widget_tops_insgesamt">%1$d Tops insgesamt</string>
+    <plurals name="widget_tops_insgesamt">
+        <item quantity="one">%d Top insgesamt</item>
+        <item quantity="other">%d Tops insgesamt</item>
+    </plurals>
     <string name="widget_session_oeffnen">Session öffnen</string>
     <string name="widget_timer">Timer</string>
 </resources>

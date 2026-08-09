@@ -83,6 +83,9 @@ fun GymBearbeitenScreen(
 
     // Foreground-Location-Flow: erst prüfen, sonst anfragen; bei Erteilung direkt erfassen.
     // (Background-Location ist NICHT hier nötig — die braucht erst das Geofencing, M2.)
+    // Aus der Composition geholt, weil der Rückruf keine mehr hat (siehe
+    // EinstellungenScreen).
+    val ohneStandortRecht = stringResource(R.string.halle_ohne_standort_recht)
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
@@ -93,7 +96,7 @@ fun GymBearbeitenScreen(
         } else {
             Toast.makeText(
                 context,
-                context.getString(R.string.halle_ohne_standort_recht),
+                ohneStandortRecht,
                 Toast.LENGTH_LONG,
             ).show()
         }

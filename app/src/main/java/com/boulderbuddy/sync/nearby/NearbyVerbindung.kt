@@ -312,6 +312,9 @@ class NearbyVerbindung @Inject constructor(
      */
     private fun uebernimmDatei(endpunkt: String, payloadId: Long, payload: Payload) {
         val datei = payload.asFile()
+        // Veraltet, aber bewusst zuerst versucht: solange Nearby einen erreichbaren Pfad
+        // liefert, spart dieser Weg das Kopieren der ganzen Datenbank.
+        @Suppress("DEPRECATION")
         val direkt = runCatching { datei?.asJavaFile() }.getOrNull()
         if (direkt != null) {
             melde(Funkereignis.DateiDa(endpunkt, payloadId, direkt))
