@@ -633,7 +633,13 @@ GeofenceManager: Geofences entfernt: keine Halle mit Koordinaten und aktiver Eri
 
 ## Weiterhin nicht geprüft
 
-* **T13 Funk-Abgleich** — zweites Gerät fehlt.
+* **T13 Abgleich** — hier stand zuerst pauschal „zweites Gerät fehlt". Das gilt aber **nur für
+  den Funkweg (T13.5)**. Die vier Datei-Tests **T13.1–T13.4** (Abgabe erzeugen, eigenen Stand
+  wieder einlesen und danach zählen, Unsinns-Datei, Rückgängig) brauchen genau **ein** Gerät und
+  sind schlicht nicht gemacht worden. Der Datei-Weg ist damit weiterhin nur durch JVM-Tests und
+  eine Emulator-Sichtung belegt, nie am echten Gerät gegen echten Speicher. Auch von T13.5 ist
+  die Hälfte allein prüfbar: Berechtigungskette, Foreground-Service-Notification und ob der
+  Suchzustand beim Abbrechen sauber endet.
 * **T10.7 Erkennung** — über adb kein Mikrofonsignal einspielbar.
 * **T14.1 ab dem Anker-Schritt** — siehe oben.
 * **T12.3 `DISABLED` und `POST_SESSION_QUIET`** — siehe Begründung oben.

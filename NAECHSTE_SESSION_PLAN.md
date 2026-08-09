@@ -2,6 +2,25 @@
 
 Erstellt: 08.08.2026 · Ausgangsstand: `origin/main` = `0a53276` (PR #15, `PixelBugfixes` gemergt)
 
+> ## ⚠️ Abgearbeitet am 09.08.2026 — dieses Dokument ist Historie
+>
+> Es beschreibt den Plan für den 09.08. und ist an mehreren Stellen überholt. Der aktuelle
+> Restposten steht im Vault unter **TODO → „Bestandsaufnahme 09.08.2026"**.
+>
+> | Block | Stand |
+> |---|---|
+> | **A1–A4** (Migration v11, CSV-Test, README, Icon) | ✅ erledigt, Branch `Abgabefeinschliff` |
+> | **B** CSV-Import | ❌ **gestrichen** — Nutzerentscheidung: der Geräte-Abgleich deckt den Fall ab, ein Import steht in keiner Anforderung, und der Export ist verlustbehaftet, taugt also nicht als eigenes Eingabeformat |
+> | **C** Rest-Testlauf am Pixel | ✅ T9.4, T10, T11, T12, T14.1 durch — sechs Befunde, fünf behoben. **Teil 13 blieb liegen, obwohl vier seiner fünf Tests nur ein Gerät brauchen** |
+> | **D1** BottomNav im Session-Detail | ⬜ weiterhin offen (eine Zeile) |
+> | **D2** Strings herausziehen | ⬜ weiterhin offen — unverändert 0 × `stringResource`, 72 hartkodierte Texte, 17 × `contentDescription = null` |
+> | **D3** Ghost | ✅ alle drei gemessen, zwei mit negativem Ergebnis (siehe unten im Dokument, dort schon nachgezogen) |
+> | **E** Vault nachziehen | ✅ erledigt, in zwei Runden am 09.08. |
+>
+> **Auch die Lage oben stimmt nicht mehr:** `origin/main` steht unverändert auf `0a53276`,
+> lokal liegen aber **15 Commits** darüber (`Abgabefeinschliff` → `GhostHintergrund`), dazu der
+> wiederhergestellte Branch `PoseModellKlein`. Nichts davon ist gepusht.
+
 > **Lage:** Alle acht Branches sind in `origin/main` enthalten — Gegenprobe
 > `git rev-list --count origin/main..<branch>` = 0 für jeden lokalen und Remote-Branch.
 > `GhostWarpSmoothing` existiert nicht mehr (nur noch der Tag `ghost-s7-stabil`).
