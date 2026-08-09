@@ -28,7 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.FilterChip
@@ -91,7 +93,7 @@ fun BoulderUebersichtScreen(
     BoulderBuddyScaffold(
         topBar = {
             UebersichtTopBar(
-                current = "Boulder",
+                current = stringResource(R.string.uebersicht_boulder),
                 // Navigation zur Session-Übersicht (SessionUebersichtScreen).
                 onSelectSessions = onOpenSessionOverview,
                 onSelectBoulder = { /* bereits hier — Dropdown schließt nur */ },
@@ -106,14 +108,17 @@ fun BoulderUebersichtScreen(
                     ) {
                         Icon(
                             imageVector = if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,
-                            contentDescription = if (searchOpen) "Suche schließen" else "Suchen",
+                            contentDescription = stringResource(
+                                if (searchOpen) R.string.boulder_suche_schliessen
+                                else R.string.boulder_suchen,
+                            ),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Einstellungen",
+                            contentDescription = stringResource(R.string.aktion_einstellungen),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -157,7 +162,7 @@ fun BoulderUebersichtScreen(
                         TextField(
                             value = searchQuery,
                             onChange = { searchQuery = it },
-                            placeholder = "Name, Sektor oder Grad",
+                            placeholder = stringResource(R.string.boulder_suche_platzhalter),
                             modifier = Modifier.focusRequester(focusRequester),
                         )
                     }
@@ -171,7 +176,7 @@ fun BoulderUebersichtScreen(
                             horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
                         ) {
                             FilterChip(
-                                label = "Alle",
+                                label = stringResource(R.string.boulder_filter_alle),
                                 selected = effectiveSystemId == null,
                                 onClick = {
                                     selectedSystemId = null
@@ -201,7 +206,7 @@ fun BoulderUebersichtScreen(
                             horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
                         ) {
                             FilterChip(
-                                label = "Alle",
+                                label = stringResource(R.string.boulder_filter_alle),
                                 selected = effectiveGradeId == null,
                                 onClick = { selectedGradeId = null },
                             )
@@ -224,16 +229,16 @@ fun BoulderUebersichtScreen(
                         if (state.boulders.isEmpty()) {
                             EmptyState(
                                 icon = Icons.Outlined.Landscape,
-                                title = "Noch keine Boulder",
-                                description = "Boulder, die du in einer Session anlegst, " +
-                                    "sammeln sich hier sessionübergreifend.",
+                                title = stringResource(R.string.boulder_leer_titel),
+                                description = stringResource(R.string.boulder_leer_text),
                             )
                         } else {
                             EmptyState(
                                 icon = Icons.Outlined.SearchOff,
-                                title = "Nichts gefunden",
-                                description = "Kein Boulder passt zu Suche und Filter. " +
-                                    "Probier einen anderen Begriff oder setz die Filter zurück.",
+                                title = stringResource(R.string.boulder_nichts_gefunden),
+                                description = stringResource(
+                                    R.string.boulder_nichts_gefunden_text,
+                                ),
                             )
                         }
                     }

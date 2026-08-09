@@ -357,4 +357,102 @@
     <!-- Hangboard-Historie -->
     <string name="historie_titel">Hangboard-Historie</string>
     <string name="historie_leer">Noch keine Hangboard-Workouts. Starte den Timer — jeder abgeschlossene Durchlauf landet hier.</string>
+
+    <!-- Boulder anlegen/bearbeiten -->
+    <string name="boulder_hinzufuegen">Boulder hinzufügen</string>
+    <string name="boulder_bearbeiten">Boulder bearbeiten</string>
+    <string name="boulder_sektor">Sektor</string>
+    <string name="boulder_sektor_platzhalter">A</string>
+    <string name="boulder_farbe">Farbe</string>
+    <string name="boulder_name">Name</string>
+    <string name="boulder_name_platzhalter">z.B. Überhang</string>
+    <string name="boulder_versuche">Versuche</string>
+    <string name="boulder_versuche_weniger">Weniger Versuche</string>
+    <string name="boulder_versuche_mehr">Mehr Versuche</string>
+    <string name="boulder_status">Status</string>
+    <string name="boulder_geschafft">Geschafft</string>
+    <string name="boulder_projekt">Projekt</string>
+    <string name="boulder_notiz">Notiz</string>
+    <string name="boulder_notiz_platzhalter">Notiz (optional)</string>
+    <string name="boulder_medien_waehlen">Foto/Video aufnehmen oder wählen</string>
+    <string name="boulder_grade">Grade</string>
+    <string name="boulder_grade_kein_system">Kein System</string>
+    <string name="boulder_grade_waehlen">Wählen</string>
+
+    <!-- Session anlegen -->
+    <string name="session_neu">Neue Session</string>
+    <string name="session_halle_label">HALLE/ORT</string>
+    <string name="session_halle_neu">+ Neue Halle</string>
+    <string name="session_grading_label">GRADING-SYSTEM</string>
+    <string name="session_notiz_label">NOTIZ (OPTIONAL)</string>
+    <string name="session_notiz_platzhalter">Ziel für heute...</string>
+    <string name="session_erste_halle">Erste Halle anlegen</string>
+    <string name="session_starten">Session starten</string>
+
+    <!-- Session anlegen: der Hinweis auf eine schon laufende Session. Bewusst ein Hinweis
+         und keine Rueckfrage - mehrere gleichzeitig sind erlaubt, und ein Dialog, den man
+         jedes Mal wegtippt, informiert nach dem zweiten Mal niemanden mehr. -->
+    <string name="session_laeuft_mehrere">Es laufen bereits %1$d Sessions. Die letzte: %2$s, %3$s.</string>
+    <string name="session_laeuft_ohne_halle">Es läuft bereits eine Session, %1$s.</string>
+    <string name="session_laeuft_in_halle">In „%1$s“ läuft bereits eine Session, %2$s.</string>
+    <string name="session_halle_unbekannt">unbekannte Halle</string>
+
+    <!-- Session-Uebersicht -->
+    <string name="sessions_leer_titel">Noch keine Sessions</string>
+    <string name="sessions_sortierung">Sortierung ändern</string>
+    <string name="sessions_hinzufuegen">Session hinzufügen</string>
+
+    <!-- Laufende Session -->
+    <!-- Beispiel: „● Läuft · 1,5 h" -->
+    <string name="session_laeuft_seit">● Läuft · %1$s h</string>
+    <string name="session_tops">Tops</string>
+    <string name="session_versuche">Versuche</string>
+    <string name="session_top_grade">Top-Grade</string>
+    <string name="session_boulder_ueberschrift">Boulder dieser Session</string>
+    <string name="session_hangboard_ueberschrift">Hangboard-Training</string>
+    <string name="session_hangboard_zeile">• %1$s</string>
+    <string name="session_beenden">Session beenden</string>
+    <string name="session_beenden_titel">Session beenden?</string>
+    <string name="session_beenden_text">Die Session wird abgeschlossen und lässt sich danach nicht mehr bearbeiten.</string>
+    <string name="session_beenden_ja">Beenden</string>
+
+    <!-- Abgeschlossene Session -->
+    <string name="session_alt_boulder">Boulder</string>
+    <string name="session_alt_dauer">Dauer</string>
+    <string name="session_alt_notiz_label">NOTIZ</string>
+    <string name="session_alt_notiz_platzhalter">Notiz zu dieser Session…</string>
+    <string name="session_alt_geklettert">Gekletterte Boulder</string>
+    <string name="session_alt_leer">In dieser Session wurde kein Boulder geloggt.</string>
+
+    <!-- Boulder-Uebersicht -->
+    <string name="boulder_suche_platzhalter">Name, Sektor oder Grad</string>
+    <string name="boulder_filter_alle">Alle</string>
+    <string name="boulder_leer_titel">Noch keine Boulder</string>
+    <string name="boulder_nichts_gefunden">Nichts gefunden</string>
+
+    <!-- Boulder-Detail -->
+    <string name="boulder_nicht_gefunden">Boulder nicht gefunden.</string>
+    <string name="boulder_versuche_anpassen">Versuche anpassen</string>
+    <string name="boulder_ein_versuch_weniger">Ein Versuch weniger</string>
+    <string name="boulder_ein_versuch_mehr">Ein Versuch mehr</string>
+    <string name="boulder_kein_medium">Kein Medium vorhanden</string>
+    <string name="boulder_foto">Boulder-Foto</string>
+
+    <!-- Woerter, die in mehreren Listen und Kopfzeilen vorkommen. -->
+    <string name="aktion_bearbeiten">Bearbeiten</string>
+    <string name="aktion_einstellungen">Einstellungen</string>
+
+    <!-- Die zwei Uebersichten und der Umschalter in ihrer Kopfzeile. -->
+    <string name="uebersicht_sessions">Sessions</string>
+    <string name="uebersicht_boulder">Boulder</string>
+    <string name="uebersicht_wechseln">Ansicht wechseln</string>
+    <string name="sessions_leer_text">Starte deine erste Session — danach findest du hier jeden Hallenbesuch mit seinen Bouldern.</string>
+    <string name="boulder_leer_text">Boulder, die du in einer Session anlegst, sammeln sich hier sessionübergreifend.</string>
+    <string name="boulder_nichts_gefunden_text">Kein Boulder passt zu Suche und Filter. Probier einen anderen Begriff oder setz die Filter zurück.</string>
+    <string name="boulder_suchen">Suchen</string>
+    <string name="boulder_suche_schliessen">Suche schließen</string>
+    <plurals name="sessions_anzahl">
+        <item quantity="one">%d Session</item>
+        <item quantity="other">%d Sessions</item>
+    </plurals>
 </resources>
