@@ -455,7 +455,11 @@ Layout.
 
 ### T10.2 Video aufnehmen
 **Schritte:** dasselbe mit Video; im Detail abspielen.
-**Erwartet:** Wiedergabe startet, Ton vorhanden, kein schwarzes Bild.
+**Erwartet:** Wiedergabe startet, kein schwarzes Bild.
+**Kein Ton — das ist gewollt** (Entscheidung vom 09.08.2026): der Kamera-Pfad fragt `RECORD_AUDIO`
+bewusst nicht ab, und `CameraCaptureController` nimmt Ton nur auf, wenn die Freigabe ohnehin
+vorliegt. Ein stummes Video ist der Preis dafür, dass die Aufnahme keine zusätzliche
+Mikrofon-Freigabe erzwingt. **Ein Video ohne Tonspur ist hier also kein Befund.**
 
 ### T10.3 Kamera-Berechtigung verweigert
 **Schritte:** `pm reset-permissions`, Aufnahme öffnen, Berechtigung ablehnen (auch zweimal =

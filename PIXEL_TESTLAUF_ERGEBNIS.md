@@ -407,8 +407,10 @@ ohne Ton entsteht, weil dem Nutzer die Wahl nie angeboten wird.
 Am Gerät belegt: `RECORD_AUDIO granted=false`, und die 34-MB-Datei enthält keinen `soun`-Handler,
 nur `vide`. Der Testplan erwartet unter T10.2 ausdrücklich „Ton vorhanden".
 
-**Entscheidung nötig** (Produktfrage, kein Fix): Mikrofon im Video-Modus erfragen, oder das
-stumme Video als gewollt dokumentieren und die Erwartung im Testplan streichen.
+**Entschieden am 09.08.2026: stumm ist gewollt.** Kein Code wird geändert. Begründung: eine
+Boulder-Aufnahme ist ein Bewegungsbeleg, kein Tondokument, und dafür lohnt sich keine zweite
+Freigabe-Abfrage im Aufnahme-Weg. Die Erwartung „Ton vorhanden" ist aus T10.2 des Testplans
+entfernt, damit derselbe Befund nicht bei jedem Durchlauf neu auftaucht.
 
 ### F15 — Der Auslöser hat keine Beschriftung
 
