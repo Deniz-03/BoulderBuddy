@@ -63,10 +63,12 @@
             android:pathData="M9,7m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
     </group>
 
-    <!-- Untergriff, grün — rechts, mit der Spitze nach links. -->
+    <!-- Untergriff, grün — rechts, mit der Spitze nach links. Sitzt bewusst etwas tiefer als
+         die beiden oberen Griffe: die sind die größten Formen, und ohne Gegengewicht kippt die
+         Streuung optisch nach oben. -->
     <group
-        android:translateX="61.5"
-        android:translateY="51">
+        android:translateX="62"
+        android:translateY="54">
         <path
             android:fillColor="#43A047"
             android:pathData="M14,1 C15,3 15,13 14,15 C13,16.5 11,16 9,15 L2,11 C0,9.5 0,7.5 2,6 L9,1.5 C11,0.5 13,-0.5 14,1 Z" />
@@ -75,11 +77,17 @@
             android:pathData="M8.5,8m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
     </group>
 
-    <!-- Tritt, blau — unten mittig, klein. Wiederholt bewusst das Blau des Henkels: an einer
-         Wand gehört ein Tritt zur selben Route wie der Griff darüber. -->
+    <!-- Tritt, blau — unten mittig. Wiederholt bewusst das Blau des Henkels: an einer Wand
+         gehört ein Tritt zur selben Route wie der Griff darüber. Etwas vergrößert (Pivot 0,0,
+         die Skalierung wirkt also ab der Gruppen-Ecke), damit die untere Bildhälfte nicht nur
+         aus einem Pünktchen besteht. -->
     <group
-        android:translateX="47"
-        android:translateY="68.5">
+        android:translateX="45"
+        android:translateY="69"
+        android:pivotX="0"
+        android:pivotY="0"
+        android:scaleX="1.15"
+        android:scaleY="1.15">
         <path
             android:fillColor="#1E88E5"
             android:pathData="M1,5 C1,2 4,0 7,0 C10,0 13,2 13,5 C13,7.5 11,9 7,9 C3,9 1,7.5 1,5 Z" />

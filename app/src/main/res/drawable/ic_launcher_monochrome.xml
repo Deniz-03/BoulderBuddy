@@ -45,8 +45,8 @@
     </group>
 
     <group
-        android:translateX="61.5"
-        android:translateY="51">
+        android:translateX="62"
+        android:translateY="54">
         <path
             android:fillColor="#000000"
             android:fillType="evenOdd"
@@ -54,8 +54,12 @@
     </group>
 
     <group
-        android:translateX="47"
-        android:translateY="68.5">
+        android:translateX="45"
+        android:translateY="69"
+        android:pivotX="0"
+        android:pivotY="0"
+        android:scaleX="1.15"
+        android:scaleY="1.15">
         <path
             android:fillColor="#000000"
             android:fillType="evenOdd"
