@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Themed Icon (Android 13+). **Eigene Datei, nicht der farbige Vordergrund** — das System tönt
+  dieses Drawable in eine einzige Farbe, und fünf verschieden gefärbte Griffe würden dabei zu
+  einem zusammenhängenden Klumpen verschmelzen.
+
+  Dieselben fünf Umrisse, aber die Bohrlöcher sind hier **gestanzt** statt eingefärbt
+  (`fillType="evenOdd"`, Loch als zweiter Teilpfad). Damit bleibt das Merkmal erhalten, das
+  einen Griff zum Griff macht, auch wenn nur eine Farbe zur Verfügung steht.
+
+  Geometrie identisch zu ic_launcher_foreground — wer dort etwas verschiebt, muss es hier
+  mitziehen.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:translateX="32"
+        android:translateY="32">
+        <path
+            android:fillColor="#000000"
+            android:fillType="evenOdd"
+            android:pathData="M0,9 C0,4 4,2 9,1 C14,0 20,2 22,5 C23,7 22,10 19,11 C14,12.5 6,13 2,12 C0.5,11.5 0,10.5 0,9 Z M11,7m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
+    </group>
+
+    <group
+        android:translateX="55"
+        android:translateY="36">
+        <path
+            android:fillColor="#000000"
+            android:fillType="evenOdd"
+            android:pathData="M8,0 C10,0 11,1 12,3 L15.5,12 C16.5,14.5 15,16 12,16 L4,16 C1,16 -0.5,14.5 0.5,12 L4,3 C5,1 6,0 8,0 Z M8,10m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
+    </group>
+
+    <group
+        android:translateX="32"
+        android:translateY="51">
+        <path
+            android:fillColor="#000000"
+            android:fillType="evenOdd"
+            android:pathData="M2,4 C4,1 9,0 13,1 C17,2 18,5 17,8 C16,11 17,13 14,14 C10,15 4,14 1,11 C-0.5,9 0,6 2,4 Z M9,7m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
+    </group>
+
+    <group
+        android:translateX="61.5"
+        android:translateY="51">
+        <path
+            android:fillColor="#000000"
+            android:fillType="evenOdd"
+            android:pathData="M14,1 C15,3 15,13 14,15 C13,16.5 11,16 9,15 L2,11 C0,9.5 0,7.5 2,6 L9,1.5 C11,0.5 13,-0.5 14,1 Z M8.5,8m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
+    </group>
+
+    <group
+        android:translateX="47"
+        android:translateY="68.5">
+        <path
+            android:fillColor="#000000"
+            android:fillType="evenOdd"
+            android:pathData="M1,5 C1,2 4,0 7,0 C10,0 13,2 13,5 C13,7.5 11,9 7,9 C3,9 1,7.5 1,5 Z M7,4.5m-1.7,0a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0Z" />
+    </group>
+</vector>
