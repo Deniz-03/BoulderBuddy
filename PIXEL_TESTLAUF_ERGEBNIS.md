@@ -481,12 +481,59 @@ Damit ist der heute vorgesehene Umfang erfüllt — der Plan sah T14.1 ausdrück
 Analyse, ohne Bewertung der Qualität" vor. **Nicht geprüft:** Anker setzen, Pfad bestätigen,
 Ansichten umschalten, Analyse speichern/laden/löschen.
 
+## Teil 11 — Widget: zwei Befunde, beide behoben
+
+Das Widget wurde von Hand platziert (der Pixel Launcher nimmt für Widget-Drags keine injizierten
+Touch-Events an — zwei Versuche, auch als zusammenhängende `motionevent`-Geste in einem einzigen
+Shell-Aufruf; das ist eine Grenze des Werkzeugs, kein Befund an der App).
+
+| Test | Ergebnis |
+|---|---|
+| T11.1 Widget platzieren | **OK** — Hallenname, „läuft gerade · 5 Boulder · 4 Tops", Knöpfe „Session öffnen" und „Timer" |
+| T11.2 Widget aktualisiert sich | **war kaputt** → behoben, siehe F17 |
+| T11.3 Widget-Sprünge | **OK** — „Session öffnen" landet direkt in der Session, genau ein Zurück führt nach Home |
+| T11.4 nach Session-Ende | **OK** — „Keine aktive Session · 6 Tops insgesamt · Session starten", kein Sprung mehr in die beendete Session |
+| T11.5 Widget-Theme | **war kaputt** → behoben, siehe F17 |
+
+### F17 — Das Widget erfährt von Änderungen nicht, die es angehen
+
+Ein Fehler, zwei Erscheinungsformen. Die Theme-Logik selbst ist **richtig**: `paletteFuer`
+wählt Auto/Dark/Light aus `WidgetData.darkModeOverride`, gespeist aus
+`settingsRepository.darkMode`. Und die Datenberechnung stimmt auch. Was fehlte, war der Anstoß.
+
+Eine Glance-Composition-Session endet ~45 s nach der letzten Composition. Danach steht auf dem
+Homescreen das zuletzt gezeichnete Bild, bis ein Update-Event eine neue Session startet.
+`refreshBoulderWidget` löste das bisher nach **Session-Start, Session-Ende und Abgleich** aus —
+bei einem neuen Boulder und beim Dark-Mode-Schalter nicht.
+
+Das war am Gerät sauber zu trennen:
+
+| Beobachtung | Was sie zeigt |
+|---|---|
+| App hell, System dunkel, Widget dunkel | sieht nach falscher Theme-Logik aus |
+| Tipp auf „Aktualisieren" → Widget wird sofort hell | **die Logik ist richtig, der Anstoß fehlte** |
+| App 6 Boulder, Widget 5 | dieselbe Ursache an einer zweiten Stelle |
+
+**Behoben** mit je einem `refreshBoulderWidget`-Aufruf in `EinstellungenViewModel.setDarkMode`
+und am Ende von `RouteHinzufuegenViewModel.save` — dasselbe Muster, das die Session-Pfade schon
+verwenden.
+
+Gegengeprüft, jeweils **ohne** den Aktualisieren-Knopf:
+
+| Fall | Ergebnis |
+|---|---|
+| Boulder angelegt | Widget springt sofort von 5 auf 7 Boulder / 6 Tops |
+| Dark Mode aus, System bleibt dunkel | Widget wird cremefarben — der Override gewinnt, wie gedacht |
+| Dark Mode wieder an | Widget wird dunkel |
+
+Die eindeutige Messung ist die mittlere: solange App-Schalter und System übereinstimmen, lässt
+sich „folgt dem Override" nicht von „folgt dem System" unterscheiden.
+
+**Bewusst nicht mitgezogen:** das Ändern der Versuche im Boulder-Detail. Es verschiebt weder
+Boulderzahl noch Tops, das Widget zeigt davon also nichts.
+
 ## Weiterhin nicht geprüft
 
-* **T11.1–11.5 Widget** — **nicht automatisierbar.** Der Pixel Launcher nimmt für Widget-Drags
-  keine injizierten Touch-Events an (zwei Versuche, auch mit `input motionevent` als
-  zusammenhängender Geste in einem einzigen Shell-Aufruf). Das Widget muss einmal von Hand auf
-  den Homescreen gezogen werden; danach sind T11.2–11.5 per adb prüfbar. Kein Befund an der App.
 * **T12 Näherungs-Push** — nicht angefasst; braucht die Berechtigungskette und 2–8 min je Durchgang.
 * **T13 Funk-Abgleich** — zweites Gerät fehlt.
 * **T10.7 Erkennung** — über adb kein Mikrofonsignal einspielbar.

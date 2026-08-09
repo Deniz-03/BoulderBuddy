@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,7 +13,9 @@ import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.ui.navigation.RouteHinzufuegen
 import com.boulderbuddy.ui.theme.DefaultRouteColorKey
+import com.boulderbuddy.widget.refreshBoulderWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -68,6 +71,7 @@ data class RouteFormUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class RouteHinzufuegenViewModel @Inject constructor(
+    @param:ApplicationContext private val appContext: Context,
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val routeRepository: RouteRepository,
@@ -189,6 +193,12 @@ class RouteHinzufuegenViewModel @Inject constructor(
                     )
                 )
             }
+            // Widget-Schnappschuss nachziehen: es zeigt Boulderzahl und Tops der laufenden
+            // Session. Eine Glance-Composition-Session endet ~45 s nach der letzten
+            // Composition, danach bliebe der alte Stand bis zu 30 min stehen
+            // (`updatePeriodMillis`). Am Gerät gemessen am 09.08.2026: App 6 Boulder,
+            // Widget weiterhin 5.
+            refreshBoulderWidget(appContext)
             onSaved()
         }
     }
