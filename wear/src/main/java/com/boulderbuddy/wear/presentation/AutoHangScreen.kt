@@ -1,5 +1,8 @@
 package com.boulderbuddy.wear.presentation
 
+import com.boulderbuddy.wear.R
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -50,7 +53,7 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                 result != null -> {
                     item {
                         Text(
-                            text = "Fertig!",
+                            text = stringResource(R.string.auto_fertig),
                             style = MaterialTheme.typography.title2,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
@@ -58,7 +61,15 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                     }
                     item {
                         Text(
-                            text = "${result.sets} Sätze · ${result.hangTimeText} Hängezeit",
+                            text = stringResource(
+                                R.string.auto_ergebnis,
+                                pluralStringResource(
+                                    R.plurals.auto_saetze,
+                                    result.sets,
+                                    result.sets,
+                                ),
+                                result.hangTimeText,
+                            ),
                             style = MaterialTheme.typography.body2,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -71,11 +82,13 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                         // Workouts nirgends lokal ablegt, war der Durchlauf damit weg.
                         item {
                             Text(
-                                text = when (result.uebertragen) {
-                                    true -> "An Phone übertragen"
-                                    null -> "Wird übertragen…"
-                                    false -> "Nicht übertragen — kein Phone verbunden"
-                                },
+                                text = stringResource(
+                                    when (result.uebertragen) {
+                                        true -> R.string.auto_uebertragen
+                                        null -> R.string.auto_uebertraegt
+                                        false -> R.string.auto_nicht_uebertragen
+                                    },
+                                ),
                                 style = MaterialTheme.typography.caption2,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -85,7 +98,7 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                     item {
                         Chip(
                             onClick = viewModel::onDismissResult,
-                            label = { Text("OK") },
+                            label = { Text(stringResource(R.string.auto_ok)) },
                             colors = ChipDefaults.primaryChipColors(),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                         )
@@ -96,7 +109,7 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                 !state.active -> {
                     item {
                         Text(
-                            text = "Auto-Erkennung",
+                            text = stringResource(R.string.auto_titel),
                             style = MaterialTheme.typography.title3,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
@@ -104,7 +117,7 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                     }
                     item {
                         Text(
-                            text = "Erkennt Hängen & Pausen von selbst — einfach ans Board.",
+                            text = stringResource(R.string.auto_erklaerung),
                             style = MaterialTheme.typography.caption2,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -113,7 +126,7 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                     item {
                         Chip(
                             onClick = viewModel::onStart,
-                            label = { Text("Starten") },
+                            label = { Text(stringResource(R.string.auto_starten)) },
                             colors = ChipDefaults.primaryChipColors(backgroundColor = HangColor),
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                         )
@@ -124,12 +137,20 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                 else -> {
                     item {
                         Text(
-                            text = state.statusText,
+                            text = stringResource(
+                                when (state.status) {
+                                    AutoStatus.HAENGT -> R.string.auto_status_haengt
+                                    AutoStatus.PAUSE -> R.string.auto_status_pause
+                                    AutoStatus.BEREIT -> R.string.auto_status_bereit
+                                },
+                            ),
                             style = MaterialTheme.typography.title1,
-                            color = when (state.statusText) {
-                                "HÄNGT" -> HangColor
-                                "PAUSE" -> RestColor
-                                else -> MaterialTheme.colors.onBackground
+                            // Farbe am Zustand, nicht am angezeigten Wort — vorher stand hier
+                            // ein Vergleich mit dem Text, den die Übersetzung mitgenommen hätte.
+                            color = when (state.status) {
+                                AutoStatus.HAENGT -> HangColor
+                                AutoStatus.PAUSE -> RestColor
+                                AutoStatus.BEREIT -> MaterialTheme.colors.onBackground
                             },
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
@@ -145,7 +166,18 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                     }
                     item {
                         Text(
-                            text = state.setText,
+                            text = when {
+                                state.status == AutoStatus.HAENGT -> stringResource(
+                                    R.string.auto_laufender_satz,
+                                    state.abgeschlosseneSaetze + 1,
+                                )
+                                state.abgeschlosseneSaetze > 0 -> pluralStringResource(
+                                    R.plurals.auto_saetze,
+                                    state.abgeschlosseneSaetze,
+                                    state.abgeschlosseneSaetze,
+                                )
+                                else -> stringResource(R.string.auto_erster_griff)
+                            },
                             style = MaterialTheme.typography.body2,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth(),
@@ -155,7 +187,7 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                         item {
                             Chip(
                                 onClick = { confirmEnd = true },
-                                label = { Text("Session beenden") },
+                                label = { Text(stringResource(R.string.auto_beenden)) },
                                 colors = ChipDefaults.secondaryChipColors(),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                             )
@@ -167,7 +199,7 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                                     confirmEnd = false
                                     viewModel.onFinish()
                                 },
-                                label = { Text("Ja, beenden") },
+                                label = { Text(stringResource(R.string.auto_beenden_ja)) },
                                 colors = ChipDefaults.primaryChipColors(backgroundColor = EndColor),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                             )
@@ -175,7 +207,7 @@ fun AutoHangScreen(viewModel: AutoHangViewModel = viewModel()) {
                         item {
                             Chip(
                                 onClick = { confirmEnd = false },
-                                label = { Text("Weiter trainieren") },
+                                label = { Text(stringResource(R.string.auto_weiter)) },
                                 colors = ChipDefaults.secondaryChipColors(),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                             )

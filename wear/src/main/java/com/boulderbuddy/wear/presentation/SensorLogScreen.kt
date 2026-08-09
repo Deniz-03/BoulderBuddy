@@ -1,5 +1,7 @@
 package com.boulderbuddy.wear.presentation
 
+import com.boulderbuddy.wear.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -42,7 +44,9 @@ fun SensorLogScreen(viewModel: SensorLogViewModel = viewModel()) {
         ) {
             item {
                 Text(
-                    text = if (state.isRecording) "● Aufnahme läuft" else "Sensor-Log",
+                    text = stringResource(
+                        if (state.isRecording) R.string.log_laeuft else R.string.log_titel,
+                    ),
                     color = if (state.isRecording) RecColor else MaterialTheme.colors.onBackground,
                     style = MaterialTheme.typography.title3,
                     textAlign = TextAlign.Center,
@@ -52,7 +56,14 @@ fun SensorLogScreen(viewModel: SensorLogViewModel = viewModel()) {
             item {
                 Chip(
                     onClick = viewModel::onStartStop,
-                    label = { Text(if (state.isRecording) "Stopp" else "Aufnahme starten") },
+                    label = {
+                        Text(
+                            stringResource(
+                                if (state.isRecording) R.string.log_stopp
+                                else R.string.log_starten,
+                            ),
+                        )
+                    },
                     colors = if (state.isRecording) {
                         ChipDefaults.primaryChipColors(backgroundColor = RecColor)
                     } else {
@@ -66,7 +77,7 @@ fun SensorLogScreen(viewModel: SensorLogViewModel = viewModel()) {
                 item {
                     Chip(
                         onClick = viewModel::onLabelHang,
-                        label = { Text("Jetzt: Hängen") },
+                        label = { Text(stringResource(R.string.log_jetzt_haengen)) },
                         colors = labelChipColors(
                             active = state.label == SensorLoggingService.LABEL_HANG,
                             color = HangColor,
@@ -77,7 +88,7 @@ fun SensorLogScreen(viewModel: SensorLogViewModel = viewModel()) {
                 item {
                     Chip(
                         onClick = viewModel::onLabelRest,
-                        label = { Text("Jetzt: Pause") },
+                        label = { Text(stringResource(R.string.log_jetzt_pause)) },
                         colors = labelChipColors(
                             active = state.label == SensorLoggingService.LABEL_REST,
                             color = RestColor,
@@ -88,7 +99,11 @@ fun SensorLogScreen(viewModel: SensorLogViewModel = viewModel()) {
             } else if (state.lastLogName != null) {
                 item {
                     Text(
-                        text = "${state.lastLogName} (${state.lastLogSizeKb} KB)",
+                        text = stringResource(
+                            R.string.log_datei,
+                            state.lastLogName.orEmpty(),
+                            state.lastLogSizeKb,
+                        ),
                         style = MaterialTheme.typography.caption2,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
@@ -97,16 +112,23 @@ fun SensorLogScreen(viewModel: SensorLogViewModel = viewModel()) {
                 item {
                     Chip(
                         onClick = viewModel::onExport,
-                        label = { Text("An Phone exportieren") },
+                        label = { Text(stringResource(R.string.log_exportieren)) },
                         colors = ChipDefaults.secondaryChipColors(),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                     )
                 }
             }
-            if (state.exportStatus != null) {
+            val export = state.exportStatus
+            if (export != null) {
                 item {
                     Text(
-                        text = state.exportStatus.orEmpty(),
+                        text = stringResource(
+                            when (export) {
+                                ExportStatus.LAEUFT -> R.string.log_export_laeuft
+                                ExportStatus.ERFOLGREICH -> R.string.log_export_ok
+                                ExportStatus.FEHLGESCHLAGEN -> R.string.log_export_fehler
+                            },
+                        ),
                         style = MaterialTheme.typography.caption2,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),

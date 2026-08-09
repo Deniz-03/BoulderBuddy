@@ -101,14 +101,27 @@ class Abgleicher @Inject constructor(
             )
         }
 
-        oeffneNurLesend(fremdeDatei).use { fremd ->
+        // Erst hier zeigt sich, ob die gewählte Datei überhaupt eine Datenbank ist. Der Nutzer
+        // wählt sie im System-Dateidialog aus, und der lässt jede Datei zu — ein Bild, ein PDF,
+        // das eigene CSV. Ohne diesen Auffang stand die rohe SQLite-Meldung auf dem Bildschirm
+        // („file is not a database (code 26 SQLITE_NOTADB)"), am Gerät gemessen und ausgerechnet
+        // auf dem einen Bildschirm, der bewusst ohne Fachbegriffe auskommt.
+        val fremdeDb = runCatching { oeffneNurLesend(fremdeDatei) }
+            .getOrElse { return@withContext Abgleichvorschlag.Abgelehnt(KEINE_STANDDATEI) }
+        fremdeDb.use { fremd ->
             val abfrage: Abfrage = { sql -> fremd.rawQuery(sql, null) }
 
             // Die eigene Version wird abgefragt, nicht als Konstante gepflegt — eine
             // Konstante, die jemand beim Schema-Update zu ändern vergisst, wäre schlimmer
             // als gar keine Prüfung.
             val meinSchema = liesSchemaVersion { eigeneDb.query(it) }
-            val schemaPasst = darfIchLesen(meinSchema, liesSchemaVersion(abfrage))
+            // Die ERSTE Abfrage auf der fremden Datei, und damit die Stelle, an der sich
+            // zeigt, ob es überhaupt eine Datenbank ist: `openDatabase` öffnet faul und
+            // wirft noch nicht. Bewusst nur dieser eine Aufruf im Auffang — ein Fehler der
+            // eigenen Datenbank soll nicht als „falsche Datei gewählt" durchgehen.
+            val fremdesSchema = runCatching { liesSchemaVersion(abfrage) }
+                .getOrElse { return@withContext Abgleichvorschlag.Abgelehnt(KEINE_STANDDATEI) }
+            val schemaPasst = darfIchLesen(meinSchema, fremdesSchema)
             if (schemaPasst != Schemapruefung.Passt) {
                 // E7: abbrechen statt raten — und dabei sagen, WELCHES Gerät zu
                 // aktualisieren ist. „Versionen passen nicht" hilft niemandem weiter.
@@ -116,6 +129,7 @@ class Abgleicher @Inject constructor(
                     Schemapruefung.DiesesGeraetAktualisieren ->
                         "Der andere Stand kommt aus einer neueren Version der App. " +
                             "Aktualisiere zuerst dieses Gerät."
+                    Schemapruefung.KeineBoulderBuddyDatei -> KEINE_STANDDATEI
                     else ->
                         "Der andere Stand kommt aus einer älteren Version der App. " +
                             "Aktualisiere zuerst das andere Gerät."
@@ -302,7 +316,7 @@ class Abgleicher @Inject constructor(
             liesStand { sql -> v.rawQuery(sql, null) }
         }
         setzeDatentabellenZurueck(eigeneDb, vorher, band)
-        dateien.vorherDatei.delete()
+        dateien.verwirfVorher()
         true
     }
 
@@ -372,6 +386,19 @@ class Abgleicher @Inject constructor(
 
     private fun oeffneNurLesend(datei: File): SQLiteDatabase =
         SQLiteDatabase.openDatabase(datei.path, null, SQLiteDatabase.OPEN_READONLY)
+
+    private companion object {
+        /**
+         * Die Antwort auf jede Datei, die nichts mit dieser App zu tun hat.
+         *
+         * Zwei Wege führen hierher, und beide sind am Gerät aufgetreten: die Datei ist gar
+         * keine Datenbank (Bild, PDF, das eigene CSV), oder sie ist eine — nur nicht unsere.
+         * Der Satz sagt deshalb nicht nur, was falsch ist, sondern welche Datei gemeint war.
+         */
+        const val KEINE_STANDDATEI =
+            "Diese Datei ist kein BoulderBuddy-Stand. Nimm die Datei, die das andere Gerät " +
+                "über „Stand abgeben\" erzeugt hat."
+    }
 
     private fun zaehle(abfrage: Abfrage) = Bestandszahlen(
         hallen = zaehleZeilen(abfrage, "gym"),

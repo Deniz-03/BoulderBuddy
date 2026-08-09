@@ -1,5 +1,7 @@
 package com.boulderbuddy.wear.presentation
 
+import com.boulderbuddy.wear.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -68,7 +70,7 @@ private fun MenuScreen(
         ) {
             item {
                 Text(
-                    text = "BoulderBuddy",
+                    text = stringResource(R.string.menue_titel),
                     style = MaterialTheme.typography.title3,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
@@ -77,7 +79,7 @@ private fun MenuScreen(
             item {
                 Chip(
                     onClick = onOpenTimer,
-                    label = { Text("Timer (manuell)") },
+                    label = { Text(stringResource(R.string.menue_timer)) },
                     colors = ChipDefaults.primaryChipColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 )
@@ -85,7 +87,7 @@ private fun MenuScreen(
             item {
                 Chip(
                     onClick = onOpenAuto,
-                    label = { Text("Auto-Erkennung") },
+                    label = { Text(stringResource(R.string.menue_auto)) },
                     colors = ChipDefaults.primaryChipColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 )
@@ -93,7 +95,7 @@ private fun MenuScreen(
             item {
                 Chip(
                     onClick = onOpenSensorLog,
-                    label = { Text("Sensor-Log (Debug)") },
+                    label = { Text(stringResource(R.string.menue_sensorlog)) },
                     colors = ChipDefaults.secondaryChipColors(),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 )

@@ -179,11 +179,15 @@ class AutoHangService : Service(), SensorEventListener {
     private fun buildNotification(): Notification {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Auto-Erkennung", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.dienst_auto_kanal),
+                NotificationManager.IMPORTANCE_LOW,
+            ),
         )
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Hangboard-Erkennung läuft")
-            .setContentText("BoulderBuddy erkennt Sätze automatisch")
+            .setContentTitle(getString(R.string.dienst_auto_titel))
+            .setContentText(getString(R.string.dienst_auto_text))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .build()

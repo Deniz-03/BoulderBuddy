@@ -11,6 +11,7 @@ import com.boulderbuddy.sync.MedienSpeicher
 import com.boulderbuddy.sync.MedienUmzug
 import com.boulderbuddy.sync.Seite
 import com.boulderbuddy.sync.anwenden
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -145,6 +146,12 @@ class AbgleichSitzung @Inject constructor(
 
                 is Handschlag.Bereit -> tauscheAus(endpunkt, ergebnis.ichRechne, fremdesHallo)
             }
+        } catch (e: CancellationException) {
+            // Der Abbrecher hat den Grund schon gesetzt ([brichAb] schreibt „Abgebrochen.").
+            // Ihn hier mit `e.message` zu überschreiben hieße, dem Nutzer „Job was cancelled"
+            // hinzuschreiben — am Gerät genau so gemessen (09.08.2026). Weiterreichen statt
+            // behandeln: eine Absage ist keine Störung, und strukturell bleibt sie damit eine.
+            throw e
         } catch (e: Exception) {
             beende(e.message ?: "Der Abgleich ist fehlgeschlagen.")
         } finally {

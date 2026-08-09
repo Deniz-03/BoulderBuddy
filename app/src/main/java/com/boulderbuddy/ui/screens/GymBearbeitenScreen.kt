@@ -50,6 +50,7 @@ import com.boulderbuddy.ui.components.ToggleSwitch
 import com.boulderbuddy.ui.components.TopBar
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.inhaltsAbstandMitTastatur
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
@@ -150,6 +151,11 @@ fun GymBearbeitenScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Wie im Session-Formular: ohne die Begrenzung liefe jedes Eingabefeld am
+                    // Tablet über die volle Fensterbreite (gemessen 2496 von 2560 px). Der
+                    // Screen kam mit dem Näherungs-Push NACH der Tablet-Runde — deshalb hat
+                    // ihn dort nie jemand gesehen.
+                    .inhaltsBreite()
                     .inhaltsAbstandMitTastatur()
                     .verticalScroll(rememberScrollState())
                     .padding(Dimens.paddingL),

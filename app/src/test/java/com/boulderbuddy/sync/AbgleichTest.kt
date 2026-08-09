@@ -117,6 +117,23 @@ class AbgleichTest {
             .isEqualTo(Schemapruefung.Passt)
     }
 
+    /**
+     * Am Gerät gefunden: der System-Dateidialog lässt jede Datei zu, und eine fremde
+     * SQLite-Datenbank trägt `user_version = 0`. Ohne eigenen Fall liefe sie in „ältere
+     * Version" — der Nutzer bekäme den Rat, das andere Gerät zu aktualisieren, für eine
+     * Datei, die mit BoulderBuddy nichts zu tun hat.
+     */
+    @Test
+    fun eine_fremde_datenbank_ist_kein_alter_stand_sondern_die_falsche_datei() {
+        assertThat(darfIchLesen(meinSchema = 11, fremdesSchema = 0))
+            .isEqualTo(Schemapruefung.KeineBoulderBuddyDatei)
+        assertThat(darfIchLesen(meinSchema = 11, fremdesSchema = -1))
+            .isEqualTo(Schemapruefung.KeineBoulderBuddyDatei)
+        // Die Abgrenzung nach oben bleibt: 1 ist eine echte, nur sehr alte Fassung.
+        assertThat(darfIchLesen(meinSchema = 11, fremdesSchema = 1))
+            .isEqualTo(Schemapruefung.GegenseiteAktualisieren)
+    }
+
     @Test
     fun ohne_herkunft_auf_einer_seite_ist_es_eine_erstbegegnung() {
         val meta = StandMeta(generation = 3, erzeugtVon = "phone", basiertAuf = 2)
