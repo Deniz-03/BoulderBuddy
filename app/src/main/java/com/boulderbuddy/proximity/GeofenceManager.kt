@@ -54,7 +54,14 @@ class GeofenceManager @Inject constructor(
     suspend fun refreshGeofences() {
         removeAllGeofences()
 
-        if (!settingsRepository.proximityAlertsEnabled.first()) return
+        // Jeder Ausstieg sagt, warum. Das Abräumen oben passiert immer und lautlos; ohne diese
+        // Zeilen sieht ein „nichts registriert" im Logcat genauso aus wie ein abgestürzter
+        // Aufruf, und man sucht am falschen Ende. Aufgefallen im Gerätelauf am 09.08.2026:
+        // der Master-Toggle „aus" hinterließ überhaupt keine Spur.
+        if (!settingsRepository.proximityAlertsEnabled.first()) {
+            Log.d(TAG, "Geofences entfernt: Erinnerungen sind ausgeschaltet")
+            return
+        }
         if (!hasBackgroundLocationPermission(context)) {
             Log.w(TAG, "Geofences nicht registriert: Hintergrund-Standort fehlt")
             return
@@ -63,7 +70,10 @@ class GeofenceManager @Inject constructor(
         val geofencedGyms = gymRepository.observeAll().first().filter {
             it.latitude != null && it.longitude != null && it.proximityAlertsEnabled
         }
-        if (geofencedGyms.isEmpty()) return
+        if (geofencedGyms.isEmpty()) {
+            Log.d(TAG, "Geofences entfernt: keine Halle mit Koordinaten und aktiver Erinnerung")
+            return
+        }
 
         val geofences = geofencedGyms.map { gym ->
             Geofence.Builder()

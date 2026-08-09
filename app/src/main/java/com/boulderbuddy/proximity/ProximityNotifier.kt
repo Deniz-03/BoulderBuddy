@@ -60,10 +60,16 @@ class ProximityNotifier @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
+        // Der Hallenname steht als Titel für sich, die Frage darunter. Vorher hieß es
+        // „Bist du im $gymName?" — und dieses „im" passt zu fast keinem Namen: „im Testhalle",
+        // „im Boulder World München". Jede Präposition mit Artikel setzt ein Genus voraus, das
+        // ein frei eingegebener Hallenname nicht hat. Der Name als Titel umgeht die Deklination
+        // vollständig und entspricht nebenbei dem üblichen Aufbau einer Notification
+        // (Titel = worum es geht, Text = was zu tun ist).
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_gym)
-            .setContentTitle("Bist du im $gymName?")
-            .setContentText("Session starten?")
+            .setContentTitle(gymName)
+            .setContentText("Bist du da? Session starten.")
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

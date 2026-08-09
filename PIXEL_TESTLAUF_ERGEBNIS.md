@@ -532,9 +532,110 @@ sich „folgt dem Override" nicht von „folgt dem System" unterscheiden.
 **Bewusst nicht mitgezogen:** das Ändern der Versuche im Boulder-Detail. Es verschiebt weder
 Boulderzahl noch Tops, das Widget zeigt davon also nichts.
 
+## Teil 12 — Näherungs-Push: läuft, zwei Befunde
+
+Ohne Fahrt geprüft, wie in `PUSHNOT_TESTEN.md` beschrieben: der Geofence wird mit
+`INITIAL_TRIGGER_DWELL` registriert, ein Gerät im Radius löst also von selbst aus. Testhallen mit
+den hiesigen Koordinaten (52,137 / 9,964), Radius auf dem Standardwert 150 m. Alle Testhallen
+sind nach dem Lauf gelöscht.
+
+| Test | Ergebnis |
+|---|---|
+| T12.1 Berechtigungskette | **OK** — Standort (präzise) → System-Seite „Immer erlauben" → Benachrichtigungen, in dieser Reihenfolge; danach alle drei erteilt und der Schalter an |
+| T12.2 ganze Kette zuhause | **OK** — Registrierung 11:09:11, `DWELL … → NOTIFY` 11:13:39 (4,5 min), Notification im `gym_proximity`-Kanal, Tap öffnet „Neue Session" mit der Halle **vorausgewählt** |
+| T12.3 Politik erklärt sich | **3 von 5 Fällen belegt**, siehe unten |
+| T12.4 Neustart | **OK** — Beleg unten |
+| T12.5 Master-Toggle aus | **OK**, aber vorher lautlos → F19 |
+| T12.6 Doze | **OK, besser als erwartet** — siehe unten |
+
+### Die Politik, gemessen
+
+```
+DWELL an Gym 2 (Testhalle)  → ACTIVE_SESSION     (laufende Session, keine Notification)
+DWELL an Gym 3 (Testhalle2) → ACTIVE_SESSION
+DWELL an Gym 2 (Testhalle)  → COOLDOWN           (heute schon gepusht, keine Notification)
+DWELL an Gym 3 (Testhalle2) → NOTIFY             (frische Halle → Notification)
+```
+
+Nebenbei belegt das die **Reihenfolge**: eine laufende Session unterdrückt global und *vor* dem
+hallenspezifischen Cooldown — beide Hallen meldeten `ACTIVE_SESSION`, obwohl eine davon
+zusätzlich im Cooldown stand.
+
+**Nicht provoziert:** `DISABLED` und `POST_SESSION_QUIET`. `DISABLED` ist am echten Gerät kaum
+herstellbar, weil eine Halle mit abgeschaltetem Pro-Gym-Toggle gar nicht erst registriert wird —
+der Fall greift nur im Fenster zwischen Umschalten und nächstem Refresh. `POST_SESSION_QUIET`
+hätte eine vierte Testhalle plus einen weiteren 5-Minuten-Durchgang gekostet.
+
+### T12.4 — Neustart: bestanden, aber anders belegt als geplant
+
+Nach `adb reboot` steht **keine** `Geofence(s) registriert`-Zeile im Log — der Puffer läuft beim
+Booten über, die Zeile ist schlicht herausgefallen. Der Beleg kommt stattdessen vom Verhalten:
+
+```
+11:40:08  DWELL an Gym 2 (Testhalle)  → COOLDOWN
+11:40:08  DWELL an Gym 3 (Testhalle2) → COOLDOWN
+```
+
+Fünf Minuten nach dem Boot feuern beide Geofences — **ohne dass die App je geöffnet wurde**
+(der Prozess war zwischenzeitlich nur für `BoulderWidgetReceiver` gestartet worden). Sie wurden
+also re-registriert, und die Politik antwortet korrekt. Das ist ein stärkerer Beleg als die
+Logzeile es gewesen wäre.
+
+### T12.6 — Doze: der Push kommt *während* Deep Idle
+
+`dumpsys battery unplug` + `dumpsys deviceidle force-idle`, Zustand nachweislich `IDLE`:
+
+```
+11:49:56  DWELL an Gym 4 (Testhalle3) → NOTIFY   (Notification erschien)
+```
+
+Der Plan erwartete den Push „spätestens beim Verlassen von Doze". Auf diesem Gerät kommt er
+**im** Doze. Damit ist die offene Frage aus M5 beantwortet — für dieses Gerät und diese
+Android-Version; ein Hersteller mit aggressiverem Akku-Management kann sich anders verhalten.
+
+### Eine Warnung, die keine ist
+
+Beim Registrieren protokolliert das System:
+
+```
+Geofencer: registration not active, registration not permitted for registration: …
+Geofencer: geofence trigger blocked - initial event filter not matched
+```
+
+Das sieht nach einem Fehlschlag aus, ist aber keiner: die Meldung kommt, bevor ein frischer
+Standort-Fix vorliegt, und der Trigger feuerte danach zuverlässig. Wer beim nächsten Durchlauf
+darüber stolpert, sucht sonst an der falschen Stelle.
+
+### F18 — Die Benachrichtigung war grammatisch falsch
+
+Sie hieß **„Bist du im Testhalle?"**. Das „im" stand fest im Text
+([ProximityNotifier.kt:65](app/src/main/java/com/boulderbuddy/proximity/ProximityNotifier.kt:65))
+und passt zu fast keinem Hallennamen — „im Boulder World München" wäre genauso falsch. Jede
+Präposition mit Artikel setzt ein Genus voraus, das ein frei eingegebener Name nicht hat.
+
+**Behoben:** der Name steht jetzt als Titel für sich, die Frage darunter — das umgeht die
+Deklination vollständig und entspricht dem üblichen Aufbau einer Notification. Am Gerät
+gegengeprüft: Titel `Kletterwerk`, Text `Bist du da? Session starten.`
+
+### F19 — Der Master-Toggle räumte lautlos ab
+
+`refreshGeofences` entfernt zuerst alles und steigt dann aus, wenn der Toggle aus ist — richtig,
+aber ohne jede Logzeile. Im Logcat sah „ausgeschaltet" damit genauso aus wie „abgestürzt", und
+der Testplan erwartet an dieser Stelle ausdrücklich eine Meldung.
+
+**Behoben:** beide stillen Ausstiege sagen jetzt, warum. Am Gerät belegt, inklusive der zweiten
+Variante beim Löschen der letzten Halle mit Koordinaten:
+
+```
+GeofenceManager: Geofences entfernt: Erinnerungen sind ausgeschaltet
+GeofenceManager: Geofences entfernt: keine Halle mit Koordinaten und aktiver Erinnerung
+```
+
 ## Weiterhin nicht geprüft
 
-* **T12 Näherungs-Push** — nicht angefasst; braucht die Berechtigungskette und 2–8 min je Durchgang.
 * **T13 Funk-Abgleich** — zweites Gerät fehlt.
 * **T10.7 Erkennung** — über adb kein Mikrofonsignal einspielbar.
 * **T14.1 ab dem Anker-Schritt** — siehe oben.
+* **T12.3 `DISABLED` und `POST_SESSION_QUIET`** — siehe Begründung oben.
+* **Doze über echte Stunden** — nur der erzwungene Zustand ist gemessen, nicht das
+  Langzeitverhalten mit App-Standby-Buckets.
