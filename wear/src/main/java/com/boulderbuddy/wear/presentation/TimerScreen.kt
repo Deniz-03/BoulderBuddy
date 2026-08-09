@@ -1,5 +1,7 @@
 package com.boulderbuddy.wear.presentation
 
+import com.boulderbuddy.wear.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -48,17 +50,23 @@ fun TimerScreen(viewModel: TimerViewModel = viewModel()) {
             item { Controls(state, viewModel) }
             if (state.isConfigurable) {
                 item {
-                    StepperRow("Sätze", state.totalSets.toString(),
+                    StepperRow(
+                        stringResource(R.string.timer_saetze),
+                        state.totalSets.toString(),
                         onMinus = { viewModel.changeSets(-1) },
                         onPlus = { viewModel.changeSets(1) })
                 }
                 item {
-                    StepperRow("Hang", "${state.hangSec}s",
+                    StepperRow(
+                        stringResource(R.string.timer_hang),
+                        stringResource(R.string.timer_sekunden, state.hangSec),
                         onMinus = { viewModel.changeHang(-1) },
                         onPlus = { viewModel.changeHang(1) })
                 }
                 item {
-                    StepperRow("Pause", "${state.restSec}s",
+                    StepperRow(
+                        stringResource(R.string.timer_pause),
+                        stringResource(R.string.timer_sekunden, state.restSec),
                         onMinus = { viewModel.changeRest(-1) },
                         onPlus = { viewModel.changeRest(1) })
                 }
@@ -66,7 +74,7 @@ fun TimerScreen(viewModel: TimerViewModel = viewModel()) {
                 if (state.presets.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Presets",
+                            text = stringResource(R.string.timer_presets),
                             style = MaterialTheme.typography.caption2,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -78,7 +86,14 @@ fun TimerScreen(viewModel: TimerViewModel = viewModel()) {
                                 onClick = { viewModel.applyPreset(preset) },
                                 label = { Text(preset.name) },
                                 secondaryLabel = {
-                                    Text("${preset.sets}×${preset.hangSec}s/${preset.restSec}s")
+                                    Text(
+                                        stringResource(
+                                            R.string.timer_preset_kurz,
+                                            preset.sets,
+                                            preset.hangSec,
+                                            preset.restSec,
+                                        ),
+                                    )
                                 },
                                 colors = ChipDefaults.secondaryChipColors(),
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -108,9 +123,11 @@ private fun TimerRing(state: WearTimerUiState) {
         )
         Text(
             text = when (state.phase) {
-                TimerPhase.HANG -> "HÄNGEN\n${state.timeText}"
-                TimerPhase.REST -> "PAUSE\n${state.timeText}"
-                TimerPhase.DONE -> "FERTIG"
+                TimerPhase.HANG ->
+                    stringResource(R.string.timer_phase_hang, state.timeText)
+                TimerPhase.REST ->
+                    stringResource(R.string.timer_phase_rest, state.timeText)
+                TimerPhase.DONE -> stringResource(R.string.timer_phase_fertig)
             },
             textAlign = TextAlign.Center,
             color = color,
@@ -122,7 +139,11 @@ private fun TimerRing(state: WearTimerUiState) {
 @Composable
 private fun SetCounter(state: WearTimerUiState) {
     Text(
-        text = "Satz ${state.currentSet}/${state.totalSets}",
+        text = stringResource(
+            R.string.timer_satz_stand,
+            state.currentSet,
+            state.totalSets,
+        ),
         color = MaterialTheme.colors.onSurface,
         style = MaterialTheme.typography.caption1,
         modifier = Modifier.padding(top = 4.dp),
@@ -141,11 +162,13 @@ private fun Controls(state: WearTimerUiState, viewModel: TimerViewModel) {
             onClick = { viewModel.onPlayPause() },
             label = {
                 Text(
-                    when {
-                        state.phase == TimerPhase.DONE -> "Neu"
-                        state.isRunning -> "Pause"
-                        else -> "Start"
-                    }
+                    stringResource(
+                        when {
+                            state.phase == TimerPhase.DONE -> R.string.timer_neu
+                            state.isRunning -> R.string.timer_pause_knopf
+                            else -> R.string.timer_start
+                        },
+                    )
                 )
             },
             colors = ChipDefaults.primaryChipColors(),
@@ -153,7 +176,7 @@ private fun Controls(state: WearTimerUiState, viewModel: TimerViewModel) {
         Spacer(Modifier.width(6.dp))
         Chip(
             onClick = { viewModel.onReset() },
-            label = { Text("Reset") },
+            label = { Text(stringResource(R.string.timer_reset)) },
             colors = ChipDefaults.secondaryChipColors(),
         )
     }
@@ -179,7 +202,7 @@ private fun StepperRow(
             colors = ButtonDefaults.secondaryButtonColors(),
         ) { Text("−") }
         Text(
-            text = "$label\n$value",
+            text = stringResource(R.string.timer_stepper_zelle, label, value),
             textAlign = TextAlign.Center,
             color = MaterialTheme.colors.onSurface,
             style = MaterialTheme.typography.caption2,

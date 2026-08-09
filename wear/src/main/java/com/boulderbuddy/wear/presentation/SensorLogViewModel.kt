@@ -20,9 +20,17 @@ data class SensorLogUiState(
     /** Name der letzten fertigen Aufnahme; null = noch keine vorhanden. */
     val lastLogName: String? = null,
     val lastLogSizeKb: Long = 0,
-    /** Status des letzten Exports ("übertragen…", "an Phone übertragen", "fehlgeschlagen"). */
-    val exportStatus: String? = null,
+    /** Status des letzten Exports; `null` = kein Export in dieser Sitzung. */
+    val exportStatus: ExportStatus? = null,
 )
+
+/**
+ * Wie es dem letzten Export ans Phone ergangen ist.
+ *
+ * Aufzählungstyp statt Text, aus demselben Grund wie bei [AutoStatus]: die Wörter gehören dem
+ * Bildschirm, der Zustand dem ViewModel.
+ */
+enum class ExportStatus { LAEUFT, ERFOLGREICH, FEHLGESCHLAGEN }
 
 /**
  * Steuert die Sensor-Aufzeichnung (Start/Stop/Labels via Intents an den
@@ -31,7 +39,7 @@ data class SensorLogUiState(
  */
 class SensorLogViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val exportStatus = MutableStateFlow<String?>(null)
+    private val exportStatus = MutableStateFlow<ExportStatus?>(null)
     // Letzte Aufnahme: beim Öffnen die neueste Datei aus dem Log-Verzeichnis, danach
     // hält der Service-Flow den Wert aktuell.
     private val initialLastLog: File? = File(app.filesDir, "sensorlogs")
@@ -74,9 +82,10 @@ class SensorLogViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onExport() {
         val file = SensorLoggingService.lastLogFile.value ?: initialLastLog ?: return
-        exportStatus.value = "übertrage…"
+        exportStatus.value = ExportStatus.LAEUFT
         PhoneConnector.sendSensorLog(getApplication(), file) { ok ->
-            exportStatus.value = if (ok) "an Phone übertragen" else "Export fehlgeschlagen"
+            exportStatus.value =
+                if (ok) ExportStatus.ERFOLGREICH else ExportStatus.FEHLGESCHLAGEN
         }
     }
 }

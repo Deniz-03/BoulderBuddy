@@ -21,15 +21,25 @@ data class AutoResultUi(
     val uebertragen: Boolean? = null,
 )
 
+/**
+ * Großer Live-Status des Auto-Screens.
+ *
+ * Ein Aufzählungstyp und **kein Text**: der Bildschirm färbt diesen Status ein und hat dafür
+ * bisher den angezeigten Satz mit `"HÄNGT"` verglichen. Sobald der Text in die Ressourcen
+ * wandert (oder jemand ein Wort ändert), trifft so ein Vergleich nichts mehr — und der Fehler
+ * wäre eine falsche Farbe, kein Absturz.
+ */
+enum class AutoStatus { BEREIT, HAENGT, PAUSE }
+
 /** UI-Zustand des Auto-Screens: Live-Status während der Erkennung bzw. Ergebnis danach. */
 data class AutoHangUiState(
     val active: Boolean = false,
     /** Großer Live-Status: BEREIT (wartet auf ersten Griff) / HÄNGT / PAUSE. */
-    val statusText: String = "BEREIT",
+    val status: AutoStatus = AutoStatus.BEREIT,
     /** Hochzählende Laufzeit der aktuellen Phase (mm:ss). */
     val timeText: String = "00:00",
-    /** Aktueller Satz-Index (während HÄNGT: laufender Satz, sonst abgeschlossene). */
-    val setText: String = "",
+    /** Abgeschlossene Sätze. Während [AutoStatus.HAENGT] läuft der nächste gerade. */
+    val abgeschlosseneSaetze: Int = 0,
     val result: AutoResultUi? = null,
 )
 
@@ -57,19 +67,14 @@ class AutoHangViewModel(app: Application) : AndroidViewModel(app) {
         } else 0
         AutoHangUiState(
             active = tracking.active,
-            statusText = when {
-                !tracking.active -> "BEREIT"
-                tracking.state == HangState.HANGING -> "HÄNGT"
-                tracking.state == HangState.RESTING -> "PAUSE"
-                else -> "BEREIT"
+            status = when {
+                !tracking.active -> AutoStatus.BEREIT
+                tracking.state == HangState.HANGING -> AutoStatus.HAENGT
+                tracking.state == HangState.RESTING -> AutoStatus.PAUSE
+                else -> AutoStatus.BEREIT
             },
             timeText = format(elapsed / 1_000),
-            setText = when {
-                !tracking.active -> ""
-                tracking.state == HangState.HANGING -> "Satz ${tracking.completedSets + 1}"
-                tracking.completedSets > 0 -> "${tracking.completedSets} Sätze"
-                else -> "Warte auf ersten Griff"
-            },
+            abgeschlosseneSaetze = tracking.completedSets,
             result = result?.let {
                 AutoResultUi(
                     sets = it.segments.size,

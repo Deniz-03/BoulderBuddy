@@ -152,13 +152,13 @@ class SensorLoggingService : Service(), SensorEventListener {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Sensor-Aufzeichnung",
+                getString(R.string.dienst_log_kanal),
                 NotificationManager.IMPORTANCE_LOW,
             ),
         )
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Sensor-Aufzeichnung läuft")
-            .setContentText("BoulderBuddy zeichnet Bewegungsdaten auf")
+            .setContentTitle(getString(R.string.dienst_log_titel))
+            .setContentText(getString(R.string.dienst_log_text))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .build()

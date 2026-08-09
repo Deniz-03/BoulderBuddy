@@ -1,4 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BoulderBuddy</string>
+
+    <!--
+      Der Text der Uhr. Dasselbe Schema wie in :app (<bereich>_<sache>), aber ein eigener
+      Satz Eintraege: die Uhr sagt dieselben Dinge kuerzer, und ein gemeinsamer Eintrag
+      haette die laengere Fassung des Telefons mitgebracht.
+
+      Was hier NICHT steht: Log-Ausgaben, Sensor-Kuerzel im CSV (GRAV/LIN/LABEL) und die
+      Label-Konstanten des Aufzeichnungs-Dienstes. Die liest kein Mensch, sondern ein Parser -
+      sie zu uebersetzen wuerde die Auswertung brechen.
+    -->
+
+    <!-- Hauptmenue -->
+    <string name="menue_titel">BoulderBuddy</string>
+    <string name="menue_timer">Timer (manuell)</string>
+    <string name="menue_auto">Auto-Erkennung</string>
+    <string name="menue_sensorlog">Sensor-Log (Debug)</string>
+
+    <!-- Timer -->
+    <string name="timer_saetze">Sätze</string>
+    <string name="timer_hang">Hang</string>
+    <string name="timer_pause">Pause</string>
+    <string name="timer_sekunden">%1$ds</string>
+    <string name="timer_presets">Presets</string>
+    <!-- Beispiel: „6×7s/3s" — Sätze × Hang / Pause. -->
+    <string name="timer_preset_kurz">%1$d×%2$ds/%3$ds</string>
+    <!-- Phase und Zeit stehen untereinander auf demselben grossen Element. -->
+    <string name="timer_phase_hang">HÄNGEN\n%1$s</string>
+    <string name="timer_phase_rest">PAUSE\n%1$s</string>
+    <string name="timer_phase_fertig">FERTIG</string>
+    <string name="timer_satz_stand">Satz %1$d/%2$d</string>
+    <string name="timer_neu">Neu</string>
+    <string name="timer_pause_knopf">Pause</string>
+    <string name="timer_start">Start</string>
+    <string name="timer_reset">Reset</string>
+    <!-- Zwei Zeilen in einer Stepper-Zelle: Beschriftung oben, Wert darunter. -->
+    <string name="timer_stepper_zelle">%1$s\n%2$s</string>
+
+    <!-- Auto-Erkennung -->
+    <string name="auto_titel">Auto-Erkennung</string>
+    <string name="auto_erklaerung">Erkennt Hängen &amp; Pausen von selbst — einfach ans Board.</string>
+    <string name="auto_starten">Starten</string>
+    <string name="auto_status_bereit">BEREIT</string>
+    <string name="auto_status_haengt">HÄNGT</string>
+    <string name="auto_status_pause">PAUSE</string>
+    <string name="auto_erster_griff">Warte auf ersten Griff</string>
+    <string name="auto_laufender_satz">Satz %1$d</string>
+    <plurals name="auto_saetze">
+        <item quantity="one">%d Satz</item>
+        <item quantity="other">%d Sätze</item>
+    </plurals>
+    <string name="auto_beenden">Session beenden</string>
+    <string name="auto_beenden_ja">Ja, beenden</string>
+    <string name="auto_weiter">Weiter trainieren</string>
+
+    <!-- Auto-Erkennung: Zusammenfassung nach dem Beenden -->
+    <string name="auto_fertig">Fertig!</string>
+    <!-- Beispiel: „6 Sätze · 00:42 Hängezeit" -->
+    <string name="auto_ergebnis">%1$s · %2$s Hängezeit</string>
+    <!-- Welche Session das Workout bekommt, entscheidet das Telefon; ob es ankam, sagt die Uhr.
+         Die Uhr legt Workouts nirgends lokal ab - ohne diesen Satz waere ein Durchlauf
+         unbemerkt weg. -->
+    <string name="auto_uebertragen">An Phone übertragen</string>
+    <string name="auto_uebertraegt">Wird übertragen…</string>
+    <string name="auto_nicht_uebertragen">Nicht übertragen — kein Phone verbunden</string>
+    <string name="auto_ok">OK</string>
+
+    <!-- Sensor-Log (Debug) -->
+    <string name="log_titel">Sensor-Log</string>
+    <string name="log_laeuft">● Aufnahme läuft</string>
+    <string name="log_starten">Aufnahme starten</string>
+    <string name="log_stopp">Stopp</string>
+    <string name="log_jetzt_haengen">Jetzt: Hängen</string>
+    <string name="log_jetzt_pause">Jetzt: Pause</string>
+    <!-- Beispiel: „sensorlog_20260809_143012.csv (48 KB)" -->
+    <string name="log_datei">%1$s (%2$d KB)</string>
+    <string name="log_exportieren">An Phone exportieren</string>
+    <string name="log_export_laeuft">übertrage…</string>
+    <string name="log_export_ok">an Phone übertragen</string>
+    <string name="log_export_fehler">Export fehlgeschlagen</string>
+
+    <!-- Meldungen der beiden Vordergrund-Dienste -->
+    <string name="dienst_auto_kanal">Auto-Erkennung</string>
+    <string name="dienst_auto_titel">Hangboard-Erkennung läuft</string>
+    <string name="dienst_auto_text">BoulderBuddy erkennt Sätze automatisch</string>
+    <string name="dienst_log_kanal">Sensor-Aufzeichnung</string>
+    <string name="dienst_log_titel">Sensor-Aufzeichnung läuft</string>
+    <string name="dienst_log_text">BoulderBuddy zeichnet Bewegungsdaten auf</string>
 </resources>
