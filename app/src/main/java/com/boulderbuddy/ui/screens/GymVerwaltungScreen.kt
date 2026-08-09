@@ -36,6 +36,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.M3OnPrimary
+import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.GymUi
 import com.boulderbuddy.ui.viewmodel.GymVerwaltungUiState
 
@@ -71,6 +72,10 @@ fun GymVerwaltungScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Wie in den Einstellungen, zu denen diese Liste gehört: am Tablet sonst
+                    // Zeilen über die volle Fensterbreite (kam mit dem Näherungs-Push nach
+                    // der Tablet-Runde, siehe GymBearbeitenScreen).
+                    .inhaltsBreite()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(vertical = Dimens.paddingL),
