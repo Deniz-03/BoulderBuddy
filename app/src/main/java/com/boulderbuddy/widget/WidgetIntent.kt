@@ -24,6 +24,13 @@ object WidgetIntent {
     const val TARGET_ACTIVE_SESSION = "active_session"
 
     /**
+     * Zurück in den Ghost-Climber-Bildschirm — vom Fortschritts-Push der Hintergrund-Analyse
+     * (7.5h). Kein Widget-Ziel, aber dasselbe Extra-Muster; wie beim Näherungs-Push (M4) lohnt
+     * ein zweiter Contract dafür nicht.
+     */
+    const val TARGET_GHOST = "ghost"
+
+    /**
      * Explizites [Intent] auf [MainActivity] mit optionalem Navigationsziel [target].
      * [sessionId] wird nur für [TARGET_ACTIVE_SESSION] gebraucht.
      */

@@ -20,6 +20,8 @@ import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.repository.SessionRepositoryImpl
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.data.settings.SettingsRepositoryImpl
+import com.boulderbuddy.ghost.pose.GecachtePoseSpurQuelle
+import com.boulderbuddy.ghost.pose.PoseSpurQuelle
 import com.boulderbuddy.wearsync.WearConnection
 import com.boulderbuddy.wearsync.WearNodeConnection
 import dagger.Binds
@@ -83,4 +85,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindGymVisitRepository(impl: GymVisitRepositoryImpl): GymVisitRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPoseSpurQuelle(impl: GecachtePoseSpurQuelle): PoseSpurQuelle
 }
