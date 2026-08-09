@@ -53,15 +53,6 @@ val BoulderBuddyDarkErrorContainer  = Color(HEX_DARK_ERROR_CONTAINER)
 val BoulderBuddyDarkOnErrorContainer = Color(HEX_DARK_ON_ERROR_CONTAINER)
 val BoulderBuddyDarkInversePrimary  = Color(HEX_DARK_INVERSE_PRIMARY)
 
-/**
- * Heller Inhalt auf dunkler Markenfläche — nur noch als M3-`onPrimary` in Gebrauch.
- *
- * **Nicht mehr für Icons in der TopBar verwenden.** Das Chrome dreht seit der Light-Mode-Runde
- * mit dem Theme; ein fest cremefarbenes Icon wäre im Light Mode creme auf creme. Dafür gibt es
- * `BoulderBuddy.colors.onChrome`.
- */
-val M3OnPrimary = Color(HEX_LIGHT_ON_FILL_STRONG)
-
 // Route-Akzente – 7 Grifffarben. Immer als Fläche oder Rand, nie als Textfarbe auf hellem
 // Grund: Gelb erreicht auf der Card nur 2,3:1 und wäre als Text unlesbar.
 val RouteRed    = Color(HEX_ROUTE_RED)

@@ -53,7 +53,6 @@ import com.boulderbuddy.ui.theme.inhaltsAbstandMitTastatur
 import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
-import com.boulderbuddy.ui.theme.M3OnPrimary
 import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 import com.boulderbuddy.ui.viewmodel.GymBearbeitenUiState
 import java.util.Locale
@@ -141,7 +140,7 @@ fun GymBearbeitenScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.aktion_zurueck),
-                            tint = M3OnPrimary,
+                            tint = BoulderBuddy.colors.onChrome,
                         )
                     }
                 },
