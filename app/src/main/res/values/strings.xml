@@ -275,4 +275,54 @@
     <string name="ghost_gespeichert">Analyse gespeichert ✓</string>
     <string name="ghost_speichern">Analyse speichern</string>
     <string name="ghost_pfad_anpassen">Pfad anpassen</string>
+
+    <!-- Hallen: Uebersicht -->
+    <string name="hallen_titel">Hallen verwalten</string>
+    <string name="hallen_leer">Noch keine Hallen — leg deine erste an, dann kannst du Sessions darin starten.</string>
+    <string name="hallen_deine">Deine Hallen</string>
+    <string name="hallen_neu">Neue Halle</string>
+    <string name="hallen_standort_da">Standort hinterlegt</string>
+    <string name="hallen_standort_keiner">Kein Standort</string>
+    <string name="hallen_erinnerungen_aus">Erinnerungen aus</string>
+
+    <!-- Halle bearbeiten -->
+    <string name="halle_bearbeiten">Halle bearbeiten</string>
+    <string name="halle_name_label">NAME</string>
+    <string name="halle_name_platzhalter">z.B. Boulderhalle Nord</string>
+    <string name="halle_adresse_label">ADRESSE (OPTIONAL)</string>
+    <string name="halle_adresse_platzhalter">z.B. Musterstraße 1</string>
+    <!-- Der Text sagt ausdruecklich, dass es ein Vorschlag bleibt - sonst liest sich eine
+         Einstellung an der Halle wie eine Festlegung fuer jede Session dort. -->
+    <string name="halle_grading_hinweis">Wird beim Session-Anlegen in dieser Halle vorgewählt — in der Session lässt es sich weiter umstellen (z.B. fürs Moonboard).</string>
+    <string name="halle_naeherung">Näherungs-Erinnerung</string>
+    <string name="halle_standort">Standort: %1$.5f, %2$.5f</string>
+    <string name="halle_standort_fehlt">Kein Standort hinterlegt — ohne Standort kann diese Halle keine Erinnerung auslösen.</string>
+    <string name="halle_standort_ermitteln">Ermittle Standort…</string>
+    <string name="halle_standort_uebernehmen">Aktuellen Standort übernehmen</string>
+    <string name="halle_standort_manuell">Koordinaten manuell eingeben</string>
+    <string name="halle_standort_entfernen">Standort entfernen</string>
+    <string name="halle_radius">Erkennungs-Radius: %1$d m</string>
+    <string name="halle_erinnerungen">Erinnerungen für diese Halle</string>
+    <string name="halle_anlegen">Halle anlegen</string>
+    <string name="halle_loeschen">Halle löschen</string>
+    <string name="halle_ohne_standort_recht">Ohne Standort-Berechtigung kannst du die Koordinaten nur manuell eingeben.</string>
+
+    <!-- Halle loeschen: die Rueckfrage sagt, was BLEIBT, nicht nur was verschwindet. Bei
+         einer Halle mit Historie ist genau das die Frage vor dem Tippen. -->
+    <string name="halle_loeschen_titel">Halle löschen?</string>
+    <string name="halle_loeschen_titel_benannt">„%1$s“ löschen?</string>
+    <string name="halle_loeschen_ohne_sessions">Die Halle wird aus der Auswahl entfernt. Es hängen keine Sessions daran.</string>
+    <plurals name="halle_loeschen_sessions">
+        <item quantity="one">%d Session bleibt</item>
+        <item quantity="other">%d Sessions bleiben</item>
+    </plurals>
+    <string name="halle_loeschen_mit_sessions">%1$s erhalten — mit allen Bouldern und dem Hallennamen. Verloren geht nur, was ohne die Halle keine Bedeutung mehr hat: ihr Standort und das gelernte Besuchsmuster. Ein eigenes Grading-System der Halle bleibt und gilt danach hallenübergreifend.</string>
+
+    <!-- Halle: manuelle Koordinaten (Notnagel; Primaerweg ist der Standort-Knopf). -->
+    <string name="halle_koordinaten_titel">Koordinaten eingeben</string>
+    <string name="halle_breitengrad">BREITENGRAD</string>
+    <string name="halle_breitengrad_platzhalter">z.B. 52.520008</string>
+    <string name="halle_laengengrad">LÄNGENGRAD</string>
+    <string name="halle_laengengrad_platzhalter">z.B. 13.404954</string>
+    <string name="halle_koordinaten_uebernehmen">Übernehmen</string>
 </resources>

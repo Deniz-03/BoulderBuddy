@@ -25,7 +25,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SectionHeader
@@ -53,12 +55,12 @@ fun GymVerwaltungScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Hallen verwalten",
+                title = stringResource(R.string.hallen_titel),
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
+                            contentDescription = stringResource(R.string.aktion_zurueck),
                             tint = M3OnPrimary,
                         )
                     }
@@ -81,15 +83,14 @@ fun GymVerwaltungScreen(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "Noch keine Hallen — leg deine erste an, dann kannst du " +
-                                "Sessions darin starten.",
+                            text = stringResource(R.string.hallen_leer),
                             style = MaterialTheme.typography.bodyMedium,
                             color = BoulderBuddy.colors.textSecondary,
                         )
                     }
                 } else {
                     SectionHeader(
-                        text = "Deine Hallen",
+                        text = stringResource(R.string.hallen_deine),
                         modifier = Modifier.padding(
                             horizontal = Dimens.paddingL,
                             vertical = Dimens.paddingS,
@@ -101,7 +102,7 @@ fun GymVerwaltungScreen(
                 }
 
                 PrimaryButton(
-                    text = "Neue Halle",
+                    text = stringResource(R.string.hallen_neu),
                     icon = Icons.Outlined.Add,
                     onClick = onNeueHalle,
                     modifier = Modifier.padding(
@@ -148,9 +149,9 @@ private fun GymRow(
             )
             Text(
                 text = when {
-                    gym.hasCoordinates -> "Standort hinterlegt"
+                    gym.hasCoordinates -> stringResource(R.string.hallen_standort_da)
                     gym.location != null -> gym.location
-                    else -> "Kein Standort"
+                    else -> stringResource(R.string.hallen_standort_keiner)
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = BoulderBuddy.colors.textTertiary,
@@ -159,7 +160,7 @@ private fun GymRow(
         if (!gym.proximityAlertsEnabled) {
             Icon(
                 imageVector = Icons.Outlined.NotificationsOff,
-                contentDescription = "Erinnerungen aus",
+                contentDescription = stringResource(R.string.hallen_erinnerungen_aus),
                 tint = BoulderBuddy.colors.textTertiary,
                 modifier = Modifier.size(Dimens.iconS),
             )
