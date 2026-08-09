@@ -50,16 +50,27 @@ object GhostTuning {
 
     // --- Zeitliche Stabilisierung (Stufe 1, 7.5b) ------------------------------
 
+    // Beide Werte stammten aus dem 7.5c-Experiment, also aus dem Augenschein. 7.5i hat sie
+    // nachgemessen: `OneEuroSweepTest` fährt 15 Einstellungen über zwei echte Roh-Spuren
+    // (289 und 315 Frames) und stellt Unruhe gegen NACHLAUF — die vorhandenen Kennzahlen
+    // allein taugen dafür nicht, sie sinken alle monoton mit der Trägheit und krönten
+    // ausgerechnet die einmal als „unnatürlich träge" verworfene Einstellung.
+    //
+    // Ergebnis: es bleibt, wie es ist. Auf der einen Spur wird 1.5/0.015 von 1.0/0.03 in
+    // beiden Größen geschlagen — aber nur um 2 bzw. 3 %, und auf der anderen Spur liegt
+    // 1.5/0.015 selbst auf der Pareto-Front und 1.0/0.03 daneben. Kein Kandidat ist auf
+    // BEIDEN Spuren besser; der Unterschied ist kleiner als der zwischen zwei Videos
+    // desselben Kletterers.
+    //
+    // Nebenbei beziffert der Sweep, was die Kette überhaupt leistet: Unruhe 1,59 % → 0,59 %,
+    // Morph 3,88 % → 0,67 %, bezahlt mit rund 55 ms Nachlauf.
+
     /** One-Euro: Grund-Cutoff in Hz — je niedriger, desto ruhiger steht das Skelett
-     *  bei statischem Griff (aber träger). 7.5c-Experiment: 1.5 — höherer Cutoff als
-     *  der ursprüngliche 1.0, damit das Skelett reaktiver bleibt; der zuvor getestete
-     *  0.5 machte die Bewegung unnatürlich träge. Mit den übrigen Fixes ausprobieren. */
+     *  bei statischem Griff (aber träger). */
     const val ONE_EURO_MIN_CUTOFF_HZ: Double = 1.5
 
     /** One-Euro: Geschwindigkeitsanteil des Cutoffs — je höher, desto weniger Lag
-     *  bei schnellen Zügen (dafür weniger Glättung in Bewegung). 7.5c-Experiment:
-     *  0.015 — leicht unter dem ursprünglichen 0.02, die Reaktivität trägt schon der
-     *  höhere Grund-Cutoff. */
+     *  bei schnellen Zügen (dafür weniger Glättung in Bewegung). */
     const val ONE_EURO_BETA: Double = 0.015
 
     /** One-Euro: Cutoff der Ableitungs-Glättung in Hz (Standardwert des Papers). */

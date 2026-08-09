@@ -1,14 +1,19 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.app.Application
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
 import com.boulderbuddy.data.repository.GhostAnalysisRepository
+import com.boulderbuddy.ghost.Fortschritt
+import com.boulderbuddy.ghost.GhostAnalyseRunner
+import com.boulderbuddy.ghost.GhostAnalyseStand
 import com.boulderbuddy.ghost.GhostArtifactStore
 import com.boulderbuddy.ghost.GhostTuning
+import com.boulderbuddy.ghost.service.GhostAnalyseService
 import com.boulderbuddy.ghost.analysis.GhostTimeMapping
 import com.boulderbuddy.ghost.analysis.detectAbortFrame
 import com.boulderbuddy.ghost.analysis.qualityMetrics
@@ -22,10 +27,9 @@ import com.boulderbuddy.ghost.analysis.suggestViewMode
 import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ghost.geometry.Homography
 import com.boulderbuddy.ghost.geometry.toVec2
-import com.boulderbuddy.ghost.geometry.transformedBy
+import com.boulderbuddy.ghost.pose.transformedBy
 import com.boulderbuddy.ghost.model.GhostPoint
 import com.boulderbuddy.ghost.model.GhostPoseTrack
-import com.boulderbuddy.ghost.pose.VideoPoseExtractor
 import com.boulderbuddy.ghost.video.GhostFrameDecoder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -59,7 +63,25 @@ data class GhostVideoSlot(
     val anchorFrameTimeMs: Long = 0L,
     val anchorFrame: ImageBitmap? = null,
     val anchors: List<GhostPoint> = emptyList(),
-)
+) {
+    /**
+     * Der Slot, wie er während eines laufenden Hintergrund-Laufs aussieht. Gehört die
+     * gemeldete URI nicht zu diesem Slot, ist er von einem Lauf, den dieser Bildschirm nicht
+     * kennt — dann zählt der Lauf, nicht der leere Slot.
+     */
+    fun imLauf(uri: String, fortschritt: Fortschritt): GhostVideoSlot =
+        if (this.uri == uri) {
+            copy(progressDone = fortschritt.fertig, progressTotal = fortschritt.gesamt)
+        } else {
+            GhostVideoSlot(
+                uri = uri,
+                progressDone = fortschritt.fertig,
+                progressTotal = fortschritt.gesamt,
+            )
+        }
+
+    fun ohneFortschritt(): GhostVideoSlot = copy(progressDone = 0, progressTotal = 0)
+}
 
 data class GhostClimberUiState(
     val step: GhostStep = GhostStep.SELECTION,
@@ -121,17 +143,24 @@ data class SavedAnalysisUi(
 
 /**
  * Ghost Climber (Phase 7.5): geführter Flow über die Pipeline-Schritte.
- * M1: Videos wählen + Posen extrahieren (ML Kit, offline, gecacht).
+ * M1: Videos wählen + Posen extrahieren (MediaPipe, offline, gecacht).
  * M2: Anker antippen → eigene Kotlin-Homographie → Vergleichs-Posen im Referenzraum.
  * Schwere Arbeit läuft auf Dispatchers.Default/IO, nie im UI-Thread.
+ *
+ * Die Pose-Extraktion läuft seit 7.5h **nicht mehr hier**, sondern im
+ * [com.boulderbuddy.ghost.service.GhostAnalyseService] auf dem [GhostAnalyseRunner]. Dieses
+ * ViewModel stirbt mit dem Bildschirm; die sieben Minuten Rechnung dürfen das nicht. Es
+ * startet den Dienst, liest den Stand mit und übernimmt das Ergebnis — auch dann, wenn es
+ * zwischendurch neu aufgebaut wurde und vom Start des Laufs gar nichts mitbekommen hat.
  */
 @HiltViewModel
 class GhostClimberViewModel @Inject constructor(
-    private val poseExtractor: VideoPoseExtractor,
+    application: Application,
+    private val runner: GhostAnalyseRunner,
     private val artifactStore: GhostArtifactStore,
     private val frameDecoder: GhostFrameDecoder,
     private val analysisRepository: GhostAnalysisRepository,
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(GhostClimberUiState())
     val uiState: StateFlow<GhostClimberUiState> = _uiState.asStateFlow()
@@ -160,6 +189,12 @@ class GhostClimberViewModel @Inject constructor(
                 }
             }
         }
+        // Den Stand der Hintergrund-Analyse mitlesen. Das ist zugleich die Wiederaufnahme:
+        // ein frisch aufgebautes ViewModel bekommt beim ersten Sammeln den aktuellen Wert
+        // und findet damit von selbst in einen Lauf zurück, den es nie gestartet hat.
+        viewModelScope.launch {
+            runner.stand.collect { uebernimm(it) }
+        }
     }
 
     /** Neues Video gewählt: Slot zurücksetzen — Spur/Anker gehören zur alten URI. */
@@ -168,31 +203,72 @@ class GhostClimberViewModel @Inject constructor(
         _uiState.update { it.copy(ghostTrack = null, error = null) }
     }
 
-    /** Posen beider Videos extrahieren (sequenziell — EIN ML-Kit-Detector), dann zu den Ankern. */
+    /**
+     * Posen beider Videos extrahieren (sequenziell — EIN MediaPipe-Landmarker) und danach zu
+     * den Ankern. Die Arbeit macht der Dienst; hier wird nur angestoßen.
+     */
     fun analyze() {
         val state = _uiState.value
         if (!state.canAnalyze) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(analyzing = true, error = null) }
-            try {
-                for (role in GhostRole.entries) {
-                    val uri = _uiState.value.slot(role).uri ?: continue
-                    if (_uiState.value.slot(role).track != null) continue
-                    val track = artifactStore.loadPoseTrack(uri)
-                        ?: poseExtractor.extract(uri) { done, total ->
-                            updateSlot(role) { it.copy(progressDone = done, progressTotal = total) }
-                        }.also { artifactStore.savePoseTrack(it) }
-                    updateSlot(role) { it.copy(track = track) }
+        GhostAnalyseService.starte(
+            context = getApplication(),
+            refUri = state.reference.uri ?: return,
+            cmpUri = state.comparison.uri ?: return,
+        )
+    }
+
+    /**
+     * Bricht die laufende Analyse ab — der Knopf dazu ist Pflicht, seit der Bildschirm sie
+     * nicht mehr beendet. Der Dienst räumt den Lauf in seinem `onDestroy` mit ab.
+     */
+    fun brichAnalyseAb() {
+        GhostAnalyseService.stoppe(getApplication())
+    }
+
+    /**
+     * Spiegelt den Stand des Runners in den Bildschirm-Zustand.
+     *
+     * Die URIs kommen aus dem Runner zurück und nicht aus dem eigenen Zustand: nach einem
+     * Neuaufbau des Bildschirms sind die Slots leer, und ohne sie stünde die Fortschrittszeile
+     * unter zwei namenlosen Kacheln.
+     */
+    private fun uebernimm(stand: GhostAnalyseStand) {
+        when (stand) {
+            is GhostAnalyseStand.Untaetig -> _uiState.update {
+                it.copy(
+                    analyzing = false,
+                    reference = it.reference.ohneFortschritt(),
+                    comparison = it.comparison.ohneFortschritt(),
+                )
+            }
+
+            is GhostAnalyseStand.Laeuft -> _uiState.update {
+                it.copy(
+                    analyzing = true,
+                    error = null,
+                    reference = it.reference.imLauf(stand.refUri, stand.ref),
+                    comparison = it.comparison.imLauf(stand.cmpUri, stand.cmp),
+                )
+            }
+
+            is GhostAnalyseStand.Fertig -> {
+                _uiState.update {
+                    it.copy(
+                        analyzing = false,
+                        error = null,
+                        reference = GhostVideoSlot(uri = stand.refUri, track = stand.refTrack),
+                        comparison = GhostVideoSlot(uri = stand.cmpUri, track = stand.cmpTrack),
+                        step = GhostStep.ANCHORS,
+                    )
                 }
-                _uiState.update { it.copy(analyzing = false, step = GhostStep.ANCHORS) }
+                runner.quittiere()
                 // Standbilder für die Anker-Erfassung vorladen.
                 GhostRole.entries.forEach { loadAnchorFrame(it, 0L) }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(analyzing = false, error = e.message ?: "Analyse fehlgeschlagen")
-                }
+            }
+
+            is GhostAnalyseStand.Fehler -> {
+                _uiState.update { it.copy(analyzing = false, error = stand.meldung) }
+                runner.quittiere()
             }
         }
     }

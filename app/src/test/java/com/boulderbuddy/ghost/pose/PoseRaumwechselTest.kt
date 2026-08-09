@@ -1,5 +1,6 @@
-package com.boulderbuddy.ghost.geometry
+package com.boulderbuddy.ghost.pose
 
+import com.boulderbuddy.ghost.geometry.Homography
 import com.boulderbuddy.ghost.model.GhostLandmark
 import com.boulderbuddy.ghost.model.GhostLandmarkTypes as T
 import com.boulderbuddy.ghost.model.GhostPoseFrame
@@ -13,7 +14,7 @@ import org.junit.Test
  * die Roh-Keypoints des Geists an falscher Stelle und die HUD-Gegenüberstellung
  * „gefiltert vs. roh" vergleicht zwei verschiedene Koordinatenräume.
  */
-class PoseTransformsTest {
+class PoseRaumwechselTest {
 
     private fun landmark(type: Int, x: Float, y: Float) =
         GhostLandmark(type = type, x = x, y = y, confidence = 0.9f, presence = 0.9f)

@@ -124,6 +124,9 @@ fun AppNavigation(
             // dorthin. Fehlt die ID (veralteter Widget-Stand), bleiben wir auf Home.
             WidgetIntent.TARGET_ACTIVE_SESSION ->
                 initialNavSessionId?.let { navController.navigate(Session(sessionId = it)) }
+            // Aus dem Fortschritts-Push der Ghost-Analyse zurück in den Flow (7.5h): der
+            // Bildschirm holt sich den Stand beim Aufbau aus dem Runner.
+            WidgetIntent.TARGET_GHOST -> navController.navigate(GhostClimber)
         }
     }
 
@@ -355,6 +358,7 @@ fun AppNavigation(
                     onAufnahmeVerbraucht = { entry.savedStateHandle[KAMERA_ERGEBNIS] = null },
                     onSelectVideo = viewModel::onVideoSelected,
                     onAnalyze = viewModel::analyze,
+                    onAbbrechen = viewModel::brichAnalyseAb,
                     onSelectAnchorFrame = viewModel::loadAnchorFrame,
                     onAddAnchor = viewModel::addAnchor,
                     onRemoveLastAnchor = viewModel::removeLastAnchor,

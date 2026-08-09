@@ -8,4 +8,15 @@
     <string name="abgleich_laeuft">Der Abgleich läuft …</string>
     <string name="abgleich_suche">Suche das andere Gerät …</string>
     <string name="abgleich_bestaetigen">Bitte die Zahl auf beiden Geräten bestätigen</string>
+
+    <!-- Ghost-Climber-Analyse im Hintergrund (7.5h): Meldung des Foreground Service. -->
+    <string name="ghost_analyse_titel">Ghost Climber</string>
+    <string name="ghost_analyse_kanal">Ghost-Analyse</string>
+    <string name="ghost_analyse_startet">Analyse startet …</string>
+    <!-- Beispiel: „Referenz · 120 von 289 Frames" -->
+    <string name="ghost_analyse_fortschritt">%1$s · %2$d von %3$d Frames</string>
+    <string name="ghost_analyse_fertig">Posen erkannt — tippen, um weiterzumachen</string>
+    <string name="ghost_analyse_abbrechen">Abbrechen</string>
+    <string name="ghost_video_referenz">Referenz</string>
+    <string name="ghost_video_vergleich">Vergleich</string>
 </resources>

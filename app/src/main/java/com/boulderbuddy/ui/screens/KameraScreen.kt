@@ -1,6 +1,9 @@
 package com.boulderbuddy.ui.screens
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,9 +44,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.boulderbuddy.data.camera.CameraCaptureController
@@ -91,15 +99,25 @@ fun KameraScreen(
                 PackageManager.PERMISSION_GRANTED,
         )
     }
-    // Wurde bereits gefragt und abgelehnt? Dann keine zweite Abfrage ins Leere schicken —
-    // Android zeigt den Systemdialog nach der zweiten Ablehnung gar nicht mehr.
     var freigabeAbgelehnt by remember { mutableStateOf(false) }
+    // Nach der **ersten** Ablehnung fragt Android weiterhin; erst nach der zweiten ist der
+    // Dialog endgültig zu. `shouldShowRequestPermissionRationale` unterscheidet genau das:
+    // `true` = es lohnt sich, mit Begründung nochmal zu fragen, `false` = nur noch über die
+    // System-Einstellungen. Ohne diese Unterscheidung wirkte schon ein versehentliches
+    // „Nicht erlauben" endgültig und schickte den Nutzer unnötig in die Einstellungen.
+    var darfNochFragen by remember { mutableStateOf(false) }
+    val activity = remember(context) { context.findActivity() }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         hatFreigabe = granted
         freigabeAbgelehnt = !granted
+        darfNochFragen = !granted && activity != null &&
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                Manifest.permission.CAMERA,
+            )
     }
 
     var modus by remember { mutableStateOf(startModusFuer(auftrag)) }
@@ -137,6 +155,7 @@ fun KameraScreen(
     if (!hatFreigabe) {
         KameraFreigabeFehlt(
             abgelehnt = freigabeAbgelehnt,
+            darfNochFragen = darfNochFragen,
             onAnfragen = { permissionLauncher.launch(Manifest.permission.CAMERA) },
             onBack = onBack,
         )
@@ -248,6 +267,7 @@ fun KameraScreen(
                 // Platzhalter links, damit der Auslöser mittig bleibt.
                 Box(modifier = Modifier.size(AUSLOESER_GROESSE))
                 Ausloeser(
+                    modus = modus,
                     nimmtAuf = nimmtAuf,
                     enabled = bedienbar,
                     onClick = ::ausloesen,
@@ -342,25 +362,44 @@ private fun ModusKnopf(
     )
 }
 
-/** Klassischer Auslöserring; im Video-Modus wird der Kern zum Stopp-Quadrat. */
+/**
+ * Klassischer Auslöserring; im Video-Modus wird der Kern zum Stopp-Quadrat.
+ *
+ * Der Ring ist reine Grafik — ein Kreis aus `border` und ein weißer `Box`-Kern, kein `Icon` und
+ * kein `Text`. Ohne die Beschriftung unten hätte der Knopf für TalkBack deshalb **gar keinen
+ * Namen**, und die Aufnahme wäre mit Screenreader nicht auslösbar. Aufgefallen im Gerätelauf am
+ * 09.08.2026: alle Nachbarn waren beschriftet, ausgerechnet der Auslöser nicht.
+ */
 @Composable
 private fun Ausloeser(
+    modus: CaptureModus,
     nimmtAuf: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
+    val beschriftung = when {
+        nimmtAuf -> "Aufnahme beenden"
+        modus == CaptureModus.VIDEO -> "Aufnahme starten"
+        else -> "Foto aufnehmen"
+    }
     Box(
         modifier = Modifier
             .size(AUSLOESER_GROESSE)
             .clip(CircleShape)
             .border(3.dp, Color.White, CircleShape)
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics {
+                contentDescription = beschriftung
+                role = Role.Button
+            },
         contentAlignment = Alignment.Center,
     ) {
         if (nimmtAuf) {
             Icon(
                 imageVector = Icons.Filled.Stop,
-                contentDescription = "Aufnahme beenden",
+                // Der Name sitzt jetzt am Knopf selbst; hier wäre er eine Dopplung, die
+                // TalkBack zweimal vorlesen würde.
+                contentDescription = null,
                 tint = BoulderBuddy.colors.routes.red,
                 modifier = Modifier.size(32.dp),
             )
@@ -384,6 +423,7 @@ private fun Ausloeser(
 @Composable
 private fun KameraFreigabeFehlt(
     abgelehnt: Boolean,
+    darfNochFragen: Boolean,
     onAnfragen: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -404,18 +444,42 @@ private fun KameraFreigabeFehlt(
             modifier = Modifier.align(Alignment.Center),
             icon = Icons.Outlined.PhotoCamera,
             title = "Kamera-Freigabe nötig",
-            description = if (abgelehnt) {
-                "Die Freigabe wurde abgelehnt. Du kannst sie in den System-Einstellungen der " +
-                    "App nachtragen — oder zurückgehen und ein vorhandenes Bild aus der " +
-                    "Galerie wählen."
-            } else {
-                "Zum Aufnehmen braucht die App Zugriff auf die Kamera. Die Aufnahmen bleiben " +
-                    "in der App und werden nirgendwo hochgeladen."
+            description = when {
+                abgelehnt && darfNochFragen ->
+                    "Die Freigabe wurde abgelehnt. Du kannst sie gleich hier noch einmal " +
+                        "erteilen — oder zurückgehen und ein vorhandenes Bild aus der Galerie " +
+                        "wählen."
+
+                abgelehnt ->
+                    "Die Freigabe wurde abgelehnt. Sie lässt sich nur noch in den " +
+                        "System-Einstellungen der App nachtragen — oder du gehst zurück und " +
+                        "wählst ein vorhandenes Bild aus der Galerie."
+
+                else ->
+                    "Zum Aufnehmen braucht die App Zugriff auf die Kamera. Die Aufnahmen " +
+                        "bleiben in der App und werden nirgendwo hochgeladen."
             },
-            actionText = if (abgelehnt) null else "Freigeben",
-            onAction = if (abgelehnt) null else onAnfragen,
+            // Der Knopf verschwindet nur, wenn Android wirklich nicht mehr fragt. Ein Knopf,
+            // der einen Dialog verspricht, der nicht mehr kommt, wäre schlimmer als keiner.
+            actionText = when {
+                abgelehnt && darfNochFragen -> "Erneut fragen"
+                abgelehnt -> null
+                else -> "Freigeben"
+            },
+            onAction = if (abgelehnt && !darfNochFragen) null else onAnfragen,
         )
     }
+}
+
+/**
+ * Die [Activity] hinter einem Compose-[Context]. `LocalContext` liefert nicht zwingend die
+ * Activity selbst, sondern kann ein [ContextWrapper] darum sein — deshalb die Kette abwärts.
+ * Gebraucht für `shouldShowRequestPermissionRationale`, das eine Activity verlangt.
+ */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 private val AUSLOESER_GROESSE = 72.dp

@@ -1,30 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fünf Klettergriffe auf der Wand (Hintergrund: ic_launcher_background).
+
+  Drei Dinge machen sie als Kunstgriffe erkennbar, und alle drei sind Absicht:
+
+  1. **Das Bohrloch.** Ohne den dunklen Punkt ist ein Griff nur ein bunter Fleck; mit ihm ist er
+     unverwechselbar ein Schraubgriff. Es ist deshalb der eine Detailpunkt, der auch bei 48 dp
+     drinbleibt.
+  2. **Kantig-organische Umrisse, jeder anders.** Henkel, Sloper, Zange, Untergriff, Tritt —
+     fünf verschiedene Silhouetten lesen sich als Griffe, fünf gleiche Kleckse als Konfetti.
+  3. **Verstreut statt aufgereiht.** Eine Diagonale liest sich als Diagramm; eine Streuung wie
+     eine Wand.
+
+  Farben sind die Grifffarben der App (HEX_ROUTE_* aus ui/theme/PaletteHex.kt), die Bohrlöcher
+  je eine dunklere Stufe derselben Farbe statt eines gemeinsamen Schwarz — sonst wirken sie wie
+  aufgeklebt.
+
+  **Sicherheitszone:** der Launcher maskiert auf einen Kreis von 66 dp Durchmesser. Alle Griffe
+  liegen deshalb innerhalb von 33 vom Mittelpunkt (54,54); der äußerste Punkt sitzt bei ~31.
+  Kein Schlagschatten: ein VectorDrawable kann nicht weichzeichnen, und eine hartkantige
+  Kopie darunter sähe bei großer Darstellung schlechter aus als gar keiner.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
-    <path
-        android:fillColor="#FFFFFF"
-        android:fillType="nonZero"
-        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-        android:strokeWidth="1"
-        android:strokeColor="#00000000" />
+
+    <!-- Henkel, blau — oben links, breit und flach liegend. -->
+    <group
+        android:translateX="32"
+        android:translateY="32">
+        <path
+            android:fillColor="#1E88E5"
+            android:pathData="M0,9 C0,4 4,2 9,1 C14,0 20,2 22,5 C23,7 22,10 19,11 C14,12.5 6,13 2,12 C0.5,11.5 0,10.5 0,9 Z" />
+        <path
+            android:fillColor="#125EA6"
+            android:pathData="M11,7m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
+    </group>
+
+    <!-- Sloper, gelb — oben rechts, nach oben spitz zulaufend. -->
+    <group
+        android:translateX="55"
+        android:translateY="36">
+        <path
+            android:fillColor="#C8A800"
+            android:pathData="M8,0 C10,0 11,1 12,3 L15.5,12 C16.5,14.5 15,16 12,16 L4,16 C1,16 -0.5,14.5 0.5,12 L4,3 C5,1 6,0 8,0 Z" />
+        <path
+            android:fillColor="#8F7700"
+            android:pathData="M8,10m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
+    </group>
+
+    <!-- Zange, rot — links in der Mitte, nierenförmig. -->
+    <group
+        android:translateX="32"
+        android:translateY="51">
+        <path
+            android:fillColor="#E53935"
+            android:pathData="M2,4 C4,1 9,0 13,1 C17,2 18,5 17,8 C16,11 17,13 14,14 C10,15 4,14 1,11 C-0.5,9 0,6 2,4 Z" />
+        <path
+            android:fillColor="#A32724"
+            android:pathData="M9,7m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
+    </group>
+
+    <!-- Untergriff, grün — rechts, mit der Spitze nach links. Sitzt bewusst etwas tiefer als
+         die beiden oberen Griffe: die sind die größten Formen, und ohne Gegengewicht kippt die
+         Streuung optisch nach oben. -->
+    <group
+        android:translateX="62"
+        android:translateY="54">
+        <path
+            android:fillColor="#43A047"
+            android:pathData="M14,1 C15,3 15,13 14,15 C13,16.5 11,16 9,15 L2,11 C0,9.5 0,7.5 2,6 L9,1.5 C11,0.5 13,-0.5 14,1 Z" />
+        <path
+            android:fillColor="#2C6F31"
+            android:pathData="M8.5,8m-1.9,0a1.9,1.9 0 1,0 3.8,0a1.9,1.9 0 1,0 -3.8,0Z" />
+    </group>
+
+    <!-- Tritt, blau — unten mittig. Wiederholt bewusst das Blau des Henkels: an einer Wand
+         gehört ein Tritt zur selben Route wie der Griff darüber. Etwas vergrößert (Pivot 0,0,
+         die Skalierung wirkt also ab der Gruppen-Ecke), damit die untere Bildhälfte nicht nur
+         aus einem Pünktchen besteht. -->
+    <group
+        android:translateX="45"
+        android:translateY="69"
+        android:pivotX="0"
+        android:pivotY="0"
+        android:scaleX="1.15"
+        android:scaleY="1.15">
+        <path
+            android:fillColor="#1E88E5"
+            android:pathData="M1,5 C1,2 4,0 7,0 C10,0 13,2 13,5 C13,7.5 11,9 7,9 C3,9 1,7.5 1,5 Z" />
+        <path
+            android:fillColor="#125EA6"
+            android:pathData="M7,4.5m-1.7,0a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0Z" />
+    </group>
 </vector>

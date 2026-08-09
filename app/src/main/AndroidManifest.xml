@@ -175,6 +175,19 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!--
+          Haelt die Ghost-Climber-Pose-Analyse am Leben (7.5h). Ein Video-Paar braucht am
+          Geraet rund sieben Minuten; ohne Dienst haengt die Rechnung am Bildschirm und stirbt,
+          sobald man ihn verlaesst.
+
+          `dataSync` und nicht das inhaltlich passendere `mediaProcessing`: das gibt es erst ab
+          API 35, die App laeuft ab 26.
+        -->
+        <service
+            android:name="com.boulderbuddy.ghost.service.GhostAnalyseService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Empfängt fertige Hangboard-Durchläufe von der Wear-App (Phase 7.2, Data Layer). -->
         <service
             android:name="com.boulderbuddy.wearsync.HangboardWearListenerService"

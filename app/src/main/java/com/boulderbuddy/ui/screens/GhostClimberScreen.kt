@@ -1,6 +1,8 @@
 package com.boulderbuddy.ui.screens
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -80,6 +82,7 @@ fun GhostClimberScreen(
     onAufnahmeVerbraucht: () -> Unit = {},
     onSelectVideo: (GhostRole, String) -> Unit = { _, _ -> },
     onAnalyze: () -> Unit = {},
+    onAbbrechen: () -> Unit = {},
     onSelectAnchorFrame: (GhostRole, Long) -> Unit = { _, _ -> },
     onAddAnchor: (GhostRole, GhostPoint) -> Unit = { _, _ -> },
     onRemoveLastAnchor: (GhostRole) -> Unit = {},
@@ -148,6 +151,7 @@ fun GhostClimberScreen(
                             onOpenKamera()
                         },
                         onAnalyze = onAnalyze,
+                        onAbbrechen = onAbbrechen,
                         onRestoreAnalysis = onRestoreAnalysis,
                         onDeleteAnalysis = onDeleteAnalysis,
                     )
@@ -195,9 +199,17 @@ private fun SelectionStep(
     onSelectVideo: (GhostRole, String) -> Unit,
     onKameraFuerRolle: (GhostRole) -> Unit,
     onAnalyze: () -> Unit,
+    onAbbrechen: () -> Unit,
     onRestoreAnalysis: (Int) -> Unit,
     onDeleteAnalysis: (Int) -> Unit,
 ) {
+    // Die Analyse meldet ihren Fortschritt per Benachrichtigung — ab Android 13 braucht das
+    // eine Freigabe. Gefragt wird erst beim Antippen von „Posen analysieren": vorher hätte
+    // die Frage keinen erkennbaren Anlass.
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* Antwort egal — ohne Freigabe rechnet der Dienst weiter, nur stumm. */ }
+
     Text(
         text = "Vergleiche zwei Versuche derselben Route (feste Kamera). " +
             "Wähle ein Referenz- und ein Vergleichs-Video.",
@@ -277,11 +289,32 @@ private fun SelectionStep(
             AnalysisProgress(label = "Referenz", slot = state.reference)
             AnalysisProgress(label = "Vergleich", slot = state.comparison)
         }
+
+        // Die Analyse läuft im Hintergrund weiter — beides muss dastehen: dass man gehen
+        // darf, und wie man sie loswird. Ohne den Knopf gäbe es keinen Weg mehr, sie zu
+        // beenden: der Bildschirm zu verlassen war früher der Abbruch und ist es nicht mehr.
+        Text(
+            text = "Läuft im Hintergrund weiter — du kannst die App verlassen. " +
+                "Der Fortschritt steht in der Benachrichtigung.",
+            style = MaterialTheme.typography.bodySmall,
+            color = BoulderBuddy.colors.textSecondary,
+        )
+        TextButton(onClick = onAbbrechen) {
+            Text("Analyse abbrechen")
+        }
     } else if (state.canAnalyze) {
         PrimaryButton(
             text = "Posen analysieren",
             icon = Icons.AutoMirrored.Filled.DirectionsRun,
-            onClick = onAnalyze,
+            onClick = {
+                // Ohne diese Freigabe rechnet der Dienst zwar, zeigt aber nichts an — und
+                // genau die Anzeige ist der Grund, warum man den Bildschirm verlassen darf.
+                // Die Antwort wird nicht abgewartet: sie ändert nichts an der Analyse.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                onAnalyze()
+            },
         )
     }
 

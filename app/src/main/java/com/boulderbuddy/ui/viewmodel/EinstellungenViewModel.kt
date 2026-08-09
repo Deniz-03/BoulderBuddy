@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +11,9 @@ import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.settings.SettingsRepository
 import com.boulderbuddy.proximity.GeofenceManager
 import com.boulderbuddy.wearsync.WearConnection
+import com.boulderbuddy.widget.refreshBoulderWidget
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +51,7 @@ data class EinstellungenUiState(
 
 @HiltViewModel
 class EinstellungenViewModel @Inject constructor(
+    @param:ApplicationContext private val appContext: Context,
     private val gradeRepository: GradeRepository,
     private val settingsRepository: SettingsRepository,
     private val sessionExporter: SessionExporter,
@@ -115,9 +119,21 @@ class EinstellungenViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setSelectedGradeSystem(systemId) }
     }
 
-    /** Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a). */
+    /**
+     * Setzt den Dark-Mode-Override (persistent via DataStore); steuert das App-Theme (7.4a).
+     *
+     * Das Widget muss mit: seine Farbwahl hängt an genau diesem Wert
+     * ([com.boulderbuddy.widget.paletteFuer]), aber eine Glance-Composition-Session endet ~45 s
+     * nach der letzten Composition. Ohne den Anstoß bliebe auf dem Homescreen das alte Bild
+     * stehen, bis der Nutzer selbst aktualisiert oder `updatePeriodMillis` (30 min) greift — am
+     * Gerät gemessen am 09.08.2026: App hell, Widget weiterhin dunkel, und ein Tipp auf
+     * „Aktualisieren" räumte es sofort auf.
+     */
     fun setDarkMode(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setDarkMode(enabled) }
+        viewModelScope.launch {
+            settingsRepository.setDarkMode(enabled)
+            refreshBoulderWidget(appContext)
+        }
     }
 
     /** Schaltet die Vibration bei Timer-Phasenwechseln ein/aus (persistent via DataStore). */

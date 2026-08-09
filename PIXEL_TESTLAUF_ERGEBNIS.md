@@ -348,3 +348,300 @@ adb -s 29231JEGR18629 shell svc power stayon false
 ```bash
 adb -s 29231JEGR18629 shell settings put system accelerometer_rotation 1
 ```
+
+---
+
+# Zweiter Durchlauf — 09.08.2026, Branch `Abgabefeinschliff`
+
+Gerät wie oben. Build vom heutigen Stand, `pm clear` vorweg, Ausgangslage also Seed-Daten.
+Abgearbeitet: **T9.4** (CSV-Export) und **Teil 10** (Medien, Kamera, Spracheingabe) — die beiden
+Bereiche, die der erste Durchlauf ausdrücklich offen ließ.
+
+**Wieder kein einziger Absturz**: der `crash`-Puffer blieb über den gesamten Lauf leer, kein ANR.
+
+## T9.4 — CSV-Export: bestanden
+
+Geprüft mit vorsätzlich feindlichen Daten (über die DB gesetzt, damit Zeilenumbruch und
+Anführungszeichen exakt sitzen): Session-Notiz `guter Tag, aber "die Ecke" nicht\nzweite Zeile;
+drittens`, Boulder-Name `Der "Ofen", oben`, Boulder-Notiz mit Umlaut und Geviertstrich, dazu eine
+zweite Session **ohne** Boulder.
+
+Die exportierte Datei byte-genau nachgerechnet:
+
+| Erwartung | Ergebnis |
+|---|---|
+| UTF-8-BOM am Anfang (Excel-Umlaute) | `EF BB BF` ✓ |
+| CRLF als Zeilenende | 5 × `\r\n`; die 3 nackten `\n` sitzen ausschließlich *innerhalb* gequoteter Felder ✓ |
+| `"` verdoppelt | `"Der ""Ofen"", oben"` ✓ |
+| Komma-Felder gequotet | ✓ |
+| Semikolon **nicht** gequotet | ✓ (bei Komma-Trennung richtig — der Unit-Test hält das ausdrücklich fest, damit es niemand „repariert") |
+| Umlaute, Geviertstrich | `München`, `Übergriff`, `—` alle heil ✓ |
+| Session ohne Boulder behält ihre Zeile | ✓, mit sieben leeren Route-Spalten |
+| laufende Session | steht als `aktiv` ✓ |
+| IDs gegen Namen aufgelöst | Halle, Gradsystem, Grad-Label ✓ |
+| Abbruch (Dateiauswahl mit Zurück verlassen) | zurück in den Einstellungen, kein Toast, kein Absturz ✓ |
+
+**Damit ist auch der heute geschriebene `SessionCsvTest` belegt:** er behauptet genau dieses
+Verhalten, und das Gerät bestätigt es Zeichen für Zeichen.
+
+## Teil 10 — Medien: drei Befunde, keiner schwer
+
+| Test | Ergebnis |
+|---|---|
+| T10.1 Foto aufnehmen | **OK** — Datei in `files/aufnahmen`, im Formular und im Detail sichtbar |
+| T10.2 Video aufnehmen | **OK bis auf den Ton**, siehe F14 |
+| T10.3 Kamera-Freigabe verweigert | **OK**, siehe F16 für eine Ungenauigkeit im Text |
+| T10.4 Galerie-Weg | **OK** — Bild überlebt `force-stop`, kein `SecurityException` |
+| T10.5 Aufnahme abbrechen | **OK** — Formular unverändert |
+| T10.6 keine Doppelübernahme | **OK** — nach Abbruch *und* nach Drehen steht genau das zuletzt gewählte Medium |
+| T10.7 Spracheingabe | **Ablehnungszweig OK**, die Erkennung selbst nicht prüfbar (kein Mikrofonsignal über adb) |
+
+### F14 — Boulder-Videos sind immer stumm
+
+`RECORD_AUDIO` wird im Kamera-Pfad **nie erfragt**. Die Aufnahme selbst ist korrekt abgesichert
+([CameraCaptureController.kt:159](app/src/main/java/com/boulderbuddy/data/camera/CameraCaptureController.kt:159)):
+Ton nur, wenn die Freigabe schon vorliegt, sonst stumm statt `SecurityException`. Das ist als
+Entscheidung dokumentiert und richtig — die Folge ist trotzdem, dass praktisch **jedes** Video
+ohne Ton entsteht, weil dem Nutzer die Wahl nie angeboten wird.
+
+Am Gerät belegt: `RECORD_AUDIO granted=false`, und die 34-MB-Datei enthält keinen `soun`-Handler,
+nur `vide`. Der Testplan erwartet unter T10.2 ausdrücklich „Ton vorhanden".
+
+**Entschieden am 09.08.2026: stumm ist gewollt.** Kein Code wird geändert. Begründung: eine
+Boulder-Aufnahme ist ein Bewegungsbeleg, kein Tondokument, und dafür lohnt sich keine zweite
+Freigabe-Abfrage im Aufnahme-Weg. Die Erwartung „Ton vorhanden" ist aus T10.2 des Testplans
+entfernt, damit derselbe Befund nicht bei jedem Durchlauf neu auftaucht.
+
+### F15 — Der Auslöser hat keine Beschriftung
+
+Auf dem Kamera-Screen ist der Auslöser bei (540, 2180) klickbar, trägt aber weder `text` noch
+`content-desc` — auch auf keinem Kindknoten. Mit TalkBack ist die Aufnahme damit nicht
+auslösbar. Die Nachbarn sind alle korrekt beschriftet (`Abbrechen`, `Foto`, `Video`,
+`Kamera wechseln`), und **während** einer laufenden Videoaufnahme trägt derselbe Knopf
+`Aufnahme beenden` — es fehlt also nur der Ruhezustand.
+
+Gehört zum TODO-Punkt „16 Stellen mit `contentDescription = null` durchgehen"; dies ist die
+Stelle, an der es eine Funktion unbenutzbar macht statt nur eine Dekoration unbenannt zu lassen.
+
+**Behoben am 09.08.2026.** Der Knopf trägt seinen Namen jetzt selbst (`Modifier.semantics` mit
+`Role.Button`), und der Name nennt den Modus. Die Beschriftung am Stopp-Icon ist entfallen —
+sonst hätte TalkBack sie zusammen mit der des Knopfes zweimal vorgelesen.
+
+Am Gerät gegengeprüft, alle drei Zustände:
+
+| Zustand | Vorgelesen |
+|---|---|
+| Foto-Modus | `Foto aufnehmen` |
+| Video-Modus, bereit | `Aufnahme starten` |
+| Video-Modus, läuft | `Aufnahme beenden` (genau einmal) |
+
+### F16 — Ablehnungstext verweist unnötig in die System-Einstellungen
+
+Nach **einer** Ablehnung der Kamera-Freigabe verschwindet der „Freigeben"-Knopf, und der Text
+sagt, man könne die Freigabe „in den System-Einstellungen der App nachtragen". Tatsächlich
+genügt es, den Bildschirm zu verlassen und erneut zu öffnen — dann steht „Freigeben" wieder da
+und Android zeigt den Dialog ein zweites Mal. Keine Sackgasse, aber der Text schickt den Nutzer
+einen Umweg, den er nicht gehen muss. (Der Hinweis auf die Galerie als Alternative steht
+korrekt daneben.)
+
+**Behoben am 09.08.2026.** Der Kommentar im Code nannte die Regel schon richtig — „Android zeigt
+den Systemdialog nach der **zweiten** Ablehnung nicht mehr" — nur behandelte der Code bereits die
+erste so. `shouldShowRequestPermissionRationale` unterscheidet die beiden Fälle; daraus sind drei
+Zustände statt zwei geworden. Der Knopf verschwindet erst, wenn Android wirklich nicht mehr
+fragt: ein Knopf, der einen Dialog verspricht, der nicht mehr kommt, wäre schlimmer als keiner.
+
+Am Gerät gegengeprüft (mit `pm reset-permissions` für einen unberührten Ausgangsstand — ohne das
+zählt Android frühere Ablehnungen derselben Sitzung mit und der erste Fall ist nicht messbar):
+
+| Zustand | Text | Knopf |
+|---|---|---|
+| noch nicht gefragt | „Zum Aufnehmen braucht die App Zugriff …" | `Freigeben` |
+| einmal abgelehnt | „… gleich hier noch einmal erteilen" | `Erneut fragen` → Dialog kommt wirklich |
+| zweimal abgelehnt | „… nur noch in den System-Einstellungen" | keiner |
+
+## T14.1 — Ghost Climber bis zur Analyse: bestanden
+
+Zwei Videos aus der Galerie (23 s und 26 s, dieselbe Aufnahmezeit — offenbar das echte
+Vergleichspaar), „Posen analysieren" gestartet.
+
+| | |
+|---|---|
+| Referenz | 289 Frames |
+| Vergleich | 315 Frames |
+| Dauer gesamt | rund 7 Minuten (~1,6 Frames/s) |
+| Fortschrittsanzeige | lebendig und frameweise („Referenz: Frame 94 / 289", danach „Vergleich: Frame 99 / 315") |
+| Oberfläche währenddessen | ansprechbar, `uiautomator` liefert durchgehend Antworten |
+| **ANR** | **keine** |
+| **Absturz** | **keiner**, `crash`-Puffer leer |
+
+Danach sauberer Übergang in den Anker-Schritt mit verständlicher Anleitung („Tippe in beiden
+Videos DIESELBEN 4+ markanten Wandpunkte …").
+
+Damit ist der heute vorgesehene Umfang erfüllt — der Plan sah T14.1 ausdrücklich „bis zur
+Analyse, ohne Bewertung der Qualität" vor. **Nicht geprüft:** Anker setzen, Pfad bestätigen,
+Ansichten umschalten, Analyse speichern/laden/löschen.
+
+## Teil 11 — Widget: zwei Befunde, beide behoben
+
+Das Widget wurde von Hand platziert (der Pixel Launcher nimmt für Widget-Drags keine injizierten
+Touch-Events an — zwei Versuche, auch als zusammenhängende `motionevent`-Geste in einem einzigen
+Shell-Aufruf; das ist eine Grenze des Werkzeugs, kein Befund an der App).
+
+| Test | Ergebnis |
+|---|---|
+| T11.1 Widget platzieren | **OK** — Hallenname, „läuft gerade · 5 Boulder · 4 Tops", Knöpfe „Session öffnen" und „Timer" |
+| T11.2 Widget aktualisiert sich | **war kaputt** → behoben, siehe F17 |
+| T11.3 Widget-Sprünge | **OK** — „Session öffnen" landet direkt in der Session, genau ein Zurück führt nach Home |
+| T11.4 nach Session-Ende | **OK** — „Keine aktive Session · 6 Tops insgesamt · Session starten", kein Sprung mehr in die beendete Session |
+| T11.5 Widget-Theme | **war kaputt** → behoben, siehe F17 |
+
+### F17 — Das Widget erfährt von Änderungen nicht, die es angehen
+
+Ein Fehler, zwei Erscheinungsformen. Die Theme-Logik selbst ist **richtig**: `paletteFuer`
+wählt Auto/Dark/Light aus `WidgetData.darkModeOverride`, gespeist aus
+`settingsRepository.darkMode`. Und die Datenberechnung stimmt auch. Was fehlte, war der Anstoß.
+
+Eine Glance-Composition-Session endet ~45 s nach der letzten Composition. Danach steht auf dem
+Homescreen das zuletzt gezeichnete Bild, bis ein Update-Event eine neue Session startet.
+`refreshBoulderWidget` löste das bisher nach **Session-Start, Session-Ende und Abgleich** aus —
+bei einem neuen Boulder und beim Dark-Mode-Schalter nicht.
+
+Das war am Gerät sauber zu trennen:
+
+| Beobachtung | Was sie zeigt |
+|---|---|
+| App hell, System dunkel, Widget dunkel | sieht nach falscher Theme-Logik aus |
+| Tipp auf „Aktualisieren" → Widget wird sofort hell | **die Logik ist richtig, der Anstoß fehlte** |
+| App 6 Boulder, Widget 5 | dieselbe Ursache an einer zweiten Stelle |
+
+**Behoben** mit je einem `refreshBoulderWidget`-Aufruf in `EinstellungenViewModel.setDarkMode`
+und am Ende von `RouteHinzufuegenViewModel.save` — dasselbe Muster, das die Session-Pfade schon
+verwenden.
+
+Gegengeprüft, jeweils **ohne** den Aktualisieren-Knopf:
+
+| Fall | Ergebnis |
+|---|---|
+| Boulder angelegt | Widget springt sofort von 5 auf 7 Boulder / 6 Tops |
+| Dark Mode aus, System bleibt dunkel | Widget wird cremefarben — der Override gewinnt, wie gedacht |
+| Dark Mode wieder an | Widget wird dunkel |
+
+Die eindeutige Messung ist die mittlere: solange App-Schalter und System übereinstimmen, lässt
+sich „folgt dem Override" nicht von „folgt dem System" unterscheiden.
+
+**Bewusst nicht mitgezogen:** das Ändern der Versuche im Boulder-Detail. Es verschiebt weder
+Boulderzahl noch Tops, das Widget zeigt davon also nichts.
+
+## Teil 12 — Näherungs-Push: läuft, zwei Befunde
+
+Ohne Fahrt geprüft, wie in `PUSHNOT_TESTEN.md` beschrieben: der Geofence wird mit
+`INITIAL_TRIGGER_DWELL` registriert, ein Gerät im Radius löst also von selbst aus. Testhallen mit
+den hiesigen Koordinaten (52,137 / 9,964), Radius auf dem Standardwert 150 m. Alle Testhallen
+sind nach dem Lauf gelöscht.
+
+| Test | Ergebnis |
+|---|---|
+| T12.1 Berechtigungskette | **OK** — Standort (präzise) → System-Seite „Immer erlauben" → Benachrichtigungen, in dieser Reihenfolge; danach alle drei erteilt und der Schalter an |
+| T12.2 ganze Kette zuhause | **OK** — Registrierung 11:09:11, `DWELL … → NOTIFY` 11:13:39 (4,5 min), Notification im `gym_proximity`-Kanal, Tap öffnet „Neue Session" mit der Halle **vorausgewählt** |
+| T12.3 Politik erklärt sich | **3 von 5 Fällen belegt**, siehe unten |
+| T12.4 Neustart | **OK** — Beleg unten |
+| T12.5 Master-Toggle aus | **OK**, aber vorher lautlos → F19 |
+| T12.6 Doze | **OK, besser als erwartet** — siehe unten |
+
+### Die Politik, gemessen
+
+```
+DWELL an Gym 2 (Testhalle)  → ACTIVE_SESSION     (laufende Session, keine Notification)
+DWELL an Gym 3 (Testhalle2) → ACTIVE_SESSION
+DWELL an Gym 2 (Testhalle)  → COOLDOWN           (heute schon gepusht, keine Notification)
+DWELL an Gym 3 (Testhalle2) → NOTIFY             (frische Halle → Notification)
+```
+
+Nebenbei belegt das die **Reihenfolge**: eine laufende Session unterdrückt global und *vor* dem
+hallenspezifischen Cooldown — beide Hallen meldeten `ACTIVE_SESSION`, obwohl eine davon
+zusätzlich im Cooldown stand.
+
+**Nicht provoziert:** `DISABLED` und `POST_SESSION_QUIET`. `DISABLED` ist am echten Gerät kaum
+herstellbar, weil eine Halle mit abgeschaltetem Pro-Gym-Toggle gar nicht erst registriert wird —
+der Fall greift nur im Fenster zwischen Umschalten und nächstem Refresh. `POST_SESSION_QUIET`
+hätte eine vierte Testhalle plus einen weiteren 5-Minuten-Durchgang gekostet.
+
+### T12.4 — Neustart: bestanden, aber anders belegt als geplant
+
+Nach `adb reboot` steht **keine** `Geofence(s) registriert`-Zeile im Log — der Puffer läuft beim
+Booten über, die Zeile ist schlicht herausgefallen. Der Beleg kommt stattdessen vom Verhalten:
+
+```
+11:40:08  DWELL an Gym 2 (Testhalle)  → COOLDOWN
+11:40:08  DWELL an Gym 3 (Testhalle2) → COOLDOWN
+```
+
+Fünf Minuten nach dem Boot feuern beide Geofences — **ohne dass die App je geöffnet wurde**
+(der Prozess war zwischenzeitlich nur für `BoulderWidgetReceiver` gestartet worden). Sie wurden
+also re-registriert, und die Politik antwortet korrekt. Das ist ein stärkerer Beleg als die
+Logzeile es gewesen wäre.
+
+### T12.6 — Doze: der Push kommt *während* Deep Idle
+
+`dumpsys battery unplug` + `dumpsys deviceidle force-idle`, Zustand nachweislich `IDLE`:
+
+```
+11:49:56  DWELL an Gym 4 (Testhalle3) → NOTIFY   (Notification erschien)
+```
+
+Der Plan erwartete den Push „spätestens beim Verlassen von Doze". Auf diesem Gerät kommt er
+**im** Doze. Damit ist die offene Frage aus M5 beantwortet — für dieses Gerät und diese
+Android-Version; ein Hersteller mit aggressiverem Akku-Management kann sich anders verhalten.
+
+### Eine Warnung, die keine ist
+
+Beim Registrieren protokolliert das System:
+
+```
+Geofencer: registration not active, registration not permitted for registration: …
+Geofencer: geofence trigger blocked - initial event filter not matched
+```
+
+Das sieht nach einem Fehlschlag aus, ist aber keiner: die Meldung kommt, bevor ein frischer
+Standort-Fix vorliegt, und der Trigger feuerte danach zuverlässig. Wer beim nächsten Durchlauf
+darüber stolpert, sucht sonst an der falschen Stelle.
+
+### F18 — Die Benachrichtigung war grammatisch falsch
+
+Sie hieß **„Bist du im Testhalle?"**. Das „im" stand fest im Text
+([ProximityNotifier.kt:65](app/src/main/java/com/boulderbuddy/proximity/ProximityNotifier.kt:65))
+und passt zu fast keinem Hallennamen — „im Boulder World München" wäre genauso falsch. Jede
+Präposition mit Artikel setzt ein Genus voraus, das ein frei eingegebener Name nicht hat.
+
+**Behoben:** der Name steht jetzt als Titel für sich, die Frage darunter — das umgeht die
+Deklination vollständig und entspricht dem üblichen Aufbau einer Notification. Am Gerät
+gegengeprüft: Titel `Kletterwerk`, Text `Bist du da? Session starten.`
+
+### F19 — Der Master-Toggle räumte lautlos ab
+
+`refreshGeofences` entfernt zuerst alles und steigt dann aus, wenn der Toggle aus ist — richtig,
+aber ohne jede Logzeile. Im Logcat sah „ausgeschaltet" damit genauso aus wie „abgestürzt", und
+der Testplan erwartet an dieser Stelle ausdrücklich eine Meldung.
+
+**Behoben:** beide stillen Ausstiege sagen jetzt, warum. Am Gerät belegt, inklusive der zweiten
+Variante beim Löschen der letzten Halle mit Koordinaten:
+
+```
+GeofenceManager: Geofences entfernt: Erinnerungen sind ausgeschaltet
+GeofenceManager: Geofences entfernt: keine Halle mit Koordinaten und aktiver Erinnerung
+```
+
+## Weiterhin nicht geprüft
+
+* **T13 Abgleich** — hier stand zuerst pauschal „zweites Gerät fehlt". Das gilt aber **nur für
+  den Funkweg (T13.5)**. Die vier Datei-Tests **T13.1–T13.4** (Abgabe erzeugen, eigenen Stand
+  wieder einlesen und danach zählen, Unsinns-Datei, Rückgängig) brauchen genau **ein** Gerät und
+  sind schlicht nicht gemacht worden. Der Datei-Weg ist damit weiterhin nur durch JVM-Tests und
+  eine Emulator-Sichtung belegt, nie am echten Gerät gegen echten Speicher. Auch von T13.5 ist
+  die Hälfte allein prüfbar: Berechtigungskette, Foreground-Service-Notification und ob der
+  Suchzustand beim Abbrechen sauber endet.
+* **T10.7 Erkennung** — über adb kein Mikrofonsignal einspielbar.
+* **T14.1 ab dem Anker-Schritt** — siehe oben.
+* **T12.3 `DISABLED` und `POST_SESSION_QUIET`** — siehe Begründung oben.
+* **Doze über echte Stunden** — nur der erzwungene Zustand ist gemessen, nicht das
+  Langzeitverhalten mit App-Standby-Buckets.
