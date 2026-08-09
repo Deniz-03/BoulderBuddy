@@ -218,4 +218,61 @@
         <item quantity="one">%d Boulder hat seinen Grad verloren</item>
         <item quantity="other">%d Boulder haben ihren Grad verloren</item>
     </plurals>
+
+    <!--
+      Ghost Climber. Die Erklaertexte sind lang, und das ist Absicht: jeder Schritt verlangt
+      etwas vom Nutzer, das er sich nicht selbst herleiten kann (dieselben Wandpunkte in
+      derselben Reihenfolge, ein Pfad statt einer Linie).
+      "ghost_analyse_*" weiter oben gehoert dem Foreground Service, nicht dem Bildschirm.
+    -->
+    <string name="ghost_titel">Ghost Climber</string>
+    <string name="ghost_untertitel">Experimental</string>
+    <string name="ghost_analyse_loeschen">Analyse löschen</string>
+
+    <!-- Ghost, Schritt 1: Video-Auswahl -->
+    <string name="ghost_auswahl_hinweis">Vergleiche zwei Versuche derselben Route (feste Kamera). Wähle ein Referenz- und ein Vergleichs-Video.</string>
+    <string name="ghost_referenz_video">Referenz-Video</string>
+    <string name="ghost_vergleich_video">Vergleichs-Video</string>
+    <string name="ghost_video_waehlen">Video aufnehmen oder wählen</string>
+    <!-- Beides muss dastehen: dass man gehen darf, und wie man die Analyse loswird. -->
+    <string name="ghost_laeuft_im_hintergrund">Läuft im Hintergrund weiter — du kannst die App verlassen. Der Fortschritt steht in der Benachrichtigung.</string>
+    <string name="ghost_analyse_abbrechen_knopf">Analyse abbrechen</string>
+    <string name="ghost_analysieren">Posen analysieren</string>
+    <string name="ghost_gespeicherte">Gespeicherte Analysen</string>
+    <string name="ghost_vorschlag">Vorschlag: %1$s</string>
+    <!-- Beispiel: „Referenz: fertig (289 Frames)" -->
+    <string name="ghost_fortschritt_fertig">%1$s: fertig (%2$d Frames)</string>
+    <string name="ghost_fortschritt_frame">%1$s: Frame %2$d / %3$d</string>
+    <string name="ghost_fortschritt_vorbereitung">%1$s: wird vorbereitet…</string>
+
+    <!-- Ghost, Schritt 2: Anker -->
+    <string name="ghost_anker_hinweis">Tippe in beiden Videos DIESELBEN %1$d+ markanten Wandpunkte (Griffe/Volumes) in derselben Reihenfolge an — gleiche Farbe = gleicher Punkt. Mit dem Regler findest du ein Standbild mit freier Wand.</string>
+    <string name="ghost_uebereinanderlegen">Übereinanderlegen</string>
+    <string name="ghost_anker_ungleich">Beide Videos brauchen GLEICH VIELE Anker (aktuell %1$d vs. %2$d).</string>
+    <string name="ghost_anker_zu_wenige">Noch mindestens %1$d Anker pro Video setzen.</string>
+    <string name="ghost_zurueck_auswahl">Zurück zur Video-Auswahl</string>
+
+    <!-- Ghost, Schritt 3: Routenpfad -->
+    <string name="ghost_pfad_hinweis">Der Routenpfad (grün) bestimmt, wie der Fortschritt gemessen wird. Vorschlag = deine Hüft-Linie aus dem Referenz-Video (gestrichelt). Tippen verlängert den Pfad — z.B. bis zum Top, falls der Versuch vorher abbrach.</string>
+    <string name="ghost_synchronisieren">Synchronisieren</string>
+    <string name="ghost_pfad_zu_kurz">Der Pfad braucht mindestens 2 Stützpunkte.</string>
+    <string name="ghost_anker_anpassen">Anker anpassen</string>
+
+    <!-- Ghost, Schritt 4: Vergleich -->
+    <string name="ghost_vergleich_ueberschrift">Synchronisierter Vergleich</string>
+    <string name="ghost_modus_overlay">Overlay</string>
+    <string name="ghost_modus_side_by_side">Side-by-Side</string>
+    <string name="ghost_modus_debug">Debug</string>
+    <string name="ghost_modus_roh">Roh</string>
+    <string name="ghost_roh_hinweis">Rot = ungefilterte Roh-Erkennung. Sie wackelt und springt absichtlich — der Abstand zum farbigen Skelett ist genau das, was die Filterkette entfernt.</string>
+    <!-- Beispiel: „Vorschlag: Overlay — beide Versuche laufen fast gleich schnell" -->
+    <string name="ghost_modus_vorschlag">Vorschlag: %1$s — %2$s</string>
+    <string name="ghost_skelett_referenz">Referenz</string>
+    <string name="ghost_skelett_geist">Geist</string>
+    <string name="ghost_overlay_hinweis">Orange = Referenz, Blau = Geist (Vergleichs-Versuch, in den Referenzraum gelegt). Der Geist ist per DTW auf den Routen-Fortschritt synchronisiert — an jeder Stelle der Route siehst du beide Körperpositionen, unabhängig vom Tempo.</string>
+    <string name="ghost_side_by_side_hinweis">Links Referenz (steuert die Wiedergabe), rechts der Vergleichs-Versuch — beide laufen unverzerrt in ihrem eigenen Tempo. Ehrlicher als ein Overlay, wenn die Beta sich deutlich unterscheidet.</string>
+    <string name="ghost_sturz_hinweis">Sturz/Abbruch erkannt: das betroffene Skelett blendet am Abbruchpunkt aus, der andere Versuch klettert weiter.</string>
+    <string name="ghost_gespeichert">Analyse gespeichert ✓</string>
+    <string name="ghost_speichern">Analyse speichern</string>
+    <string name="ghost_pfad_anpassen">Pfad anpassen</string>
 </resources>
