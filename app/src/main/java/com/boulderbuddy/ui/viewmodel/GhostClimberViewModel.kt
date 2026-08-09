@@ -27,7 +27,7 @@ import com.boulderbuddy.ghost.analysis.suggestViewMode
 import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ghost.geometry.Homography
 import com.boulderbuddy.ghost.geometry.toVec2
-import com.boulderbuddy.ghost.geometry.transformedBy
+import com.boulderbuddy.ghost.pose.transformedBy
 import com.boulderbuddy.ghost.model.GhostPoint
 import com.boulderbuddy.ghost.model.GhostPoseTrack
 import com.boulderbuddy.ghost.video.GhostFrameDecoder

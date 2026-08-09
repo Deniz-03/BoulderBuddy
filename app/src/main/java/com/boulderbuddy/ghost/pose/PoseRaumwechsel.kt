@@ -1,14 +1,18 @@
-package com.boulderbuddy.ghost.geometry
+package com.boulderbuddy.ghost.pose
 
-import com.boulderbuddy.ghost.model.GhostPoint
+import com.boulderbuddy.ghost.geometry.Homography
 import com.boulderbuddy.ghost.model.GhostPoseFrame
 import com.boulderbuddy.ghost.model.GhostPoseTrack
-import com.boulderbuddy.ghost.pose.enforceRigidSkeleton
 
 // P0 des Alignment-Docs: Posen beider Versuche müssen im SELBEN Wand-Referenzraum
 // liegen, sonst sind die Trajektorien nicht vergleichbar. Als Referenzraum dient der
 // Analyse-Frame-Raum des REFERENZ-Videos (dessen Homographie ist damit die Identität);
 // nur das Vergleichs-Video wird transformiert.
+//
+// Der Raumwechsel steht hier im `pose`-Paket und nicht mehr bei der Geometrie: er ist
+// eine Stufe der Pose-Pipeline, die eine Homographie BENUTZT. Andersherum gelesen hing
+// das Grundlagen-Paket am Pipeline-Paket — azyklisch, aber verkehrt herum, und es zwang
+// `geometry` dazu, `enforceRigidSkeleton` zu kennen.
 
 /**
  * Transformiert alle Keypoints der Spur durch [homography] in den Frame-Raum von
@@ -22,6 +26,10 @@ import com.boulderbuddy.ghost.pose.enforceRigidSkeleton
  * Proportionen werden hier wieder verzogen (gemessen: 8,7 % Überlängen beim Geist,
  * während die untransformierte Referenz bei 0,0 % lag). Die Rekonstruktion stellt sie
  * wieder her.
+ *
+ * Sie bleibt bewusst Teil dieser Funktion, statt in die Aufrufer zu wandern: es gibt
+ * keinen Raumwechsel, nach dem sie nicht laufen soll, und ein Aufrufer, der sie einmal
+ * vergisst, bekommt keinen Fehler — nur einen still verzogenen Geist.
  *
  * Nicht behoben wird damit der POSITIONS-Fehler derselben Ursache — wie weit der Geist
  * neben seiner wahren Lage sitzt, hängt davon ab, wie weit der Körper aus der Wandebene
@@ -49,5 +57,3 @@ fun GhostPoseTrack.transformedBy(homography: Homography, target: GhostPoseTrack)
         rawFrames = rawFrames?.mapped(),
     )
 }
-
-fun GhostPoint.toVec2(): Vec2 = Vec2(x.toDouble(), y.toDouble())
