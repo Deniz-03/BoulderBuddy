@@ -432,10 +432,35 @@ und Android zeigt den Dialog ein zweites Mal. Keine Sackgasse, aber der Text sch
 einen Umweg, den er nicht gehen muss. (Der Hinweis auf die Galerie als Alternative steht
 korrekt daneben.)
 
+## T14.1 — Ghost Climber bis zur Analyse: bestanden
+
+Zwei Videos aus der Galerie (23 s und 26 s, dieselbe Aufnahmezeit — offenbar das echte
+Vergleichspaar), „Posen analysieren" gestartet.
+
+| | |
+|---|---|
+| Referenz | 289 Frames |
+| Vergleich | 315 Frames |
+| Dauer gesamt | rund 7 Minuten (~1,6 Frames/s) |
+| Fortschrittsanzeige | lebendig und frameweise („Referenz: Frame 94 / 289", danach „Vergleich: Frame 99 / 315") |
+| Oberfläche währenddessen | ansprechbar, `uiautomator` liefert durchgehend Antworten |
+| **ANR** | **keine** |
+| **Absturz** | **keiner**, `crash`-Puffer leer |
+
+Danach sauberer Übergang in den Anker-Schritt mit verständlicher Anleitung („Tippe in beiden
+Videos DIESELBEN 4+ markanten Wandpunkte …").
+
+Damit ist der heute vorgesehene Umfang erfüllt — der Plan sah T14.1 ausdrücklich „bis zur
+Analyse, ohne Bewertung der Qualität" vor. **Nicht geprüft:** Anker setzen, Pfad bestätigen,
+Ansichten umschalten, Analyse speichern/laden/löschen.
+
 ## Weiterhin nicht geprüft
 
-* **T11.1–11.5 Widget** — nicht angefasst.
+* **T11.1–11.5 Widget** — **nicht automatisierbar.** Der Pixel Launcher nimmt für Widget-Drags
+  keine injizierten Touch-Events an (zwei Versuche, auch mit `input motionevent` als
+  zusammenhängender Geste in einem einzigen Shell-Aufruf). Das Widget muss einmal von Hand auf
+  den Homescreen gezogen werden; danach sind T11.2–11.5 per adb prüfbar. Kein Befund an der App.
 * **T12 Näherungs-Push** — nicht angefasst; braucht die Berechtigungskette und 2–8 min je Durchgang.
-* **T14.1 Ghost Climber** — nicht angefasst (Videos dafür liegen in `Downloads`).
 * **T13 Funk-Abgleich** — zweites Gerät fehlt.
 * **T10.7 Erkennung** — über adb kein Mikrofonsignal einspielbar.
+* **T14.1 ab dem Anker-Schritt** — siehe oben.
