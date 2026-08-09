@@ -161,22 +161,43 @@ Icons ist `null` richtig — bei allem, was allein steht oder eine Aktion trägt
 
 ### D3 · Ghost Climber
 
-Aus der Stabilisierungsrunde offen, nach Hebelwirkung sortiert:
+**Alle drei am 09.08. abgearbeitet.** Zwei davon enden ohne Codeänderung — das Ergebnis ist die
+Messung, nicht der Umbau:
 
-1. **`worldLandmarks()` auswerten** — größter Hebel. Der Rest-Morph sitzt in den Armen
-   (0,50–0,63 % gegen 0,33–0,37 % bei den Beinen), überkopf und verdeckt, in 2D nicht von echter
-   Verkürzung zu trennen. Kosten: Datenmodell + Cache-Key.
-2. **One-Euro feintunen** (`ONE_EURO_MIN_CUTOFF_HZ` 1.5, `ONE_EURO_BETA` 0.015) — **gegen die
-   Unruhe-Kennzahl messen, nicht nach Gefühl.** Eine trägere Einstellung (0.5/0.03) wurde früher
-   schon als unnatürlich verworfen.
-3. **`geometry` importiert `pose`** (`transformedBy` ruft `enforceRigidSkeleton`) — azyklisch,
-   aber die falsche Richtung; in den Aufrufer hochziehen.
+1. ~~**`worldLandmarks()` auswerten**~~ — **gemessen und verworfen.** Die Idee: aus der dritten
+   Achse folgt je Knochen und Frame, wie stark er verkürzt erscheinen *soll*
+   (`cos = |(dx,dy)| / |(dx,dy,dz)|`), womit sich echte Verkürzung von Fehlerkennung trennen
+   ließe. Die Gegenprobe auf beiden Spuren sagt das Gegenteil: der tiefenkorrigierte Morph ist
+   in 9 von 12 Knochen **schlechter**, und ausgerechnet die Unterarme — der ganze Anlass —
+   verlieren am meisten (2,39 → 3,83 % und 2,08 → 3,10 % auf der Referenz; 4,25 → 4,70 % und
+   2,93 → 4,48 % auf dem Vergleich). Erklärung: Bild- und Weltkoordinaten kommen aus
+   verschiedenen Köpfen desselben Netzes und sind nicht frame-genau konsistent; die Division
+   trägt deren Rauschen ins Ergebnis. Kosten wären +73 % je gecachter Spur gewesen
+   (1,5 → 2,7 MB). Wer es erneut versuchen will, braucht wieder das Feld an `GhostPoseFrame`,
+   den Cache-Key und die Diagnose — der Commit dazu steht im Verlauf von `GhostHintergrund`.
+2. ~~**One-Euro feintunen**~~ — **gemessen, bleibt wie es ist.** `OneEuroSweepTest` fährt 15
+   Einstellungen über zwei echte Roh-Spuren. Wichtiger als das Ergebnis ist, warum die
+   ursprüngliche Anweisung („gegen die Unruhe-Kennzahl messen") so nicht ausreicht: Unruhe,
+   Morph und Puls sinken alle monoton mit der Trägheit, die Bestenliste krönt also das
+   Skelett, das der Bewegung am wenigsten folgt — die einmal als „unnatürlich träge"
+   verworfene Einstellung 0.5/0.03 schlägt die heutige in allen fünf Kennzahlen. Erst mit
+   einer Gegengröße (**Nachlauf** in ms, gegen die Roh-Spur entlang der Bewegungsrichtung)
+   wird daraus eine Abwägung. Auf einer Spur wird 1.5/0.015 von 1.0/0.03 in beiden Größen
+   geschlagen, aber nur um 2–3 %; auf der anderen liegt 1.5/0.015 selbst auf der Front.
+3. ~~**`geometry` importiert `pose`**~~ — behoben, aber andersherum als hier geplant: statt die
+   Rekonstruktion in die Aufrufer zu ziehen, ist `transformedBy` nach `ghost/pose/` gewandert.
+   Ein Aufrufer, der sie einmal vergisst, bekäme keinen Fehler, sondern einen still verzogenen
+   Geist.
 
-Zum Messen: frische Analyse nötig (Cache-Key `mp-heavy-20`), Debug-Chip an, Spur vom Gerät
-ziehen und offline auswerten:
+Zum Nachmessen — beides läuft offline auf einer gezogenen Spur, ohne Sieben-Minuten-Lauf je
+Versuch (die Roh-Spur steckt in `GhostPoseTrack.rawFrames`):
 
 ```bash
 adb exec-out run-as com.boulderbuddy cat files/ghost/pose_<hash>.json > spur.json
+```
+
+```bash
+./gradlew :app:testDebugUnitTest --tests "*OneEuroSweepTest" -Dghost.spur=C:/pfad/spur.json --info
 ```
 
 Referenz der letzten Messung: `Puls 1,4× · Unruhe 0,40 % · Morph 0,41 % · Verkürzung 19,5 % ·

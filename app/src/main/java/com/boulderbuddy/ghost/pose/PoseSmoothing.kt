@@ -61,11 +61,21 @@ internal class OneEuroFilter(
  * Fehlt ein Landmark länger als [GhostTuning.FILTER_RESET_GAP_FRAMES] Frames,
  * startet sein Filter neu, statt vom veralteten Zustand "nachgezogen" zu werden
  * (sichtbares Hinterherschleifen nach Verdeckungen).
+ *
+ * [minCutoffHz] und [beta] stehen als Parameter da, obwohl in der App immer die Werte aus
+ * [GhostTuning] gelten: eine Filtereinstellung ist nur so gut wie die Kennzahl, an der man
+ * sie misst, und dafür muss dieselbe Spur mit verschiedenen Werten durchlaufen können.
+ * Am Gerät wäre jeder Versuch ein Sieben-Minuten-Lauf; auf der Roh-Spur sind es
+ * Millisekunden (siehe `OneEuroSweepTest`).
  */
-fun smoothPoseFrames(frames: List<GhostPoseFrame>): List<GhostPoseFrame> {
+fun smoothPoseFrames(
+    frames: List<GhostPoseFrame>,
+    minCutoffHz: Double = GhostTuning.ONE_EURO_MIN_CUTOFF_HZ,
+    beta: Double = GhostTuning.ONE_EURO_BETA,
+): List<GhostPoseFrame> {
     class LandmarkState {
-        val x = OneEuroFilter()
-        val y = OneEuroFilter()
+        val x = OneEuroFilter(minCutoffHz = minCutoffHz, beta = beta)
+        val y = OneEuroFilter(minCutoffHz = minCutoffHz, beta = beta)
         var lastFrameIndex = -1
     }
 

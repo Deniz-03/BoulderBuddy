@@ -54,6 +54,14 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Reicht `-Dghost.spur=<datei>` an die Test-JVM durch. Ohne das landet die Eigenschaft nur
+// im Gradle-Daemon, und die Diagnose-Tests der Ghost-Pipeline (Tiefendiagnose,
+// One-Euro-Sweep) überspringen sich still — sie brauchen eine echte Spur vom Gerät, die
+// nicht im Repository liegt.
+tasks.withType<Test>().configureEach {
+    System.getProperty("ghost.spur")?.let { systemProperty("ghost.spur", it) }
+}
+
 dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.material.icons.core)
