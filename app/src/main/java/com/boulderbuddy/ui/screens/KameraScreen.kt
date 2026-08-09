@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,6 +55,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.boulderbuddy.R
 import com.boulderbuddy.data.camera.CameraCaptureController
 import com.boulderbuddy.data.camera.CaptureAuftrag
 import com.boulderbuddy.data.camera.CaptureFehler
@@ -222,7 +224,7 @@ fun KameraScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Abbrechen",
+                    contentDescription = stringResource(R.string.aktion_abbrechen),
                     tint = Color.White,
                 )
             }
@@ -279,7 +281,7 @@ fun KameraScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Cameraswitch,
-                        contentDescription = "Kamera wechseln",
+                        contentDescription = stringResource(R.string.kamera_wechseln),
                         tint = Color.White,
                     )
                 }
@@ -327,13 +329,13 @@ private fun ModusUmschalter(
         horizontalArrangement = Arrangement.spacedBy(Dimens.paddingXS),
     ) {
         ModusKnopf(
-            text = "Foto",
+            text = stringResource(R.string.kamera_foto),
             aktiv = modus == CaptureModus.FOTO,
             enabled = enabled,
             onClick = { onWechsel(CaptureModus.FOTO) },
         )
         ModusKnopf(
-            text = "Video",
+            text = stringResource(R.string.kamera_video),
             aktiv = modus == CaptureModus.VIDEO,
             enabled = enabled,
             onClick = { onWechsel(CaptureModus.VIDEO) },
@@ -378,9 +380,9 @@ private fun Ausloeser(
     onClick: () -> Unit,
 ) {
     val beschriftung = when {
-        nimmtAuf -> "Aufnahme beenden"
-        modus == CaptureModus.VIDEO -> "Aufnahme starten"
-        else -> "Foto aufnehmen"
+        nimmtAuf -> stringResource(R.string.kamera_aufnahme_beenden)
+        modus == CaptureModus.VIDEO -> stringResource(R.string.kamera_aufnahme_starten)
+        else -> stringResource(R.string.kamera_foto_aufnehmen)
     }
     Box(
         modifier = Modifier
@@ -436,35 +438,30 @@ private fun KameraFreigabeFehlt(
         IconButton(onClick = onBack, modifier = Modifier.padding(Dimens.paddingS)) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Zurück",
+                contentDescription = stringResource(R.string.aktion_zurueck),
                 tint = BoulderBuddy.colors.textSecondary,
             )
         }
         EmptyState(
             modifier = Modifier.align(Alignment.Center),
             icon = Icons.Outlined.PhotoCamera,
-            title = "Kamera-Freigabe nötig",
+            title = stringResource(R.string.kamera_freigabe_titel),
             description = when {
                 abgelehnt && darfNochFragen ->
-                    "Die Freigabe wurde abgelehnt. Du kannst sie gleich hier noch einmal " +
-                        "erteilen — oder zurückgehen und ein vorhandenes Bild aus der Galerie " +
-                        "wählen."
+                    stringResource(R.string.kamera_freigabe_abgelehnt_nochmal)
 
                 abgelehnt ->
-                    "Die Freigabe wurde abgelehnt. Sie lässt sich nur noch in den " +
-                        "System-Einstellungen der App nachtragen — oder du gehst zurück und " +
-                        "wählst ein vorhandenes Bild aus der Galerie."
+                    stringResource(R.string.kamera_freigabe_abgelehnt_endgueltig)
 
                 else ->
-                    "Zum Aufnehmen braucht die App Zugriff auf die Kamera. Die Aufnahmen " +
-                        "bleiben in der App und werden nirgendwo hochgeladen."
+                    stringResource(R.string.kamera_freigabe_erklaerung)
             },
             // Der Knopf verschwindet nur, wenn Android wirklich nicht mehr fragt. Ein Knopf,
             // der einen Dialog verspricht, der nicht mehr kommt, wäre schlimmer als keiner.
             actionText = when {
-                abgelehnt && darfNochFragen -> "Erneut fragen"
+                abgelehnt && darfNochFragen -> stringResource(R.string.kamera_erneut_fragen)
                 abgelehnt -> null
-                else -> "Freigeben"
+                else -> stringResource(R.string.kamera_freigeben)
             },
             onAction = if (abgelehnt && !darfNochFragen) null else onAnfragen,
         )

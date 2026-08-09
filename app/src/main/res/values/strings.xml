@@ -455,4 +455,46 @@
         <item quantity="one">%d Session</item>
         <item quantity="other">%d Sessions</item>
     </plurals>
+
+    <!-- Statistik -->
+    <string name="statistik_titel">Statistik</string>
+    <string name="statistik_flash_rate">Flash Rate</string>
+    <string name="statistik_tops_gesamt">Tops gesamt</string>
+    <string name="statistik_leer_titel">Noch keine Auswertung</string>
+    <string name="statistik_leer_text">Sobald du deine erste Session geloggt hast, entstehen hier Flash-Rate, Grad-Verteilung und Aktivität.</string>
+    <!-- Beispiel: „Routen pro Woche" — der Zeitraum kommt aus dem gewaehlten Umschalter. -->
+    <string name="statistik_routen_pro">Routen pro %1$s</string>
+    <string name="statistik_routen_hinweis">Unkumuliert — jeder Balken zählt nur diesen Abschnitt.</string>
+    <string name="statistik_routen_leer">Noch keine Routen erfasst.</string>
+    <string name="statistik_grad_verlauf">Grad-Verlauf</string>
+    <string name="statistik_grad_hinweis">Höchster getoppter Grad je %1$s.</string>
+    <string name="statistik_keine_tops">Noch keine getoppten Boulder.</string>
+    <string name="statistik_grad_verteilung">Grade-Verteilung</string>
+    <string name="statistik_alle_workouts">Alle Workouts ›</string>
+    <string name="statistik_durchlaeufe">Durchläufe</string>
+    <string name="statistik_haengezeit">Hängezeit</string>
+    <string name="statistik_aktivitaet">Aktivität</string>
+    <string name="statistik_weniger">Weniger</string>
+    <string name="statistik_mehr">Mehr</string>
+
+    <!-- Home -->
+    <string name="home_sessions_pro_woche">Sessions / Woche</string>
+    <string name="home_schnellaktionen">Schnellaktionen</string>
+    <string name="home_alle_boulder">Alle Boulder</string>
+    <string name="home_letzte_session">Letzte Session</string>
+
+    <!-- Kamera. Die Beschriftungen der Ausloeser sagen, was passiert, nicht wie der Knopf
+         aussieht - er ist ein Kreis ohne Text und braucht sie fuer TalkBack. -->
+    <string name="kamera_foto">Foto</string>
+    <string name="kamera_video">Video</string>
+    <string name="kamera_wechseln">Kamera wechseln</string>
+    <string name="kamera_aufnahme_beenden">Aufnahme beenden</string>
+    <string name="kamera_aufnahme_starten">Aufnahme starten</string>
+    <string name="kamera_foto_aufnehmen">Foto aufnehmen</string>
+    <string name="kamera_freigabe_titel">Kamera-Freigabe nötig</string>
+    <string name="kamera_freigabe_abgelehnt_nochmal">Die Freigabe wurde abgelehnt. Du kannst sie gleich hier noch einmal erteilen — oder zurückgehen und ein vorhandenes Bild aus der Galerie wählen.</string>
+    <string name="kamera_freigabe_abgelehnt_endgueltig">Die Freigabe wurde abgelehnt. Sie lässt sich nur noch in den System-Einstellungen der App nachtragen — oder du gehst zurück und wählst ein vorhandenes Bild aus der Galerie.</string>
+    <string name="kamera_freigabe_erklaerung">Zum Aufnehmen braucht die App Zugriff auf die Kamera. Die Aufnahmen bleiben in der App und werden nirgendwo hochgeladen.</string>
+    <string name="kamera_erneut_fragen">Erneut fragen</string>
+    <string name="kamera_freigeben">Freigeben</string>
 </resources>
