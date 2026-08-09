@@ -20,12 +20,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.boulderbuddy.R
 import com.boulderbuddy.data.speech.SpeechFailure
 import com.boulderbuddy.data.speech.SpeechInputState
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -108,7 +110,9 @@ fun SpeechInputDialog(
 
                 // Wiederholbarer Fehler: der zweite Versuch ist die naheliegende Aktion.
                 fehler != null && fehler.retryable ->
-                    TextButton(onClick = onWiederholen) { Text("Nochmal") }
+                    TextButton(onClick = onWiederholen) {
+                        Text(stringResource(R.string.sprache_nochmal))
+                    }
 
                 // Endgültiger Fehler ohne gerettetes Halbergebnis. Hier stand ein
                 // ausgegrautes „Übernehmen" neben „Abbrechen" — zwei Schaltflächen, von denen
@@ -120,7 +124,7 @@ fun SpeechInputDialog(
                 else -> TextButton(
                     onClick = { onUebernehmen(teiltext) },
                     enabled = teiltext.isNotBlank(),
-                ) { Text("Übernehmen") }
+                ) { Text(stringResource(R.string.sprache_uebernehmen)) }
             }
         },
         dismissButton = {
@@ -128,7 +132,11 @@ fun SpeechInputDialog(
             // mehr, und „Abbrechen" würde eine laufende Aufnahme suggerieren.
             val abbrechbar = fehler == null && state !is SpeechInputState.Fertig
             TextButton(onClick = onAbbrechen) {
-                Text(if (abbrechbar) "Abbrechen" else "Schließen")
+                Text(
+                    stringResource(
+                        if (abbrechbar) R.string.aktion_abbrechen else R.string.aktion_schliessen,
+                    ),
+                )
             }
         },
     )
@@ -179,11 +187,15 @@ private fun MikrofonIndikator(state: SpeechInputState) {
     }
 }
 
+@Composable
 private fun statusText(state: SpeechInputState): String = when (state) {
-    SpeechInputState.Idle, SpeechInputState.Vorbereiten -> "Mikrofon wird vorbereitet…"
-    is SpeechInputState.Hoert ->
-        if (state.teiltext.isEmpty()) "Sprich jetzt." else "Ich höre zu…"
-    is SpeechInputState.Fertig -> "Fertig. Übernehmen?"
+    SpeechInputState.Idle, SpeechInputState.Vorbereiten ->
+        stringResource(R.string.sprache_vorbereiten)
+    is SpeechInputState.Hoert -> stringResource(
+        if (state.teiltext.isEmpty()) R.string.sprache_sprich_jetzt
+        else R.string.sprache_hoert_zu,
+    )
+    is SpeechInputState.Fertig -> stringResource(R.string.sprache_fertig)
     is SpeechInputState.Fehler -> state.grund.message
 }
 

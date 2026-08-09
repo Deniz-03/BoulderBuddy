@@ -497,4 +497,65 @@
     <string name="kamera_freigabe_erklaerung">Zum Aufnehmen braucht die App Zugriff auf die Kamera. Die Aufnahmen bleiben in der App und werden nirgendwo hochgeladen.</string>
     <string name="kamera_erneut_fragen">Erneut fragen</string>
     <string name="kamera_freigeben">Freigeben</string>
+
+    <!-- Medienquelle: eigene Aufnahme oder Galerie. Der Ghost Climber kann nur Video,
+         deshalb jeweils zwei Formulierungen. -->
+    <string name="medien_titel">Foto oder Video</string>
+    <string name="medien_titel_video">Video</string>
+    <string name="medien_aufnehmen">Aufnehmen</string>
+    <string name="medien_video_aufnehmen">Video aufnehmen</string>
+    <string name="medien_aufnehmen_erklaerung">Öffnet die Kamera in der App. Die Aufnahme bleibt in der App.</string>
+    <string name="medien_galerie">Aus der Galerie</string>
+    <string name="medien_galerie_erklaerung">Ein vorhandenes Bild oder Video auswählen.</string>
+    <string name="medien_galerie_erklaerung_video">Ein vorhandenes Video auswählen.</string>
+    <string name="medien_standard_label">Foto/Video aufnehmen</string>
+    <string name="medien_video_gewaehlt">Video ausgewählt</string>
+    <string name="medien_foto_gewaehlt">Gewähltes Foto</string>
+
+    <!-- Spracheingabe der Notiz -->
+    <string name="sprache_einsprechen">Notiz einsprechen</string>
+    <string name="sprache_nochmal">Nochmal</string>
+    <string name="sprache_modell_laden">Modell laden</string>
+    <string name="sprache_uebernehmen">Übernehmen</string>
+    <string name="sprache_vorbereiten">Mikrofon wird vorbereitet…</string>
+    <string name="sprache_sprich_jetzt">Sprich jetzt.</string>
+    <string name="sprache_hoert_zu">Ich höre zu…</string>
+    <string name="sprache_fertig">Fertig. Übernehmen?</string>
+
+    <!-- Kleinteile, die in mehreren Bildschirmen stecken. -->
+    <string name="karte_boulder_hinzufuegen">Route hinzufügen</string>
+    <string name="karte_boulder">Boulder</string>
+    <string name="session_aktiv_abzeichen">● Aktiv</string>
+    <string name="timer_zuruecksetzen">Zurücksetzen</string>
+    <string name="timer_einstellungen">Timer-Einstellungen</string>
+
+    <!-- Ghost: die zwei Editoren (Anker und Routenpfad) -->
+    <string name="ghost_standbild_anker">Standbild zum Anker-Setzen</string>
+    <string name="ghost_standbild_pfad">Standbild mit Routenpfad</string>
+    <string name="ghost_anker_zaehler">%1$d / %2$d+ Anker</string>
+    <plurals name="ghost_stuetzpunkte">
+        <item quantity="one">%d Stützpunkt</item>
+        <item quantity="other">%d Stützpunkte</item>
+    </plurals>
+    <string name="ghost_letzten_entfernen">Letzten entfernen</string>
+    <string name="ghost_vorschlag_knopf">Vorschlag</string>
+
+    <!-- Die zwei Leerseiten der Zweispalten-Ansicht am Tablet. -->
+    <string name="listdetail_kein_boulder">Kein Boulder gewählt</string>
+    <string name="listdetail_kein_boulder_text">Tippe links auf einen Boulder, um Grad, Versuche, Notiz und Foto zu sehen.</string>
+    <string name="listdetail_keine_session">Keine Session gewählt</string>
+    <string name="listdetail_keine_session_text">Tippe links auf eine Session, um ihre Boulder, ihr Hangboard-Training und ihre Zahlen zu sehen.</string>
+
+    <!-- Naeherungs-Push -->
+    <string name="push_text">Bist du da? Session starten.</string>
+    <string name="push_kanal_beschreibung">Erinnert dich, eine Session zu starten, wenn du an einer Halle ankommst.</string>
+
+    <!-- Widget -->
+    <string name="widget_titel">BoulderBuddy</string>
+    <string name="widget_aktualisieren">↻</string>
+    <string name="widget_laeuft">läuft gerade · %1$d Boulder · %2$d Tops</string>
+    <string name="widget_keine_session">Keine aktive Session</string>
+    <string name="widget_tops_insgesamt">%1$d Tops insgesamt</string>
+    <string name="widget_session_oeffnen">Session öffnen</string>
+    <string name="widget_timer">Timer</string>
 </resources>

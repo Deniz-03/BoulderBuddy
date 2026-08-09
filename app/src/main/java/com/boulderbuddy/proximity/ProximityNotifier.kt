@@ -69,7 +69,7 @@ class ProximityNotifier @Inject constructor(
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_gym)
             .setContentTitle(gymName)
-            .setContentText("Bist du da? Session starten.")
+            .setContentText(context.getString(R.string.push_text))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -84,10 +84,10 @@ class ProximityNotifier @Inject constructor(
     private fun ensureChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Gym-Erinnerungen",
+            context.getString(R.string.einstellungen_gym_erinnerungen),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "Erinnert dich, eine Session zu starten, wenn du an einer Halle ankommst."
+            description = context.getString(R.string.push_kanal_beschreibung)
         }
         context.getSystemService(NotificationManager::class.java)
             .createNotificationChannel(channel)

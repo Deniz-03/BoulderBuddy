@@ -16,6 +16,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import com.boulderbuddy.R
 import com.boulderbuddy.ghost.model.GhostPoint
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.Dimens
@@ -75,7 +78,7 @@ fun GhostPathEditor(
             ) {
                 Image(
                     bitmap = frame,
-                    contentDescription = "Standbild mit Routenpfad",
+                    contentDescription = stringResource(R.string.ghost_standbild_pfad),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -142,7 +145,11 @@ fun GhostPathEditor(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "${path.size} Stützpunkte",
+                text = pluralStringResource(
+                    R.plurals.ghost_stuetzpunkte,
+                    path.size,
+                    path.size,
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = BoulderBuddy.colors.textSecondary,
                 modifier = Modifier.weight(1f),
@@ -150,8 +157,10 @@ fun GhostPathEditor(
             TextButton(
                 onClick = onRemoveLastPoint,
                 enabled = path.isNotEmpty(),
-            ) { Text("Letzten entfernen") }
-            TextButton(onClick = onResetToSuggestion) { Text("Vorschlag") }
+            ) { Text(stringResource(R.string.ghost_letzten_entfernen)) }
+            TextButton(onClick = onResetToSuggestion) {
+                Text(stringResource(R.string.ghost_vorschlag_knopf))
+            }
         }
     }
 }

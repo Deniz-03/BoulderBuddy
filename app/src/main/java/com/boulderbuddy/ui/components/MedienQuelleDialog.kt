@@ -16,10 +16,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -42,30 +44,38 @@ fun MedienQuelleDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (nurVideo) "Video" else "Foto oder Video") },
+        title = {
+            Text(
+                stringResource(
+                    if (nurVideo) R.string.medien_titel_video else R.string.medien_titel,
+                ),
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                 QuellenZeile(
                     icon = Icons.Outlined.PhotoCamera,
-                    titel = if (nurVideo) "Video aufnehmen" else "Aufnehmen",
-                    erklaerung = "Öffnet die Kamera in der App. Die Aufnahme bleibt in der App.",
+                    titel = stringResource(
+                        if (nurVideo) R.string.medien_video_aufnehmen
+                        else R.string.medien_aufnehmen,
+                    ),
+                    erklaerung = stringResource(R.string.medien_aufnehmen_erklaerung),
                     onClick = onAufnehmen,
                 )
                 QuellenZeile(
                     icon = Icons.Outlined.PhotoLibrary,
-                    titel = "Aus der Galerie",
-                    erklaerung = if (nurVideo) {
-                        "Ein vorhandenes Video auswählen."
-                    } else {
-                        "Ein vorhandenes Bild oder Video auswählen."
-                    },
+                    titel = stringResource(R.string.medien_galerie),
+                    erklaerung = stringResource(
+                        if (nurVideo) R.string.medien_galerie_erklaerung_video
+                        else R.string.medien_galerie_erklaerung,
+                    ),
                     onClick = onGalerie,
                 )
             }
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
         },
     )
 }
