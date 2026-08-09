@@ -1,7 +1,6 @@
 package com.boulderbuddy.ui.screens
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.annotation.PluralsRes
 import androidx.activity.result.contract.ActivityResultContracts
@@ -33,7 +32,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -84,11 +82,8 @@ fun AbgleichScreen(
     onBehalteEigenen: () -> Unit = {},
     onAbbrechen: () -> Unit = {},
     onRueckgaengig: () -> Unit = {},
-    onMeldungGesehen: () -> Unit = {},
     onBack: () -> Unit = {},
 ) {
-    val context = LocalContext.current
-
     // SAF: eine SQLite-Datei anlegen bzw. auswählen. `application/octet-stream`, weil kein
     // Standard-MIME-Typ für SQLite existiert und Dateimanager sonst filtern.
     val abgeben = rememberLauncherForActivityResult(
@@ -130,13 +125,6 @@ fun AbgleichScreen(
                 }
             },
         )
-    }
-
-    LaunchedEffect(state.meldung) {
-        state.meldung?.let {
-            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
-            onMeldungGesehen()
-        }
     }
 
     BoulderBuddyScaffold(
@@ -205,6 +193,27 @@ fun AbgleichScreen(
                 if (funkStand is Sitzungsstand.Abgebrochen) {
                     Text(
                         text = funkStand.grund,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BoulderBuddy.colors.textSecondary,
+                    )
+                }
+
+                /*
+                 * Rückmeldung des Datei-Wegs — im Bildschirm, nicht als Toast.
+                 *
+                 * Vorher stand sie in einem Toast, und der schneidet auf Android 12+ nach
+                 * zwei Zeilen ab. Am Gerät gemessen: von „Diese Datei ist kein
+                 * BoulderBuddy-Stand. Nimm die Datei, die das andere Gerät über ‚Stand
+                 * abgeben‘ erzeugt hat." kam „…Nimm die Dat…" an. Das betraf **jede** Absage
+                 * dieses Bildschirms: die Schema-Meldungen sind noch länger, und gerade sie
+                 * müssen sagen, WELCHES Gerät zu aktualisieren ist.
+                 *
+                 * Die Meldung bleibt stehen, bis die nächste Aktion beginnt — `starte()`
+                 * räumt sie auf. Genau daneben stehen die beiden Knöpfe, um die es geht.
+                 */
+                state.meldung?.let { meldung ->
+                    Text(
+                        text = meldung,
                         style = MaterialTheme.typography.bodyMedium,
                         color = BoulderBuddy.colors.textSecondary,
                     )

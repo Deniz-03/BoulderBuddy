@@ -14,6 +14,23 @@ import javax.inject.Singleton
 class CheckpointFehlgeschlagen(nachricht: String) : IllegalStateException(nachricht)
 
 /**
+ * Löscht eine Datenbankdatei **mit ihren beiden Begleitern**.
+ *
+ * `File.delete()` auf der `.db` allein lässt `-wal` und `-shm` liegen, und das ist keine
+ * Unordnung, sondern ein Datenfehler mit Anlauf: die nächste Datei gleichen Namens erbt den
+ * fremden WAL, und SQLite spielt ihn beim Öffnen über sie — den alten Stand über den neuen.
+ *
+ * Am Gerät gefunden (09.08.2026): nach einem „Rückgängig" blieben `vorher.db-wal` und
+ * `vorher.db-shm` zurück, während `vorher.db` weg war. Beim übernächsten Abgleich hätte das
+ * Zurücknehmen den falschen Stand hergestellt — sichtbar erst zwei Schritte später.
+ */
+internal fun loescheMitBegleitern(datei: File) {
+    datei.delete()
+    File(datei.path + "-wal").delete()
+    File(datei.path + "-shm").delete()
+}
+
+/**
  * Die Dateien rund um den Abgleich: der Stand selbst, das Gedächtnis (`basis.db`) und der
  * Rückweg (`vorher.db`) — Sync-Plan E4, E13, Ablauf 30/34.
  *
@@ -68,9 +85,15 @@ class AbgleichDateien @Inject constructor(
     suspend fun kopiereStand(nach: File): File = withContext(Dispatchers.IO) {
         checkpoint()
         nach.parentFile?.mkdirs()
+        // Erst räumen, dann kopieren: liegt am Ziel noch ein WAL von einer früheren Kopie,
+        // spielt SQLite ihn beim nächsten Öffnen über die frische Datei.
+        loescheMitBegleitern(nach)
         standDatei.copyTo(nach, overwrite = true)
         nach
     }
+
+    /** Löscht den Rückweg samt `-wal`/`-shm` — nach dem Zurücknehmen ist er verbraucht. */
+    fun verwirfVorher() = loescheMitBegleitern(vorherDatei)
 
     /** Das Gedächtnis nach einem erfolgreichen Abgleich — **erst anwenden, dann das hier**. */
     suspend fun merkeAlsBasis() {
@@ -128,7 +151,7 @@ class AbgleichDateien @Inject constructor(
      * zusammengehörten.
      */
     fun verwirfKopplung() {
-        basisDatei.delete()
-        vorherDatei.delete()
+        loescheMitBegleitern(basisDatei)
+        loescheMitBegleitern(vorherDatei)
     }
 }

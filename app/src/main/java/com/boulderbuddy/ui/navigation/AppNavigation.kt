@@ -335,7 +335,6 @@ fun AppNavigation(
                     onBehalteEigenen = viewModel::behalteEigenenStand,
                     onAbbrechen = viewModel::brichAb,
                     onRueckgaengig = viewModel::machRueckgaengig,
-                    onMeldungGesehen = viewModel::meldungGesehen,
                     onBack = { navController.popBackStack() },
                 )
             }

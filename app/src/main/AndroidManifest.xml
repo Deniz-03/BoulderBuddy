@@ -44,7 +44,32 @@
         android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!--
+      `neverForLocation` auch hier, aus demselben Grund wie unten bei NEARBY_WIFI_DEVICES:
+      ohne das Flag behandelt Android einen Bluetooth-Scan als möglichen Ortungsvorgang und
+      verlangt zusätzlich die Standortfreigabe. Am Gerät gemessen (09.08.2026): die Suche
+      scheiterte mit „8034: MISSING_PERMISSION_ACCESS_COARSE_LOCATION", obwohl auf Android 13+
+      gar kein Standort mehr angefragt wird. Die Zusicherung stimmt inhaltlich — der Abgleich
+      leitet aus den gefundenen Geräten nichts über den Aufenthaltsort ab.
+    -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+
+    <!--
+      Die beiden WLAN-Rechte verlangt Nearby Connections auf JEDER Version und für JEDE
+      Strategie — es baut die eigentliche Verbindung über WLAN Direct auf, Bluetooth dient
+      nur dem Finden. Beide sind Installationsrechte: kein Systemdialog, kein Eintrag in
+      NearbyBerechtigungen.kt, und genau deshalb fehlten sie so lange unbemerkt.
+
+      Am Gerät gefunden (09.08.2026): ohne ACCESS_WIFI_STATE scheitert schon das Sichtbarmachen
+      mit „8032: MISSING_PERMISSION_ACCESS_WIFI_STATE". Der Funkweg hätte also auch mit einem
+      zweiten Gerät nie funktioniert — der Fehler ist ohne zweites Gerät zu sehen, weil er vor
+      jedem Handschlag auftritt.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
     <!--
       Ab Android 13 ersetzt NEARBY_WIFI_DEVICES den Standort. `neverForLocation` ist die

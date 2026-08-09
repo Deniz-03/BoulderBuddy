@@ -27,6 +27,16 @@ sealed interface Schemapruefung {
 
     /** Dieses Gerät ist neuer — die **Gegenseite** muss aktualisiert werden. */
     data object GegenseiteAktualisieren : Schemapruefung
+
+    /**
+     * Die Datei ist zwar eine SQLite-Datenbank, aber keine von dieser App.
+     *
+     * Erkennbar an `user_version = 0`: Room setzt die Schema-Version beim Anlegen und hat
+     * diese Datei also nie in der Hand gehabt. Ohne diesen Fall liefe eine fremde Datenbank
+     * in „ältere Version" und der Nutzer bekäme den Rat, das andere Gerät zu aktualisieren —
+     * für eine Datei, die mit BoulderBuddy nichts zu tun hat.
+     */
+    data object KeineBoulderBuddyDatei : Schemapruefung
 }
 
 /**
@@ -38,6 +48,7 @@ sealed interface Schemapruefung {
  * weniger versteht als die andere, ist kein Abgleich.
  */
 fun darfIchLesen(meinSchema: Int, fremdesSchema: Int): Schemapruefung = when {
+    fremdesSchema <= 0 -> Schemapruefung.KeineBoulderBuddyDatei
     fremdesSchema > meinSchema -> Schemapruefung.DiesesGeraetAktualisieren
     fremdesSchema < meinSchema -> Schemapruefung.GegenseiteAktualisieren
     else -> Schemapruefung.Passt

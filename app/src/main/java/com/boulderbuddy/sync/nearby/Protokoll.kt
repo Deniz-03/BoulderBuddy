@@ -165,6 +165,11 @@ fun pruefeHandschlag(meine: Nachricht.Hallo, fremde: Nachricht.Hallo): Handschla
         Schemapruefung.GegenseiteAktualisieren -> return Handschlag.Abbruch(
             "Das andere Gerät hat eine ältere App-Version. Aktualisiere zuerst das andere Gerät.",
         )
+        // Über Funk kann das nicht von einer falsch gewählten Datei kommen — die Gegenseite
+        // ist die App selbst. Eine 0 heißt hier: dort stimmt etwas grundlegend nicht.
+        Schemapruefung.KeineBoulderBuddyDatei -> return Handschlag.Abbruch(
+            "Das andere Gerät meldet keine gültige Datenbank-Version.",
+        )
         Schemapruefung.Passt -> Unit
     }
 

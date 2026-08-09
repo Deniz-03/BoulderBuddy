@@ -222,10 +222,6 @@ class AbgleichViewModel @Inject constructor(
         }
     }
 
-    fun meldungGesehen() {
-        _uiState.update { it.copy(meldung = null) }
-    }
-
     private suspend fun fuehreZusammen(
         vorschlag: Abgleichvorschlag.Zusammenfuehren,
         wahl: Seite,
