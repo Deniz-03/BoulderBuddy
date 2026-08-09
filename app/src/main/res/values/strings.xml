@@ -98,4 +98,124 @@
     <string name="einstellungen_grading_grad_hinzufuegen">+ Grad hinzufügen</string>
     <!-- Beispiel: „V-Scale · 11 Grade" -->
     <string name="einstellungen_grading_chip">%1$s · %2$s</string>
+
+    <!--
+      Geraete-Abgleich. Die Sprache kommt hier ohne Fachbegriffe aus (Sync-Plan, Ablauf 6):
+      kein "Merge", kein "Konflikt", keine "Generation".
+
+      Auffaellig viele plurals: der Abgleich zaehlt staendig Eintraege, und "1 Eintraege
+      uebernommen" ist genau die Sorte Schludrigkeit, die man einer App ansieht.
+    -->
+    <string name="abgleich_hinweis">Phone und Tablet auf denselben Stand bringen. Beides bleibt erhalten — was auf einem Gerät dazugekommen ist, kommt aufs andere.</string>
+    <string name="abgleich_moment">Einen Moment …</string>
+    <string name="abgleich_verbinden">Mit dem anderen Gerät verbinden</string>
+    <string name="abgleich_verbinden_hinweis">Beide Geräte müssen dafür diesen Bildschirm offen haben und nah beieinander liegen.</string>
+    <string name="abgleich_datei_ueberschrift">Ohne Funk, über eine Datei</string>
+    <string name="abgleich_datei_hinweis">Für den Notfall und für Sicherungen. Hier braucht es zwei Durchgänge: abgeben, drüben einlesen, dann in die andere Richtung.</string>
+    <string name="abgleich_abgeben">Stand abgeben</string>
+    <string name="abgleich_einlesen">Stand einlesen</string>
+    <string name="abgleich_rueckgaengig_ueberschrift">Falls etwas schiefging</string>
+    <string name="abgleich_rueckgaengig">Letzten Abgleich rückgängig machen</string>
+    <!-- Genau das, was die Funktion kann - nicht mehr (E13). -->
+    <string name="abgleich_rueckgaengig_hinweis">Nimmt zurück, was der Abgleich auf diesem Gerät geändert hat.</string>
+    <string name="abgleich_neustart">Der Stand ist übernommen. Bitte schließe die App einmal vollständig und öffne sie neu.</string>
+
+    <!-- Abgleich: die Berechtigungs-Begruendung vor dem Systemdialog. -->
+    <string name="abgleich_rechte_titel">Das andere Gerät finden</string>
+    <string name="abgleich_rechte_weiter">Weiter</string>
+
+    <!-- Abgleich: die vierstellige Zahl. Der einzige Schutz davor, den eigenen Stand einem
+         fremden Tablet zu geben - Nearby prueft die Zahl nicht, der Mensch tut es. -->
+    <string name="abgleich_bestaetigen_titel">Ist das dein anderes Gerät?</string>
+    <string name="abgleich_bestaetigen_hinweis">Auf dem anderen Gerät muss dieselbe Zahl stehen. Steht dort eine andere, brich hier ab.</string>
+    <string name="abgleich_bestaetigen_ja">Passt</string>
+
+    <!-- Abgleich: Erstbegegnung (E10) - hier wird nicht zusammengefuehrt, sondern gewaehlt. -->
+    <string name="abgleich_erst_titel">Diese Geräte waren noch nie abgeglichen</string>
+    <string name="abgleich_erst_text">Beim ersten Mal lässt sich nicht erkennen, was neu dazugekommen und was anderswo gelöscht wurde. Deshalb wird jetzt ein Stand übernommen — der andere geht dabei verloren.</string>
+    <string name="abgleich_erst_meine">Auf diesem Gerät:\n%1$s</string>
+    <string name="abgleich_erst_fremde">Im eingelesenen Stand:\n%1$s</string>
+    <string name="abgleich_erst_danach">Ab dem nächsten Mal wird zusammengeführt statt ersetzt.</string>
+    <string name="abgleich_erst_uebernehmen">Eingelesenen Stand übernehmen</string>
+    <string name="abgleich_erst_behalten">Diesen behalten</string>
+
+    <!-- Abgleich: Bestandszahlen der Erstbegegnung. -->
+    <plurals name="abgleich_hallen">
+        <item quantity="one">%d Halle</item>
+        <item quantity="other">%d Hallen</item>
+    </plurals>
+    <plurals name="abgleich_sessions">
+        <item quantity="one">%d Session</item>
+        <item quantity="other">%d Sessions</item>
+    </plurals>
+    <plurals name="abgleich_boulder">
+        <item quantity="one">%d Boulder</item>
+        <item quantity="other">%d Boulder</item>
+    </plurals>
+    <plurals name="abgleich_trainings">
+        <item quantity="one">%d Training</item>
+        <item quantity="other">%d Trainings</item>
+    </plurals>
+    <plurals name="abgleich_analysen">
+        <item quantity="one">%d Analyse</item>
+        <item quantity="other">%d Analysen</item>
+    </plurals>
+
+    <!-- Abgleich: die Frage bei Konflikten (E12). Der Zusatz "alles andere wird ohnehin
+         zusammengefuehrt" ist kein Beiwerk - ohne ihn waehlt man aus Angst falsch. -->
+    <plurals name="abgleich_konflikt_titel">
+        <item quantity="one">Ein Eintrag wurde auf beiden Geräten geändert</item>
+        <item quantity="other">%d Einträge wurden auf beiden Geräten geändert</item>
+    </plurals>
+    <string name="abgleich_konflikt_frage">Welches Gerät soll bei diesen Einträgen gewinnen?</string>
+    <string name="abgleich_konflikt_punkt">• %1$s</string>
+    <plurals name="abgleich_konflikt_weitere">
+        <item quantity="one">• … und ein weiterer</item>
+        <item quantity="other">• … und %d weitere</item>
+    </plurals>
+    <string name="abgleich_konflikt_nur_diese">Alles andere wird ohnehin zusammengeführt — die Antwort gilt nur für diese Einträge.</string>
+    <string name="abgleich_konflikt_meins">Dieses Gerät</string>
+    <string name="abgleich_konflikt_fremdes">Das andere</string>
+
+    <!-- Abgleich: wovon ein Konflikt handelt. Die Tabellennamen tauchen nie auf. -->
+    <string name="abgleich_was_halle">Halle</string>
+    <string name="abgleich_was_session">Session</string>
+    <string name="abgleich_was_boulder">Boulder</string>
+    <string name="abgleich_was_grad">Grad</string>
+    <string name="abgleich_was_gradsystem">Gradsystem</string>
+    <string name="abgleich_was_hangboard_training">Hangboard-Training</string>
+    <string name="abgleich_was_hangboard_satz">Hangboard-Satz</string>
+    <string name="abgleich_was_timer_vorgabe">Timer-Vorgabe</string>
+    <string name="abgleich_was_ghost">Ghost-Analyse</string>
+    <string name="abgleich_wie_beidseitig">auf beiden Geräten geändert</string>
+    <string name="abgleich_wie_geloescht_geaendert">hier gelöscht, dort geändert</string>
+    <string name="abgleich_wie_teilbaum">hier gelöscht, dort ist etwas dazugekommen</string>
+    <string name="abgleich_wie_gleiche_nummer">auf beiden Geräten neu angelegt</string>
+    <!-- Beispiel: „Halle: auf beiden Geräten geändert" -->
+    <string name="abgleich_konflikt_zeile">%1$s: %2$s</string>
+
+    <!-- Abgleich: die Bilanz. Ein Abgleich ohne Rueckmeldung fuehlt sich an wie nichts, und
+         Loeschungen muessen dastehen - sonst wirkt das spaetere Fehlen wie ein Fehler. -->
+    <string name="abgleich_ergebnis">Ergebnis</string>
+    <string name="abgleich_nichts_zu_tun">Beide Geräte waren schon auf demselben Stand.</string>
+    <plurals name="abgleich_uebernommen">
+        <item quantity="one">%d Eintrag übernommen</item>
+        <item quantity="other">%d Einträge übernommen</item>
+    </plurals>
+    <plurals name="abgleich_abgegeben">
+        <item quantity="one">%d Eintrag fehlt noch auf dem anderen Gerät — gib dort ein und lies hier ein, dann sind beide gleich</item>
+        <item quantity="other">%d Einträge fehlen noch auf dem anderen Gerät — gib dort ein und lies hier ein, dann sind beide gleich</item>
+    </plurals>
+    <plurals name="abgleich_geloescht">
+        <item quantity="one">%d Eintrag gelöscht</item>
+        <item quantity="other">%d Einträge gelöscht</item>
+    </plurals>
+    <plurals name="abgleich_verworfen">
+        <item quantity="one">%d Eintrag in der anderen Fassung verworfen</item>
+        <item quantity="other">%d Einträge in der anderen Fassung verworfen</item>
+    </plurals>
+    <plurals name="abgleich_bezuege_geloest">
+        <item quantity="one">%d Boulder hat seinen Grad verloren</item>
+        <item quantity="other">%d Boulder haben ihren Grad verloren</item>
+    </plurals>
 </resources>
