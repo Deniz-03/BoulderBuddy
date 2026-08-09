@@ -20,6 +20,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -77,7 +78,13 @@ fun GhostSideBySidePlayer(
 
     DisposableEffect(lifecycleOwner, refPlayer, cmpPlayer) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) refPlayer.pause()
+            // BEIDE pausieren. Der Folge-Player hängt sonst an der Sync-Schleife unten, und
+            // die läuft erst beim nächsten Takt — bis dahin spielte der rechte Ausschnitt
+            // im Hintergrund weiter, während der linke stand.
+            if (event == Lifecycle.Event.ON_STOP) {
+                refPlayer.pause()
+                cmpPlayer.pause()
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
@@ -89,11 +96,13 @@ fun GhostSideBySidePlayer(
 
     var refPositionMs by remember { mutableLongStateOf(0L) }
     var cmpPositionMs by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(refPlayer, cmpPlayer) {
-        while (true) {
-            refPositionMs = refPlayer.currentPosition
-            cmpPositionMs = cmpPlayer.currentPosition
-            delay(33)
+    LaunchedEffect(refPlayer, cmpPlayer, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                refPositionMs = refPlayer.currentPosition
+                cmpPositionMs = cmpPlayer.currentPosition
+                delay(33)
+            }
         }
     }
     // Vergleich läuft 1:1 mit der Referenz: Play/Pause spiegeln, Drift kontinuierlich
@@ -106,18 +115,22 @@ fun GhostSideBySidePlayer(
     // unbrauchbar gemacht hatte, nur mit langsamerem Takt. Eine kleine Tempokorrektur
     // holt dieselbe Drift unsichtbar auf; geseekt wird nur noch bei echten Sprüngen
     // (Scrub, Neustart), wo ein harter Schnitt ohnehin erwartet wird.
-    LaunchedEffect(refPlayer, cmpPlayer) {
-        while (true) {
-            if (refPlayer.isPlaying && !cmpPlayer.isPlaying) cmpPlayer.play()
-            if (!refPlayer.isPlaying && cmpPlayer.isPlaying) cmpPlayer.pause()
-            val driftMs = cmpPlayer.currentPosition - refPlayer.currentPosition
-            if (needsHardResync(driftMs)) {
-                cmpPlayer.seekTo(refPlayer.currentPosition)
-                cmpPlayer.setPlaybackSpeed(1f)
-            } else {
-                cmpPlayer.setPlaybackSpeed(followerSpeed(driftMs))
+    // Beide Schleifen hängen an repeatOnLifecycle: im Hintergrund steht die Wiedergabe,
+    // und dann gibt es weder eine Position abzufragen noch eine Drift auszuregeln.
+    LaunchedEffect(refPlayer, cmpPlayer, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                if (refPlayer.isPlaying && !cmpPlayer.isPlaying) cmpPlayer.play()
+                if (!refPlayer.isPlaying && cmpPlayer.isPlaying) cmpPlayer.pause()
+                val driftMs = cmpPlayer.currentPosition - refPlayer.currentPosition
+                if (needsHardResync(driftMs)) {
+                    cmpPlayer.seekTo(refPlayer.currentPosition)
+                    cmpPlayer.setPlaybackSpeed(1f)
+                } else {
+                    cmpPlayer.setPlaybackSpeed(followerSpeed(driftMs))
+                }
+                delay(SYNC_INTERVAL_MS)
             }
-            delay(SYNC_INTERVAL_MS)
         }
     }
 

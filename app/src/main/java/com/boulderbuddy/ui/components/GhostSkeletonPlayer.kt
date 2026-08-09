@@ -26,6 +26,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -117,11 +118,18 @@ fun GhostSkeletonPlayer(
 
     // Wiedergabeposition ~30x/s abfragen — ExoPlayer hat keinen Positions-Listener,
     // Polling ist das übliche Muster für positionsgebundene Overlays.
+    //
+    // In repeatOnLifecycle, nicht blank in einem LaunchedEffect: die Composition überlebt
+    // das Verlassen des Bildschirms, ein nacktes `while (true)` würde also dreissigmal pro
+    // Sekunde die Position eines pausierten Players abfragen, solange die App im Hintergrund
+    // steht. Hier endet die Schleife mit ON_STOP und beginnt bei der Rückkehr neu.
     var positionMs by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(exoPlayer) {
-        while (true) {
-            positionMs = exoPlayer.currentPosition
-            delay(33)
+    LaunchedEffect(exoPlayer, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                positionMs = exoPlayer.currentPosition
+                delay(33)
+            }
         }
     }
 
