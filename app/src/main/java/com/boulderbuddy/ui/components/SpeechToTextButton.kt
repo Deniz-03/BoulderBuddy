@@ -19,10 +19,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.boulderbuddy.R
 import com.boulderbuddy.data.speech.ModellDownload
 import com.boulderbuddy.data.speech.RecognitionMode
 import com.boulderbuddy.data.speech.SpeechFailure
@@ -130,12 +132,15 @@ fun SpeechToTextButton(
         val fehlendesModell = (state as? SpeechInputState.Fehler)?.grund == SpeechFailure.SPRACHE_FEHLT
         val aktion = when {
             download == ModellDownload.Fertig ->
-                DialogAktion("Nochmal") { download = null; starteErkennung() }
+                DialogAktion(stringResource(R.string.sprache_nochmal)) {
+                    download = null
+                    starteErkennung()
+                }
 
             download != null -> null
 
             fehlendesModell && recognition.kannModellLaden() ->
-                DialogAktion("Modell laden") { ladeVersuch++ }
+                DialogAktion(stringResource(R.string.sprache_modell_laden)) { ladeVersuch++ }
 
             else -> null
         }
@@ -168,7 +173,7 @@ fun SpeechToTextButton(
     ) {
         Icon(
             imageVector = Icons.Outlined.Mic,
-            contentDescription = "Notiz einsprechen",
+            contentDescription = stringResource(R.string.sprache_einsprechen),
             tint = BoulderBuddy.colors.textSecondary,
         )
     }

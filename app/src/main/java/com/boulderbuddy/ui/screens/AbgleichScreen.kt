@@ -3,6 +3,7 @@ package com.boulderbuddy.ui.screens
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.annotation.PluralsRes
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,7 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Sync
-import androidx.compose.material.icons.outlined.Undo
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,7 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.sync.Abgleichvorschlag
 import com.boulderbuddy.sync.Bestandszahlen
 import com.boulderbuddy.sync.Bilanz
@@ -107,7 +111,7 @@ fun AbgleichScreen(
     if (zeigeBegruendung) {
         AlertDialog(
             onDismissRequest = { zeigeBegruendung = false },
-            title = { Text("Das andere Gerät finden") },
+            title = { Text(stringResource(R.string.abgleich_rechte_titel)) },
             // Ein Systemdialog aus dem Nichts beantwortet niemand mit Ja — erst recht nicht
             // "Standort erlauben?" bei einem Abgleich zwischen zwei eigenen Geraeten.
             text = { Text(NearbyBerechtigungen.begruendung(android.os.Build.VERSION.SDK_INT)) },
@@ -118,10 +122,12 @@ fun AbgleichScreen(
                         NearbyBerechtigungen.fuer(android.os.Build.VERSION.SDK_INT)
                             .toTypedArray(),
                     )
-                }) { Text("Weiter") }
+                }) { Text(stringResource(R.string.abgleich_rechte_weiter)) }
             },
             dismissButton = {
-                TextButton(onClick = { zeigeBegruendung = false }) { Text("Abbrechen") }
+                TextButton(onClick = { zeigeBegruendung = false }) {
+                    Text(stringResource(R.string.aktion_abbrechen))
+                }
             },
         )
     }
@@ -136,12 +142,12 @@ fun AbgleichScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Geräte abgleichen",
+                title = stringResource(R.string.einstellungen_abgleich),
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
+                            contentDescription = stringResource(R.string.aktion_zurueck),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -163,8 +169,7 @@ fun AbgleichScreen(
                 verticalArrangement = Arrangement.spacedBy(Dimens.paddingL),
             ) {
                 Text(
-                    text = "Phone und Tablet auf denselben Stand bringen. Beides bleibt " +
-                        "erhalten — was auf einem Gerät dazugekommen ist, kommt aufs andere.",
+                    text = stringResource(R.string.abgleich_hinweis),
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textSecondary,
                 )
@@ -172,7 +177,7 @@ fun AbgleichScreen(
                 // Fortschritt: entweder der Datei-Weg (im ViewModel) oder der Funkweg (in
                 // der Sitzung). Beide gleichzeitig gibt es nicht.
                 val funkText = when (funkStand) {
-                    is Sitzungsstand.Suche -> "Suche das andere Gerät …"
+                    is Sitzungsstand.Suche -> stringResource(R.string.abgleich_suche)
                     is Sitzungsstand.Laeuft -> funkStand.was
                     else -> null
                 }
@@ -180,7 +185,8 @@ fun AbgleichScreen(
 
                 if (state.laeuft || funkText != null) {
                     Text(
-                        text = funkText ?: state.schritt ?: "Einen Moment …",
+                        text = funkText ?: state.schritt
+                            ?: stringResource(R.string.abgleich_moment),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     if (funkAnteil != null) {
@@ -191,7 +197,9 @@ fun AbgleichScreen(
                     } else {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
-                    TextButton(onClick = onFunkAbbrechen) { Text("Abbrechen") }
+                    TextButton(onClick = onFunkAbbrechen) {
+                        Text(stringResource(R.string.aktion_abbrechen))
+                    }
                 }
 
                 if (funkStand is Sitzungsstand.Abgebrochen) {
@@ -205,34 +213,32 @@ fun AbgleichScreen(
                 (funkStand as? Sitzungsstand.Fertig)?.let { BilanzBlock(it.bilanz) }
 
                 PrimaryButton(
-                    text = "Mit dem anderen Gerät verbinden",
+                    text = stringResource(R.string.abgleich_verbinden),
                     icon = Icons.Outlined.Sync,
                     onClick = { rechteAnfordern() },
                 )
 
                 Text(
-                    text = "Beide Geräte müssen dafür diesen Bildschirm offen haben und nah " +
-                        "beieinander liegen.",
+                    text = stringResource(R.string.abgleich_verbinden_hinweis),
                     style = MaterialTheme.typography.bodySmall,
                     color = BoulderBuddy.colors.textSecondary,
                 )
 
-                SectionHeader(text = "Ohne Funk, über eine Datei")
+                SectionHeader(text = stringResource(R.string.abgleich_datei_ueberschrift))
 
                 Text(
-                    text = "Für den Notfall und für Sicherungen. Hier braucht es zwei " +
-                        "Durchgänge: abgeben, drüben einlesen, dann in die andere Richtung.",
+                    text = stringResource(R.string.abgleich_datei_hinweis),
                     style = MaterialTheme.typography.bodySmall,
                     color = BoulderBuddy.colors.textSecondary,
                 )
 
                 PrimaryButton(
-                    text = "Stand abgeben",
+                    text = stringResource(R.string.abgleich_abgeben),
                     icon = Icons.Outlined.FileUpload,
                     onClick = { abgeben.launch(abgabeName) },
                 )
                 PrimaryButton(
-                    text = "Stand einlesen",
+                    text = stringResource(R.string.abgleich_einlesen),
                     icon = Icons.Outlined.FileDownload,
                     onClick = { einlesen.launch(arrayOf("*/*")) },
                 )
@@ -240,21 +246,20 @@ fun AbgleichScreen(
                 state.bilanz?.let { BilanzBlock(it) }
 
                 if (state.kannRueckgaengig) {
-                    SectionHeader(text = "Falls etwas schiefging")
+                    SectionHeader(
+                        text = stringResource(R.string.abgleich_rueckgaengig_ueberschrift),
+                    )
                     SettingsRow(
-                        icon = Icons.Outlined.Undo,
-                        label = "Letzten Abgleich rückgängig machen",
-                        // Genau das, was die Funktion kann — nicht mehr (E13).
-                        subtitle = "Nimmt zurück, was der Abgleich auf diesem Gerät " +
-                            "geändert hat.",
+                        icon = Icons.AutoMirrored.Outlined.Undo,
+                        label = stringResource(R.string.abgleich_rueckgaengig),
+                        subtitle = stringResource(R.string.abgleich_rueckgaengig_hinweis),
                         onClick = onRueckgaengig,
                     )
                 }
 
                 if (state.neustartNoetig) {
                     Text(
-                        text = "Der Stand ist übernommen. Bitte schließe die App einmal " +
-                            "vollständig und öffne sie neu.",
+                        text = stringResource(R.string.abgleich_neustart),
                         style = MaterialTheme.typography.bodyMedium,
                         color = BoulderBuddy.colors.textSecondary,
                     )
@@ -313,7 +318,7 @@ private fun FunkDialoge(
     when (stand) {
         is Sitzungsstand.Bestaetigen -> AlertDialog(
             onDismissRequest = { onBestaetigen(false) },
-            title = { Text("Ist das dein anderes Gerät?") },
+            title = { Text(stringResource(R.string.abgleich_bestaetigen_titel)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                     Text(stand.name)
@@ -324,15 +329,20 @@ private fun FunkDialoge(
                     // Der einzige Schutz davor, den eigenen Stand einem fremden Tablet zu
                     // geben. Nearby prüft die Zahl nicht — der Mensch tut es.
                     Text(
-                        "Auf dem anderen Gerät muss dieselbe Zahl stehen. Steht dort eine " +
-                            "andere, brich hier ab.",
+                        stringResource(R.string.abgleich_bestaetigen_hinweis),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { onBestaetigen(true) }) { Text("Passt") } },
+            confirmButton = {
+                TextButton(onClick = { onBestaetigen(true) }) {
+                    Text(stringResource(R.string.abgleich_bestaetigen_ja))
+                }
+            },
             dismissButton = {
-                TextButton(onClick = { onBestaetigen(false) }) { Text("Abbrechen") }
+                TextButton(onClick = { onBestaetigen(false) }) {
+                    Text(stringResource(R.string.aktion_abbrechen))
+                }
             },
         )
 
@@ -367,35 +377,53 @@ private fun ErstbegegnungDialog(
 ) {
     AlertDialog(
         onDismissRequest = onBehalten,
-        title = { Text("Diese Geräte waren noch nie abgeglichen") },
+        title = { Text(stringResource(R.string.abgleich_erst_titel)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                Text(stringResource(R.string.abgleich_erst_text))
+                Text(stringResource(R.string.abgleich_erst_meine, beschreibe(meine)))
+                Text(stringResource(R.string.abgleich_erst_fremde, beschreibe(fremde)))
                 Text(
-                    "Beim ersten Mal lässt sich nicht erkennen, was neu dazugekommen und " +
-                        "was anderswo gelöscht wurde. Deshalb wird jetzt ein Stand " +
-                        "übernommen — der andere geht dabei verloren.",
-                )
-                Text("Auf diesem Gerät:\n${beschreibe(meine)}")
-                Text("Im eingelesenen Stand:\n${beschreibe(fremde)}")
-                Text(
-                    "Ab dem nächsten Mal wird zusammengeführt statt ersetzt.",
+                    stringResource(R.string.abgleich_erst_danach),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onUebernehmen) { Text("Eingelesenen Stand übernehmen") }
+            TextButton(onClick = onUebernehmen) {
+                Text(stringResource(R.string.abgleich_erst_uebernehmen))
+            }
         },
         dismissButton = {
-            TextButton(onClick = onBehalten) { Text("Diesen behalten") }
+            TextButton(onClick = onBehalten) {
+                Text(stringResource(R.string.abgleich_erst_behalten))
+            }
         },
     )
 }
 
-private fun beschreibe(zahlen: Bestandszahlen): String = buildString {
-    append("${zahlen.hallen} Hallen, ${zahlen.sessions} Sessions, ")
-    append("${zahlen.boulder} Boulder, ${zahlen.trainings} Trainings")
-    if (zahlen.analysen > 0) append(", ${zahlen.analysen} Analysen")
+/**
+ * „12 Hallen, 3 Sessions, …" — jede Zahl mit ihrer eigenen Einzahl.
+ *
+ * Composable, weil die Mehrzahlformen aus den Ressourcen kommen. Das ist der Preis dafür,
+ * dass hier nicht „1 Sessions" steht, und er ist es wert: diese Zeile ist die einzige
+ * Entscheidungsgrundlage dafür, welcher Stand gleich verworfen wird.
+ */
+@Composable
+private fun beschreibe(zahlen: Bestandszahlen): String {
+    val hallen = pluralStringResource(R.plurals.abgleich_hallen, zahlen.hallen, zahlen.hallen)
+    val sessions =
+        pluralStringResource(R.plurals.abgleich_sessions, zahlen.sessions, zahlen.sessions)
+    val boulder =
+        pluralStringResource(R.plurals.abgleich_boulder, zahlen.boulder, zahlen.boulder)
+    val trainings =
+        pluralStringResource(R.plurals.abgleich_trainings, zahlen.trainings, zahlen.trainings)
+    val analysen =
+        pluralStringResource(R.plurals.abgleich_analysen, zahlen.analysen, zahlen.analysen)
+
+    val teile = mutableListOf(hallen, sessions, boulder, trainings)
+    if (zahlen.analysen > 0) teile += analysen
+    return teile.joinToString(", ")
 }
 
 /**
@@ -415,54 +443,79 @@ private fun KonfliktDialog(
         onDismissRequest = onAbbrechen,
         title = {
             Text(
-                if (konflikte.size == 1) {
-                    "Ein Eintrag wurde auf beiden Geräten geändert"
-                } else {
-                    "${konflikte.size} Einträge wurden auf beiden Geräten geändert"
-                },
+                pluralStringResource(
+                    R.plurals.abgleich_konflikt_titel,
+                    konflikte.size,
+                    konflikte.size,
+                ),
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                Text("Welches Gerät soll bei diesen Einträgen gewinnen?")
-                konflikte.take(8).forEach { Text("• ${beschreibe(it)}") }
-                if (konflikte.size > 8) Text("• … und ${konflikte.size - 8} weitere")
+                Text(stringResource(R.string.abgleich_konflikt_frage))
+                konflikte.take(HOECHSTENS_GENANNT).forEach {
+                    Text(stringResource(R.string.abgleich_konflikt_punkt, beschreibe(it)))
+                }
+                val weitere = konflikte.size - HOECHSTENS_GENANNT
+                if (weitere > 0) {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.abgleich_konflikt_weitere,
+                            weitere,
+                            weitere,
+                        ),
+                    )
+                }
                 Text(
-                    "Alles andere wird ohnehin zusammengeführt — die Antwort gilt nur für " +
-                        "diese Einträge.",
+                    stringResource(R.string.abgleich_konflikt_nur_diese),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onWahl(Seite.MEINS) }) { Text("Dieses Gerät") }
+            TextButton(onClick = { onWahl(Seite.MEINS) }) {
+                Text(stringResource(R.string.abgleich_konflikt_meins))
+            }
         },
         dismissButton = {
-            TextButton(onClick = { onWahl(Seite.FREMDES) }) { Text("Das andere") }
+            TextButton(onClick = { onWahl(Seite.FREMDES) }) {
+                Text(stringResource(R.string.abgleich_konflikt_fremdes))
+            }
         },
     )
 }
 
+/** So viele Konflikte werden einzeln genannt; der Rest wird gezählt. */
+private const val HOECHSTENS_GENANNT = 8
+
+/**
+ * „Halle: auf beiden Geräten geändert".
+ *
+ * Der Tabellenname ist der Rückfall, kein Ziel — steht hier je ein Name des Datenmodells,
+ * ist das ein vergessener Fall und keine Übersetzung.
+ */
+@Composable
 private fun beschreibe(konflikt: Konflikt): String {
     val was = when (konflikt.tabelle) {
-        "gym" -> "Halle"
-        "session" -> "Session"
-        "route" -> "Boulder"
-        "grade" -> "Grad"
-        "grade_system" -> "Gradsystem"
-        "hangboard_workout" -> "Hangboard-Training"
-        "hangboard_segment" -> "Hangboard-Satz"
-        "hangboard_template" -> "Timer-Vorgabe"
-        "ghost_analysis" -> "Ghost-Analyse"
+        "gym" -> stringResource(R.string.abgleich_was_halle)
+        "session" -> stringResource(R.string.abgleich_was_session)
+        "route" -> stringResource(R.string.abgleich_was_boulder)
+        "grade" -> stringResource(R.string.abgleich_was_grad)
+        "grade_system" -> stringResource(R.string.abgleich_was_gradsystem)
+        "hangboard_workout" -> stringResource(R.string.abgleich_was_hangboard_training)
+        "hangboard_segment" -> stringResource(R.string.abgleich_was_hangboard_satz)
+        "hangboard_template" -> stringResource(R.string.abgleich_was_timer_vorgabe)
+        "ghost_analysis" -> stringResource(R.string.abgleich_was_ghost)
         else -> konflikt.tabelle
     }
     val wie = when (konflikt.art) {
-        KonfliktArt.BEIDSEITIG_GEAENDERT -> "auf beiden Geräten geändert"
-        KonfliktArt.GELOESCHT_GEGEN_GEAENDERT -> "hier gelöscht, dort geändert"
-        KonfliktArt.TEILBAUM -> "hier gelöscht, dort ist etwas dazugekommen"
-        KonfliktArt.GLEICHE_NUMMER -> "auf beiden Geräten neu angelegt"
+        KonfliktArt.BEIDSEITIG_GEAENDERT -> stringResource(R.string.abgleich_wie_beidseitig)
+        KonfliktArt.GELOESCHT_GEGEN_GEAENDERT ->
+            stringResource(R.string.abgleich_wie_geloescht_geaendert)
+        KonfliktArt.TEILBAUM -> stringResource(R.string.abgleich_wie_teilbaum)
+        KonfliktArt.GLEICHE_NUMMER -> stringResource(R.string.abgleich_wie_gleiche_nummer)
     }
-    return "$was: $wie"
+    return stringResource(R.string.abgleich_konflikt_zeile, was, wie)
 }
 
 /**
@@ -471,28 +524,34 @@ private fun beschreibe(konflikt: Konflikt): String {
  */
 @Composable
 private fun BilanzBlock(bilanz: Bilanz) {
-    SectionHeader(text = "Ergebnis")
+    SectionHeader(text = stringResource(R.string.abgleich_ergebnis))
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
         if (bilanz.nichtsZuTun && bilanz.konfliktVerluste == 0) {
-            Text("Beide Geräte waren schon auf demselben Stand.")
+            Text(stringResource(R.string.abgleich_nichts_zu_tun))
             return@Column
         }
-        if (bilanz.uebernommen > 0) Text("${bilanz.uebernommen} Einträge übernommen")
-        if (bilanz.abgegeben > 0) {
-            Text(
-                "${bilanz.abgegeben} Einträge fehlen noch auf dem anderen Gerät — " +
-                    "gib dort ein und lies hier ein, dann sind beide gleich",
-            )
+        if (bilanz.uebernommen > 0) {
+            Text(zeile(R.plurals.abgleich_uebernommen, bilanz.uebernommen))
         }
-        if (bilanz.geloescht > 0) Text("${bilanz.geloescht} Einträge gelöscht")
+        if (bilanz.abgegeben > 0) {
+            Text(zeile(R.plurals.abgleich_abgegeben, bilanz.abgegeben))
+        }
+        if (bilanz.geloescht > 0) {
+            Text(zeile(R.plurals.abgleich_geloescht, bilanz.geloescht))
+        }
         if (bilanz.konfliktVerluste > 0) {
-            Text("${bilanz.konfliktVerluste} Einträge in der anderen Fassung verworfen")
+            Text(zeile(R.plurals.abgleich_verworfen, bilanz.konfliktVerluste))
         }
         if (bilanz.bezuegeGeloest > 0) {
-            Text("${bilanz.bezuegeGeloest} Boulder haben ihren Grad verloren")
+            Text(zeile(R.plurals.abgleich_bezuege_geloest, bilanz.bezuegeGeloest))
         }
     }
 }
+
+/** Eine Bilanzzeile: dieselbe Zahl bestimmt die Mehrzahlform und steht im Text. */
+@Composable
+private fun zeile(@PluralsRes plural: Int, anzahl: Int): String =
+    pluralStringResource(plural, anzahl, anzahl)
 
 @Preview(showBackground = true)
 @Composable

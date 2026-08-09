@@ -40,7 +40,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.data.model.RouteStatus
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.ColorPicker
@@ -161,12 +163,15 @@ fun RouteHinzufuegenScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = if (state.isEditing) "Boulder bearbeiten" else "Boulder hinzufügen",
+                title = stringResource(
+                    if (state.isEditing) R.string.boulder_bearbeiten
+                    else R.string.boulder_hinzufuegen,
+                ),
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
+                            contentDescription = stringResource(R.string.aktion_zurueck),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -202,8 +207,8 @@ fun RouteHinzufuegenScreen(
                     )
                     TextField(
                         value = sektor,
-                        placeholder = "A",
-                        label = "Sektor",
+                        placeholder = stringResource(R.string.boulder_sektor_platzhalter),
+                        label = stringResource(R.string.boulder_sektor),
                         onChange = { sektor = it },
                         modifier = Modifier.weight(1f),
                     )
@@ -212,7 +217,7 @@ fun RouteHinzufuegenScreen(
                 // --- Farbe (immer sichtbar, von der Schwierigkeit entkoppelt) ---
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     Text(
-                        text = "Farbe",
+                        text = stringResource(R.string.boulder_farbe),
                         style = MaterialTheme.typography.labelSmall,
                         color = BoulderBuddy.colors.textTertiary,
                     )
@@ -225,21 +230,26 @@ fun RouteHinzufuegenScreen(
 
                 TextField(
                     value = name,
-                    placeholder = "z.B. Überhang",
-                    label = "Name",
+                    placeholder = stringResource(R.string.boulder_name_platzhalter),
+                    label = stringResource(R.string.boulder_name),
                     onChange = { name = it },
                 )
 
                 // --- Versuche (Stepper, min. 1) ---
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     Text(
-                        text = "Versuche",
+                        text = stringResource(R.string.boulder_versuche),
                         style = MaterialTheme.typography.labelSmall,
                         color = BoulderBuddy.colors.textTertiary,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { if (versuche > 1) versuche-- }) {
-                            Icon(Icons.Filled.Remove, contentDescription = "Weniger Versuche")
+                            Icon(
+                                Icons.Filled.Remove,
+                                contentDescription = stringResource(
+                                    R.string.boulder_versuche_weniger,
+                                ),
+                            )
                         }
                         Text(
                             text = versuche.toString(),
@@ -248,7 +258,12 @@ fun RouteHinzufuegenScreen(
                             modifier = Modifier.padding(horizontal = Dimens.paddingM),
                         )
                         IconButton(onClick = { versuche++ }) {
-                            Icon(Icons.Filled.Add, contentDescription = "Mehr Versuche")
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = stringResource(
+                                    R.string.boulder_versuche_mehr,
+                                ),
+                            )
                         }
                     }
                 }
@@ -256,19 +271,19 @@ fun RouteHinzufuegenScreen(
                 // --- Status ---
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     Text(
-                        text = "Status",
+                        text = stringResource(R.string.boulder_status),
                         style = MaterialTheme.typography.labelSmall,
                         color = BoulderBuddy.colors.textTertiary,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                         SelectableChip(
-                            label = "Geschafft",
+                            label = stringResource(R.string.boulder_geschafft),
                             selected = geschafft,
                             onClick = { geschafft = true },
                             modifier = Modifier.weight(1f),
                         )
                         SelectableChip(
-                            label = "Projekt",
+                            label = stringResource(R.string.boulder_projekt),
                             selected = !geschafft,
                             onClick = { geschafft = false },
                             modifier = Modifier.weight(1f),
@@ -278,8 +293,8 @@ fun RouteHinzufuegenScreen(
 
                 TextField(
                     value = notiz,
-                    placeholder = "Notiz (optional)",
-                    label = "Notiz",
+                    placeholder = stringResource(R.string.boulder_notiz_platzhalter),
+                    label = stringResource(R.string.boulder_notiz),
                     onChange = { notiz = it },
                     singleLine = false,
                     minLines = 2,
@@ -292,7 +307,7 @@ fun RouteHinzufuegenScreen(
                 )
 
                 PrimaryButton(
-                    text = "Speichern",
+                    text = stringResource(R.string.aktion_speichern),
                     icon = Icons.Filled.Check,
                     onClick = {
                         onSave(
@@ -314,7 +329,7 @@ fun RouteHinzufuegenScreen(
             val medien: @Composable () -> Unit = {
                 PhotoPicker(
                     onClick = { zeigeQuellenwahl = true },
-                    label = "Foto/Video aufnehmen oder wählen",
+                    label = stringResource(R.string.boulder_medien_waehlen),
                     imageUri = mediaUri,
                     isVideo = isVideo,
                 )
@@ -369,7 +384,10 @@ private fun GradeDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selected = grades.firstOrNull { it.id == selectedGradeId }
-    val placeholder = if (grades.isEmpty()) "Kein System" else "Wählen"
+    val placeholder = stringResource(
+        if (grades.isEmpty()) R.string.boulder_grade_kein_system
+        else R.string.boulder_grade_waehlen,
+    )
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -380,7 +398,7 @@ private fun GradeDropdown(
             value = selected?.label ?: "",
             onValueChange = {},
             readOnly = true,
-            label = { Text("Grade") },
+            label = { Text(stringResource(R.string.boulder_grade)) },
             placeholder = { Text(placeholder) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier

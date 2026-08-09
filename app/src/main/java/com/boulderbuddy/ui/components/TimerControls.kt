@@ -18,11 +18,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -49,7 +51,7 @@ fun TimerControls(
     ) {
         CircleControl(
             icon = Icons.Outlined.Refresh,
-            contentDescription = "Zurücksetzen",
+            contentDescription = stringResource(R.string.timer_zuruecksetzen),
             onClick = onReset,
             primary = false,
         )
@@ -61,7 +63,7 @@ fun TimerControls(
         )
         CircleControl(
             icon = Icons.Outlined.Settings,
-            contentDescription = "Timer-Einstellungen",
+            contentDescription = stringResource(R.string.timer_einstellungen),
             onClick = onSettings,
             primary = false,
         )

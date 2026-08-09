@@ -21,7 +21,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.QuickActionButton
 import com.boulderbuddy.ui.components.SectionHeader
@@ -98,7 +100,7 @@ fun HomeScreen(
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Einstellungen",
+                            contentDescription = stringResource(R.string.aktion_einstellungen),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -138,14 +140,14 @@ fun HomeScreen(
                     ) {
                         StatCard(
                             value = state.sessionsPerWeek.toString(),
-                            label = "Sessions / Woche",
+                            label = stringResource(R.string.home_sessions_pro_woche),
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
                         )
                         StatCard(
                             value = state.totalTops.toString(),
-                            label = "Tops gesamt",
+                            label = stringResource(R.string.statistik_tops_gesamt),
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
@@ -167,13 +169,13 @@ fun HomeScreen(
                 // --- Schnellaktionen ---
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                        SectionHeader(text = "Schnellaktionen")
+                        SectionHeader(text = stringResource(R.string.home_schnellaktionen))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
                         ) {
                             QuickActionButton(
-                                text = "Session starten",
+                                text = stringResource(R.string.session_starten),
                                 icon = Icons.Filled.PlayArrow,
                                 onClick = onStartSession,
                                 primary = true,
@@ -182,7 +184,7 @@ fun HomeScreen(
                             // Nur bei aktiver Session: Boulder direkt in diese Session anlegen.
                             if (hasActiveSession) {
                                 QuickActionButton(
-                                    text = "Boulder hinzufügen",
+                                    text = stringResource(R.string.boulder_hinzufuegen),
                                     icon = Icons.Filled.Add,
                                     // Navigation zu "Route hinzufügen" für die AKTIVE Session
                                     // (sessionId = activeSessionId); der neue Boulder wird mit
@@ -194,7 +196,7 @@ fun HomeScreen(
                                 )
                             }
                             QuickActionButton(
-                                text = "Alle Boulder",
+                                text = stringResource(R.string.home_alle_boulder),
                                 icon = Icons.Filled.GridView,
                                 onClick = onOpenAllBoulders,
                                 primary = false,
@@ -209,7 +211,7 @@ fun HomeScreen(
                 state.lastSession?.let { last ->
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                            SectionHeader(text = "Letzte Session")
+                            SectionHeader(text = stringResource(R.string.home_letzte_session))
                             SessionListItem(
                                 gym = last.gym,
                                 date = last.subtitle,

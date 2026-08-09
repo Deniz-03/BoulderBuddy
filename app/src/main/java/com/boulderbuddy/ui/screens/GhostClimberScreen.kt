@@ -38,7 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.GhostAnchorEditor
 import com.boulderbuddy.ui.components.GhostPathEditor
@@ -120,13 +122,13 @@ fun GhostClimberScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Ghost Climber",
-                subtitle = "Experimental",
+                title = stringResource(R.string.ghost_titel),
+                subtitle = stringResource(R.string.ghost_untertitel),
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
+                            contentDescription = stringResource(R.string.aktion_zurueck),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -211,8 +213,7 @@ private fun SelectionStep(
     ) { /* Antwort egal — ohne Freigabe rechnet der Dienst weiter, nur stumm. */ }
 
     Text(
-        text = "Vergleiche zwei Versuche derselben Route (feste Kamera). " +
-            "Wähle ein Referenz- und ein Vergleichs-Video.",
+        text = stringResource(R.string.ghost_auswahl_hinweis),
         style = MaterialTheme.typography.bodyMedium,
         color = BoulderBuddy.colors.textSecondary,
     )
@@ -237,14 +238,14 @@ private fun SelectionStep(
             horizontalArrangement = Arrangement.spacedBy(Dimens.paddingL),
         ) {
             VideoSlotPicker(
-                title = "Referenz-Video",
+                title = stringResource(R.string.ghost_referenz_video),
                 slot = state.reference,
                 onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
                 onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
                 modifier = Modifier.weight(1f),
             )
             VideoSlotPicker(
-                title = "Vergleichs-Video",
+                title = stringResource(R.string.ghost_vergleich_video),
                 slot = state.comparison,
                 onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
                 onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
@@ -253,13 +254,13 @@ private fun SelectionStep(
         }
     } else {
         VideoSlotPicker(
-            title = "Referenz-Video",
+            title = stringResource(R.string.ghost_referenz_video),
             slot = state.reference,
             onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
             onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
         )
         VideoSlotPicker(
-            title = "Vergleichs-Video",
+            title = stringResource(R.string.ghost_vergleich_video),
             slot = state.comparison,
             onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
             onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
@@ -275,36 +276,41 @@ private fun SelectionStep(
                 horizontalArrangement = Arrangement.spacedBy(Dimens.paddingL),
             ) {
                 AnalysisProgress(
-                    label = "Referenz",
+                    label = stringResource(R.string.ghost_video_referenz),
                     slot = state.reference,
                     modifier = Modifier.weight(1f),
                 )
                 AnalysisProgress(
-                    label = "Vergleich",
+                    label = stringResource(R.string.ghost_video_vergleich),
                     slot = state.comparison,
                     modifier = Modifier.weight(1f),
                 )
             }
         } else {
-            AnalysisProgress(label = "Referenz", slot = state.reference)
-            AnalysisProgress(label = "Vergleich", slot = state.comparison)
+            AnalysisProgress(
+                label = stringResource(R.string.ghost_video_referenz),
+                slot = state.reference,
+            )
+            AnalysisProgress(
+                label = stringResource(R.string.ghost_video_vergleich),
+                slot = state.comparison,
+            )
         }
 
         // Die Analyse läuft im Hintergrund weiter — beides muss dastehen: dass man gehen
         // darf, und wie man sie loswird. Ohne den Knopf gäbe es keinen Weg mehr, sie zu
         // beenden: der Bildschirm zu verlassen war früher der Abbruch und ist es nicht mehr.
         Text(
-            text = "Läuft im Hintergrund weiter — du kannst die App verlassen. " +
-                "Der Fortschritt steht in der Benachrichtigung.",
+            text = stringResource(R.string.ghost_laeuft_im_hintergrund),
             style = MaterialTheme.typography.bodySmall,
             color = BoulderBuddy.colors.textSecondary,
         )
         TextButton(onClick = onAbbrechen) {
-            Text("Analyse abbrechen")
+            Text(stringResource(R.string.ghost_analyse_abbrechen_knopf))
         }
     } else if (state.canAnalyze) {
         PrimaryButton(
-            text = "Posen analysieren",
+            text = stringResource(R.string.ghost_analysieren),
             icon = Icons.AutoMirrored.Filled.DirectionsRun,
             onClick = {
                 // Ohne diese Freigabe rechnet der Dienst zwar, zeigt aber nichts an — und
@@ -320,7 +326,7 @@ private fun SelectionStep(
 
     // Gespeicherte Analysen (M5): antippen lädt direkt die Vergleichsansicht.
     if (state.savedAnalyses.isNotEmpty() && !state.analyzing) {
-        SectionHeader(text = "Gespeicherte Analysen")
+        SectionHeader(text = stringResource(R.string.ghost_gespeicherte))
         state.savedAnalyses.forEach { analysis ->
             SavedAnalysisRow(
                 analysis = analysis,
@@ -346,6 +352,7 @@ private fun SavedAnalysisRow(
     ) {
         Icon(
             imageVector = Icons.Outlined.History,
+            // null: Datum und Vorschlag daneben sagen, was die Zeile ist.
             contentDescription = null,
             tint = BoulderBuddy.colors.textSecondary,
         )
@@ -356,7 +363,7 @@ private fun SavedAnalysisRow(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = "Vorschlag: ${analysis.modeLabel}",
+                text = stringResource(R.string.ghost_vorschlag, analysis.modeLabel),
                 style = MaterialTheme.typography.bodySmall,
                 color = BoulderBuddy.colors.textSecondary,
             )
@@ -364,7 +371,7 @@ private fun SavedAnalysisRow(
         IconButton(onClick = onDelete) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
-                contentDescription = "Analyse löschen",
+                contentDescription = stringResource(R.string.ghost_analyse_loeschen),
                 tint = BoulderBuddy.colors.textSecondary,
             )
         }
@@ -427,7 +434,7 @@ private fun VideoSlotPicker(
         SectionHeader(text = title)
         PhotoPicker(
             onClick = { zeigeQuellenwahl = true },
-            label = "Video aufnehmen oder wählen",
+            label = stringResource(R.string.ghost_video_waehlen),
             imageUri = slot.uri,
             isVideo = slot.uri != null,
         )
@@ -446,7 +453,11 @@ private fun AnalysisProgress(
     ) {
         when {
             slot.track != null -> Text(
-                text = "$label: fertig (${slot.track.frames.size} Frames)",
+                text = stringResource(
+                    R.string.ghost_fortschritt_fertig,
+                    label,
+                    slot.track.frames.size,
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = BoulderBuddy.colors.textSecondary,
             )
@@ -456,7 +467,12 @@ private fun AnalysisProgress(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = "$label: Frame ${slot.progressDone} / ${slot.progressTotal}",
+                    text = stringResource(
+                        R.string.ghost_fortschritt_frame,
+                        label,
+                        slot.progressDone,
+                        slot.progressTotal,
+                    ),
                     style = MaterialTheme.typography.labelMedium,
                     color = BoulderBuddy.colors.textTertiary,
                 )
@@ -464,7 +480,7 @@ private fun AnalysisProgress(
             else -> {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 Text(
-                    text = "$label: wird vorbereitet…",
+                    text = stringResource(R.string.ghost_fortschritt_vorbereitung, label),
                     style = MaterialTheme.typography.labelMedium,
                     color = BoulderBuddy.colors.textTertiary,
                 )
@@ -485,9 +501,7 @@ private fun AnchorsStep(
     onBackToSelection: () -> Unit,
 ) {
     Text(
-        text = "Tippe in beiden Videos DIESELBEN ${GhostTuning.MIN_ANCHORS}+ markanten " +
-            "Wandpunkte (Griffe/Volumes) in derselben Reihenfolge an — gleiche Farbe = " +
-            "gleicher Punkt. Mit dem Regler findest du ein Standbild mit freier Wand.",
+        text = stringResource(R.string.ghost_anker_hinweis, GhostTuning.MIN_ANCHORS),
         style = MaterialTheme.typography.bodyMedium,
         color = BoulderBuddy.colors.textSecondary,
     )
@@ -495,7 +509,10 @@ private fun AnchorsStep(
     GhostRole.entries.forEach { role ->
         val slot = state.slot(role)
         SectionHeader(
-            text = if (role == GhostRole.REFERENCE) "Referenz-Video" else "Vergleichs-Video",
+            text = stringResource(
+                if (role == GhostRole.REFERENCE) R.string.ghost_referenz_video
+                else R.string.ghost_vergleich_video,
+            ),
         )
         GhostAnchorEditor(
             frame = slot.anchorFrame,
@@ -510,7 +527,7 @@ private fun AnchorsStep(
 
     if (state.anchorsComplete) {
         PrimaryButton(
-            text = "Übereinanderlegen",
+            text = stringResource(R.string.ghost_uebereinanderlegen),
             icon = Icons.Filled.Layers,
             onClick = onComputeAlignment,
         )
@@ -519,15 +536,17 @@ private fun AnchorsStep(
         val cmp = state.comparison.anchors.size
         Text(
             text = if (ref >= GhostTuning.MIN_ANCHORS && ref != cmp) {
-                "Beide Videos brauchen GLEICH VIELE Anker (aktuell $ref vs. $cmp)."
+                stringResource(R.string.ghost_anker_ungleich, ref, cmp)
             } else {
-                "Noch mindestens ${GhostTuning.MIN_ANCHORS} Anker pro Video setzen."
+                stringResource(R.string.ghost_anker_zu_wenige, GhostTuning.MIN_ANCHORS)
             },
             style = MaterialTheme.typography.labelMedium,
             color = BoulderBuddy.colors.textTertiary,
         )
     }
-    TextButton(onClick = onBackToSelection) { Text("Zurück zur Video-Auswahl") }
+    TextButton(onClick = onBackToSelection) {
+        Text(stringResource(R.string.ghost_zurueck_auswahl))
+    }
 }
 
 // --- Schritt 3: Routenpfad prüfen/korrigieren (M3) ----------------------------
@@ -542,10 +561,7 @@ private fun PathStep(
     onBackToAnchors: () -> Unit,
 ) {
     Text(
-        text = "Der Routenpfad (grün) bestimmt, wie der Fortschritt gemessen wird. " +
-            "Vorschlag = deine Hüft-Linie aus dem Referenz-Video (gestrichelt). " +
-            "Tippen verlängert den Pfad — z.B. bis zum Top, falls der Versuch " +
-            "vorher abbrach.",
+        text = stringResource(R.string.ghost_pfad_hinweis),
         style = MaterialTheme.typography.bodyMedium,
         color = BoulderBuddy.colors.textSecondary,
     )
@@ -559,18 +575,20 @@ private fun PathStep(
     )
     if (state.routePath.size >= 2) {
         PrimaryButton(
-            text = "Synchronisieren",
+            text = stringResource(R.string.ghost_synchronisieren),
             icon = Icons.Filled.Layers,
             onClick = onConfirmPath,
         )
     } else {
         Text(
-            text = "Der Pfad braucht mindestens 2 Stützpunkte.",
+            text = stringResource(R.string.ghost_pfad_zu_kurz),
             style = MaterialTheme.typography.labelMedium,
             color = BoulderBuddy.colors.textTertiary,
         )
     }
-    TextButton(onClick = onBackToAnchors) { Text("Anker anpassen") }
+    TextButton(onClick = onBackToAnchors) {
+        Text(stringResource(R.string.ghost_anker_anpassen))
+    }
 }
 
 // --- Schritt 4: Synchronisierter Vergleich (Overlay ⇄ Side-by-Side) -----------
@@ -604,27 +622,27 @@ private fun PreviewStep(
     var showReference by rememberSaveable { mutableStateOf(true) }
     var showGhost by rememberSaveable { mutableStateOf(true) }
 
-    SectionHeader(text = "Synchronisierter Vergleich")
+    SectionHeader(text = stringResource(R.string.ghost_vergleich_ueberschrift))
     // Umschalter, vorbelegt mit dem Vorschlag der Ähnlichkeitsmetrik (P7).
     Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
         SelectableChip(
-            label = "Overlay",
+            label = stringResource(R.string.ghost_modus_overlay),
             selected = state.viewMode == GhostViewMode.OVERLAY,
             onClick = { onSetViewMode(GhostViewMode.OVERLAY) },
         )
         SelectableChip(
-            label = "Side-by-Side",
+            label = stringResource(R.string.ghost_modus_side_by_side),
             selected = state.viewMode == GhostViewMode.SIDE_BY_SIDE,
             onClick = { onSetViewMode(GhostViewMode.SIDE_BY_SIDE) },
         )
         SelectableChip(
-            label = "Debug",
+            label = stringResource(R.string.ghost_modus_debug),
             selected = debugHud,
             onClick = { debugHud = !debugHud },
         )
         if (debugHud) {
             SelectableChip(
-                label = "Roh",
+                label = stringResource(R.string.ghost_modus_roh),
                 selected = showRaw,
                 onClick = { showRaw = !showRaw },
             )
@@ -632,18 +650,22 @@ private fun PreviewStep(
     }
     if (debugHud && showRaw) {
         Text(
-            text = "Rot = ungefilterte Roh-Erkennung. Sie wackelt und springt " +
-                "absichtlich — der Abstand zum farbigen Skelett ist genau das, was " +
-                "die Filterkette entfernt.",
+            text = stringResource(R.string.ghost_roh_hinweis),
             style = MaterialTheme.typography.labelMedium,
             color = BoulderBuddy.colors.textTertiary,
         )
     }
     if (state.suggestionReason.isNotEmpty()) {
-        val suggestedLabel =
-            if (state.suggestedMode == GhostViewMode.OVERLAY) "Overlay" else "Side-by-Side"
+        val suggestedLabel = stringResource(
+            if (state.suggestedMode == GhostViewMode.OVERLAY) R.string.ghost_modus_overlay
+            else R.string.ghost_modus_side_by_side,
+        )
         Text(
-            text = "Vorschlag: $suggestedLabel — ${state.suggestionReason}",
+            text = stringResource(
+                R.string.ghost_modus_vorschlag,
+                suggestedLabel,
+                state.suggestionReason,
+            ),
             style = MaterialTheme.typography.labelMedium,
             color = BoulderBuddy.colors.textTertiary,
         )
@@ -654,12 +676,12 @@ private fun PreviewStep(
             // Sichtbarkeits-Umschalter pro Skelett (7.5c).
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                 SelectableChip(
-                    label = "Referenz",
+                    label = stringResource(R.string.ghost_skelett_referenz),
                     selected = showReference,
                     onClick = { showReference = !showReference },
                 )
                 SelectableChip(
-                    label = "Geist",
+                    label = stringResource(R.string.ghost_skelett_geist),
                     selected = showGhost,
                     onClick = { showGhost = !showGhost },
                 )
@@ -683,10 +705,7 @@ private fun PreviewStep(
                     .aspectRatio(refTrack.frameWidth.toFloat() / refTrack.frameHeight),
             )
             Text(
-                text = "Orange = Referenz, Blau = Geist (Vergleichs-Versuch, in den " +
-                    "Referenzraum gelegt). Der Geist ist per DTW auf den Routen-" +
-                    "Fortschritt synchronisiert — an jeder Stelle der Route siehst du " +
-                    "beide Körperpositionen, unabhängig vom Tempo.",
+                text = stringResource(R.string.ghost_overlay_hinweis),
                 style = MaterialTheme.typography.labelMedium,
                 color = BoulderBuddy.colors.textTertiary,
             )
@@ -702,9 +721,7 @@ private fun PreviewStep(
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(
-                text = "Links Referenz (steuert die Wiedergabe), rechts der Vergleichs-" +
-                    "Versuch — beide laufen unverzerrt in ihrem eigenen Tempo. Ehrlicher " +
-                    "als ein Overlay, wenn die Beta sich deutlich unterscheidet.",
+                text = stringResource(R.string.ghost_side_by_side_hinweis),
                 style = MaterialTheme.typography.labelMedium,
                 color = BoulderBuddy.colors.textTertiary,
             )
@@ -712,25 +729,24 @@ private fun PreviewStep(
     }
     if (state.refAbortTimeMs != null || state.cmpAbortTimeMs != null) {
         Text(
-            text = "Sturz/Abbruch erkannt: das betroffene Skelett blendet am " +
-                "Abbruchpunkt aus, der andere Versuch klettert weiter.",
+            text = stringResource(R.string.ghost_sturz_hinweis),
             style = MaterialTheme.typography.labelMedium,
             color = BoulderBuddy.colors.textTertiary,
         )
     }
     if (state.analysisSaved) {
         Text(
-            text = "Analyse gespeichert ✓",
+            text = stringResource(R.string.ghost_gespeichert),
             style = MaterialTheme.typography.labelMedium,
             color = BoulderBuddy.colors.textSecondary,
         )
     } else {
         PrimaryButton(
-            text = "Analyse speichern",
+            text = stringResource(R.string.ghost_speichern),
             onClick = onSaveAnalysis,
         )
     }
-    TextButton(onClick = onBackToPath) { Text("Pfad anpassen") }
+    TextButton(onClick = onBackToPath) { Text(stringResource(R.string.ghost_pfad_anpassen)) }
 }
 
 @Preview(showBackground = true)

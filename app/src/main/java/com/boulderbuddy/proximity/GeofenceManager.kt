@@ -1,5 +1,6 @@
 package com.boulderbuddy.proximity
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -51,6 +52,9 @@ class GeofenceManager @Inject constructor(
      * aktivem Pro-Gym-Toggle — sofern Master-Toggle an und Hintergrund-Standort erteilt.
      * Master-Toggle aus ⇒ es bleibt beim Entfernen (Plan §12: "aus" räumt alles ab).
      */
+    // Die Freigabe wird unten geprüft (hasBackgroundLocationPermission), und ein Entzug
+    // zwischen Prüfung und Aufruf fängt der catch-Block ab. Lint sieht keins von beidem.
+    @SuppressLint("MissingPermission")
     suspend fun refreshGeofences() {
         removeAllGeofences()
 

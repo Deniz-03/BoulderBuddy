@@ -36,7 +36,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import androidx.core.content.ContextCompat
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.PrimaryButton
@@ -80,6 +83,9 @@ fun GymBearbeitenScreen(
 
     // Foreground-Location-Flow: erst prüfen, sonst anfragen; bei Erteilung direkt erfassen.
     // (Background-Location ist NICHT hier nötig — die braucht erst das Geofencing, M2.)
+    // Aus der Composition geholt, weil der Rückruf keine mehr hat (siehe
+    // EinstellungenScreen).
+    val ohneStandortRecht = stringResource(R.string.halle_ohne_standort_recht)
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
@@ -90,7 +96,7 @@ fun GymBearbeitenScreen(
         } else {
             Toast.makeText(
                 context,
-                "Ohne Standort-Berechtigung kannst du die Koordinaten nur manuell eingeben.",
+                ohneStandortRecht,
                 Toast.LENGTH_LONG,
             ).show()
         }
@@ -126,12 +132,14 @@ fun GymBearbeitenScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = if (state.neu) "Neue Halle" else "Halle bearbeiten",
+                title = stringResource(
+                    if (state.neu) R.string.hallen_neu else R.string.halle_bearbeiten,
+                ),
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
+                            contentDescription = stringResource(R.string.aktion_zurueck),
                             tint = M3OnPrimary,
                         )
                     }
@@ -150,30 +158,29 @@ fun GymBearbeitenScreen(
                 TextField(
                     value = state.name,
                     onChange = onNameChange,
-                    label = "NAME",
-                    placeholder = "z.B. Boulderhalle Nord",
+                    label = stringResource(R.string.halle_name_label),
+                    placeholder = stringResource(R.string.halle_name_platzhalter),
                 )
                 TextField(
                     value = state.location,
                     onChange = onLocationChange,
-                    label = "ADRESSE (OPTIONAL)",
-                    placeholder = "z.B. Musterstraße 1",
+                    label = stringResource(R.string.halle_adresse_label),
+                    placeholder = stringResource(R.string.halle_adresse_platzhalter),
                 )
 
                 // --- Standard-Gradsystem ------------------------------------------
                 // Was hier steht, ist beim Session-Anlegen in dieser Halle vorgewählt. Der
                 // Text sagt ausdrücklich, dass es ein Vorschlag bleibt: sonst liest sich eine
                 // Einstellung an der Halle wie eine Festlegung für jede Session dort.
-                SectionHeader(text = "Standard-Grading")
+                SectionHeader(text = stringResource(R.string.einstellungen_standard_grading))
                 Text(
-                    text = "Wird beim Session-Anlegen in dieser Halle vorgewählt — in der " +
-                        "Session lässt es sich weiter umstellen (z.B. fürs Moonboard).",
+                    text = stringResource(R.string.halle_grading_hinweis),
                     style = MaterialTheme.typography.bodySmall,
                     color = BoulderBuddy.colors.textSecondary,
                 )
                 if (state.systems.isEmpty()) {
                     Text(
-                        text = "Noch keine Grading-Systeme vorhanden.",
+                        text = stringResource(R.string.einstellungen_grading_leer),
                         style = MaterialTheme.typography.bodyMedium,
                         color = BoulderBuddy.colors.textSecondary,
                     )
@@ -196,7 +203,7 @@ fun GymBearbeitenScreen(
                 }
 
                 // --- Näherungs-Erinnerung -----------------------------------------
-                SectionHeader(text = "Näherungs-Erinnerung")
+                SectionHeader(text = stringResource(R.string.halle_naeherung))
                 // Gelerntes Besuchsmuster (M3) — nur wenn schon Besuche geloggt sind.
                 if (state.visitSummary != null) {
                     Text(
@@ -207,22 +214,23 @@ fun GymBearbeitenScreen(
                 }
                 Text(
                     text = if (state.hasCoordinates) {
-                        "Standort: %.5f, %.5f".format(
+                        // Der Dezimaltrenner bleibt bewusst fest deutsch: die Zahlen daneben
+                        // (Radius) sind es auch, und eine Zeile mit beiden Schreibweisen
+                        // liest sich wie ein Fehler.
+                        stringResource(R.string.halle_standort).format(
                             Locale.GERMANY, state.latitude, state.longitude,
                         )
                     } else {
-                        "Kein Standort hinterlegt — ohne Standort kann diese Halle " +
-                            "keine Erinnerung auslösen."
+                        stringResource(R.string.halle_standort_fehlt)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = BoulderBuddy.colors.textSecondary,
                 )
                 PrimaryButton(
-                    text = if (state.capturingLocation) {
-                        "Ermittle Standort…"
-                    } else {
-                        "Aktuellen Standort übernehmen"
-                    },
+                    text = stringResource(
+                        if (state.capturingLocation) R.string.halle_standort_ermitteln
+                        else R.string.halle_standort_uebernehmen,
+                    ),
                     icon = Icons.Outlined.MyLocation,
                     // Während der Fix läuft, keine zweite Anfrage starten.
                     onClick = { if (!state.capturingLocation) requestCapture() },
@@ -232,11 +240,11 @@ fun GymBearbeitenScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     TextButton(onClick = { showManualDialog = true }) {
-                        Text("Koordinaten manuell eingeben")
+                        Text(stringResource(R.string.halle_standort_manuell))
                     }
                     if (state.hasCoordinates) {
                         TextButton(onClick = onClearCoordinates) {
-                            Text("Standort entfernen")
+                            Text(stringResource(R.string.halle_standort_entfernen))
                         }
                     }
                 }
@@ -244,7 +252,7 @@ fun GymBearbeitenScreen(
                 if (state.hasCoordinates) {
                     Column {
                         Text(
-                            text = "Erkennungs-Radius: ${state.radiusMeters} m",
+                            text = stringResource(R.string.halle_radius, state.radiusMeters),
                             style = MaterialTheme.typography.labelSmall,
                             color = BoulderBuddy.colors.textTertiary,
                         )
@@ -265,12 +273,13 @@ fun GymBearbeitenScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Notifications,
+                        // null: "Erinnerungen für diese Halle" steht daneben.
                         contentDescription = null,
                         tint = BoulderBuddy.colors.textSecondary,
                         modifier = Modifier.size(Dimens.iconS),
                     )
                     Text(
-                        text = "Erinnerungen für diese Halle",
+                        text = stringResource(R.string.halle_erinnerungen),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
@@ -282,7 +291,9 @@ fun GymBearbeitenScreen(
                 }
 
                 PrimaryButton(
-                    text = if (state.neu) "Halle anlegen" else "Speichern",
+                    text = stringResource(
+                        if (state.neu) R.string.halle_anlegen else R.string.aktion_speichern,
+                    ),
                     onClick = onSave,
                     // Ohne Namen speichert das ViewModel ohnehin nicht — der Knopf sagt das
                     // jetzt, statt den Tap stillschweigend verfallen zu lassen.
@@ -297,7 +308,7 @@ fun GymBearbeitenScreen(
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     ) {
                         Text(
-                            text = "Halle löschen",
+                            text = stringResource(R.string.halle_loeschen),
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
@@ -347,31 +358,39 @@ private fun LoeschenDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (gymName.isBlank()) "Halle löschen?" else "„$gymName“ löschen?") },
+        title = {
+            Text(
+                if (gymName.isBlank()) {
+                    stringResource(R.string.halle_loeschen_titel)
+                } else {
+                    stringResource(R.string.halle_loeschen_titel_benannt, gymName)
+                },
+            )
+        },
         text = {
             Text(
                 if (sessionCount == 0) {
-                    "Die Halle wird aus der Auswahl entfernt. Es hängen keine Sessions daran."
+                    stringResource(R.string.halle_loeschen_ohne_sessions)
                 } else {
-                    val sessionen = if (sessionCount == 1) {
-                        "1 Session bleibt"
-                    } else {
-                        "$sessionCount Sessions bleiben"
-                    }
-                    "$sessionen erhalten — mit allen Bouldern und dem Hallennamen. " +
-                        "Verloren geht nur, was ohne die Halle keine Bedeutung mehr hat: ihr " +
-                        "Standort und das gelernte Besuchsmuster. Ein eigenes Grading-System " +
-                        "der Halle bleibt und gilt danach hallenübergreifend."
+                    val sessionen = pluralStringResource(
+                        R.plurals.halle_loeschen_sessions,
+                        sessionCount,
+                        sessionCount,
+                    )
+                    stringResource(R.string.halle_loeschen_mit_sessions, sessionen)
                 },
             )
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Löschen", color = MaterialTheme.colorScheme.error)
+                Text(
+                    stringResource(R.string.aktion_loeschen),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
         },
     )
 }
@@ -395,20 +414,20 @@ private fun KoordinatenDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Koordinaten eingeben") },
+        title = { Text(stringResource(R.string.halle_koordinaten_titel)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                 TextField(
                     value = latText,
                     onChange = { latText = it },
-                    label = "BREITENGRAD",
-                    placeholder = "z.B. 52.520008",
+                    label = stringResource(R.string.halle_breitengrad),
+                    placeholder = stringResource(R.string.halle_breitengrad_platzhalter),
                 )
                 TextField(
                     value = lngText,
                     onChange = { lngText = it },
-                    label = "LÄNGENGRAD",
-                    placeholder = "z.B. 13.404954",
+                    label = stringResource(R.string.halle_laengengrad),
+                    placeholder = stringResource(R.string.halle_laengengrad_platzhalter),
                 )
             }
         },
@@ -416,10 +435,10 @@ private fun KoordinatenDialog(
             TextButton(
                 enabled = valid,
                 onClick = { onConfirm(lat!!, lng!!) },
-            ) { Text("Übernehmen") }
+            ) { Text(stringResource(R.string.halle_koordinaten_uebernehmen)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
         },
     )
 }

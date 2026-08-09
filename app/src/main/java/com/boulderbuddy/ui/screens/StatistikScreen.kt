@@ -32,7 +32,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.ActivityHeatmap
 import com.boulderbuddy.ui.components.BarChart
@@ -75,9 +77,18 @@ fun StatistikScreen(
     onOpenHangboardHistorie: () -> Unit = {},
 ) {
     val quickStats = listOf(
-        QuickStat(label = "Flash Rate", value = state.flashRate),
-        QuickStat(label = "Tops gesamt", value = state.totalTops.toString()),
-        QuickStat(label = "Sessions", value = state.totalSessions.toString()),
+        QuickStat(
+            label = stringResource(R.string.statistik_flash_rate),
+            value = state.flashRate,
+        ),
+        QuickStat(
+            label = stringResource(R.string.statistik_tops_gesamt),
+            value = state.totalTops.toString(),
+        ),
+        QuickStat(
+            label = stringResource(R.string.uebersicht_sessions),
+            value = state.totalSessions.toString(),
+        ),
     )
     val activity = state.activity
 
@@ -99,12 +110,12 @@ fun StatistikScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Statistik",
+                title = stringResource(R.string.statistik_titel),
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Einstellungen",
+                            contentDescription = stringResource(R.string.aktion_einstellungen),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -127,9 +138,8 @@ fun StatistikScreen(
                     item {
                         EmptyState(
                             icon = Icons.Outlined.BarChart,
-                            title = "Noch keine Auswertung",
-                            description = "Sobald du deine erste Session geloggt hast, entstehen " +
-                                "hier Flash-Rate, Grad-Verteilung und Aktivität.",
+                            title = stringResource(R.string.statistik_leer_titel),
+                            description = stringResource(R.string.statistik_leer_text),
                         )
                     }
                     return@LazyColumn
@@ -157,12 +167,15 @@ fun StatistikScreen(
                 }
                 item {
                     VerlaufSection(
-                        titel = "Routen pro ${zeitraum.label.dropLast(1)}",
+                        titel = stringResource(
+                            R.string.statistik_routen_pro,
+                            zeitraum.label.dropLast(1),
+                        ),
                         // Kein kumulativer Zähler: jeder Balken ist das, was in genau diesem
                         // Abschnitt geklettert wurde. Abschnitte ohne Aktivität stehen als
                         // Lücke drin und werden nicht weggelassen.
-                        hinweis = "Unkumuliert — jeder Balken zählt nur diesen Abschnitt.",
-                        leerText = "Noch keine Routen erfasst.",
+                        hinweis = stringResource(R.string.statistik_routen_hinweis),
+                        leerText = stringResource(R.string.statistik_routen_leer),
                         istLeer = routenVerlauf.all { it.value == 0f },
                     ) {
                         BarChart(entries = routenVerlauf, modifier = Modifier.fillMaxWidth())
@@ -170,9 +183,12 @@ fun StatistikScreen(
                 }
                 item {
                     VerlaufSection(
-                        titel = "Grad-Verlauf",
-                        hinweis = "Höchster getoppter Grad je ${zeitraum.label.dropLast(1)}.",
-                        leerText = "Noch keine getoppten Boulder.",
+                        titel = stringResource(R.string.statistik_grad_verlauf),
+                        hinweis = stringResource(
+                            R.string.statistik_grad_hinweis,
+                            zeitraum.label.dropLast(1),
+                        ),
+                        leerText = stringResource(R.string.statistik_keine_tops),
                         istLeer = gradVerlauf.none { it.wert != null },
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
@@ -351,10 +367,10 @@ private fun GradeDistributionSection(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-        SectionHeader(text = "Grade-Verteilung")
+        SectionHeader(text = stringResource(R.string.statistik_grad_verteilung))
         if (state.distributionSystems.isEmpty()) {
             Text(
-                text = "Noch keine getoppten Boulder.",
+                text = stringResource(R.string.statistik_keine_tops),
                 style = MaterialTheme.typography.bodySmall,
                 color = BoulderBuddy.colors.textSecondary,
             )
@@ -389,9 +405,9 @@ private fun HangboardSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            SectionHeader(text = "Hangboard-Training")
+            SectionHeader(text = stringResource(R.string.session_hangboard_ueberschrift))
             Text(
-                text = "Alle Workouts ›",
+                text = stringResource(R.string.statistik_alle_workouts),
                 style = MaterialTheme.typography.labelLarge,
                 color = BoulderBuddy.colors.textTertiary,
             )
@@ -404,17 +420,17 @@ private fun HangboardSection(
         ) {
             StatCard(
                 value = state.hangboardWorkouts.toString(),
-                label = "Durchläufe",
+                label = stringResource(R.string.statistik_durchlaeufe),
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
             StatCard(
                 value = state.hangboardSets.toString(),
-                label = "Sätze",
+                label = stringResource(R.string.timer_saetze),
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
             StatCard(
                 value = state.hangboardHangTime,
-                label = "Hängezeit",
+                label = stringResource(R.string.statistik_haengezeit),
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
         }
@@ -429,7 +445,7 @@ private fun ActivitySection(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-        SectionHeader(text = "Aktivität")
+        SectionHeader(text = stringResource(R.string.statistik_aktivitaet))
         Text(
             // Konkrete Spanne aus dem ViewModel; fehlt sie, bleibt die allgemeine Angabe.
             text = range.takeIf { it.isNotBlank() }
@@ -459,7 +475,7 @@ private fun ActivityLegend(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Weniger",
+            text = stringResource(R.string.statistik_weniger),
             style = MaterialTheme.typography.bodySmall,
             color = BoulderBuddy.colors.textSecondary,
         )
@@ -474,7 +490,7 @@ private fun ActivityLegend(modifier: Modifier = Modifier) {
             )
         }
         Text(
-            text = "Mehr",
+            text = stringResource(R.string.statistik_mehr),
             style = MaterialTheme.typography.bodySmall,
             color = BoulderBuddy.colors.textSecondary,
         )

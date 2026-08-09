@@ -1,6 +1,7 @@
 package com.boulderbuddy.sync.nearby
 
 import android.content.Context
+import android.os.ParcelFileDescriptor
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
 import com.google.android.gms.nearby.connection.ConnectionInfo
@@ -15,10 +16,16 @@ import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.trySendBlocking
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.IOException
+import java.io.InputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -94,6 +101,26 @@ class NearbyVerbindung @Inject constructor(
     /** Was gerade an Dateien unterwegs ist — Payload-Nummer → Zieldatei. */
     private val laufendeDateien = mutableMapOf<Long, Payload>()
 
+    /**
+     * Für das Übernehmen empfangener Dateien über den Dateideskriptor.
+     *
+     * Die Nearby-Rückrufe kommen auf dem Haupt-Thread an, und die kopierte Datei ist im
+     * Zweifel der ganze Datenbestand — das darf dort nicht laufen. Ein eigener Scope statt
+     * eines übergebenen: die Verbindung lebt als Singleton länger als jede Sitzung, und
+     * [beende] soll ein laufendes Kopieren abbrechen können, ohne den Aufrufer zu betreffen.
+     */
+    private val kopierScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    /**
+     * Wohin über den Deskriptor gerettete Dateien gelegt werden.
+     *
+     * Bewusst `cacheDir` und nicht der Empfangsordner des Abgleichs: dieser Weg gehört dem
+     * Funkteil, nicht der Sitzung, und wenn ein Abbruch die Aufräum-Runde verpasst, holt das
+     * System den Platz von allein zurück.
+     */
+    private val empfangsOrdner: File
+        get() = File(context.cacheDir, EMPFANG_ORDNER).apply { mkdirs() }
+
     private var eigenerName: String = ""
 
     /**
@@ -168,6 +195,10 @@ class NearbyVerbindung @Inject constructor(
         runCatching { client.stopDiscovery() }
         runCatching { client.stopAllEndpoints() }
         laufendeDateien.clear()
+        // Erst das Kopieren stoppen, dann wegräumen — andersherum legt eine noch laufende
+        // Kopie gleich wieder eine Datei an.
+        kopierScope.coroutineContext.cancelChildren()
+        runCatching { empfangsOrdner.listFiles()?.forEach { it.delete() } }
     }
 
     private val suchRueckruf = object : EndpointDiscoveryCallback() {
@@ -248,16 +279,7 @@ class NearbyVerbindung @Inject constructor(
 
                 PayloadTransferUpdate.Status.SUCCESS -> {
                     val payload = laufendeDateien.remove(update.payloadId) ?: return
-                    val datei = payload.asFile()?.asJavaFile()
-                    if (datei == null) {
-                        melde(
-                            Funkereignis.Fehlgeschlagen(
-                                "Eine empfangene Datei ließ sich nicht öffnen.",
-                            ),
-                        )
-                        return
-                    }
-                    melde(Funkereignis.DateiDa(endpunkt, update.payloadId, datei))
+                    uebernimmDatei(endpunkt, update.payloadId, payload)
                 }
 
                 PayloadTransferUpdate.Status.FAILURE,
@@ -267,6 +289,64 @@ class NearbyVerbindung @Inject constructor(
                     melde(Funkereignis.Fehlgeschlagen("Eine Übertragung ist abgebrochen."))
                 }
             }
+        }
+    }
+
+    /**
+     * Macht aus einer fertig übertragenen FILE-Payload eine Datei, die der Abgleich lesen kann.
+     *
+     * Zwei Wege, in dieser Reihenfolge:
+     *
+     * 1. **`asJavaFile()`** — die billige Variante ohne Kopie. Sie liefert aber **ab Android 11
+     *    `null`**, weil Nearby die Payload dann nicht mehr in einen für die App direkt
+     *    erreichbaren Pfad legt. Genau hier wäre der Abgleich am echten Gerät gescheitert:
+     *    ohne Fallback endete jede empfangene Datenbank als „ließ sich nicht öffnen".
+     * 2. **`asParcelFileDescriptor()`** — der Deskriptor gilt auf allen Versionen. Er lässt
+     *    sich aber nicht herumreichen, also wird der Inhalt einmal in den eigenen Cache
+     *    kopiert. Das kostet Platz in Höhe der Datei; deshalb prüft [AbgleichDateien.genugPlatz]
+     *    ohnehin gegen ein Vielfaches.
+     *
+     * Das Kopieren läuft im Hintergrund und meldet erst danach — der Rückruf kommt auf dem
+     * Haupt-Thread, und die Datei ist im Zweifel der ganze Datenbestand. Die Sitzung wartet
+     * ohnehin auf das Ereignis aus der Warteschlange, für sie ändert sich dadurch nichts.
+     */
+    private fun uebernimmDatei(endpunkt: String, payloadId: Long, payload: Payload) {
+        val datei = payload.asFile()
+        // Veraltet, aber bewusst zuerst versucht: solange Nearby einen erreichbaren Pfad
+        // liefert, spart dieser Weg das Kopieren der ganzen Datenbank.
+        @Suppress("DEPRECATION")
+        val direkt = runCatching { datei?.asJavaFile() }.getOrNull()
+        if (direkt != null) {
+            melde(Funkereignis.DateiDa(endpunkt, payloadId, direkt))
+            return
+        }
+
+        val deskriptor = runCatching { datei?.asParcelFileDescriptor() }.getOrNull()
+        if (deskriptor == null) {
+            melde(Funkereignis.Fehlgeschlagen("Eine empfangene Datei ließ sich nicht öffnen."))
+            return
+        }
+
+        val erwartet = datei?.size ?: 0L
+        kopierScope.launch {
+            val ziel = File(empfangsOrdner, "payload-$payloadId")
+            val ergebnis = runCatching {
+                ParcelFileDescriptor.AutoCloseInputStream(deskriptor).use { quelle ->
+                    kopiereGepruft(quelle, ziel, erwartet)
+                }
+                ziel
+            }
+            ergebnis.fold(
+                onSuccess = { melde(Funkereignis.DateiDa(endpunkt, payloadId, it)) },
+                onFailure = { fehler ->
+                    ziel.delete()
+                    melde(
+                        Funkereignis.Fehlgeschlagen(
+                            "Eine empfangene Datei ließ sich nicht ablegen: ${fehler.message}",
+                        ),
+                    )
+                },
+            )
         }
     }
 
@@ -286,5 +366,27 @@ class NearbyVerbindung @Inject constructor(
          * Paketname, und deshalb muss sie beim Ändern auf beiden Geräten gleich bleiben.
          */
         const val DIENST_ID = "com.boulderbuddy.abgleich"
+
+        /** Unterordner in `cacheDir` für Dateien, die über den Deskriptor kommen. */
+        const val EMPFANG_ORDNER = "nearby-empfang"
     }
+}
+
+/**
+ * Kopiert einen Strom in eine Datei und **besteht auf der erwarteten Länge**.
+ *
+ * Der Zähler ist kein Zierrat: die empfangene Datei ist beim Abgleich die Datenbank der
+ * Gegenseite, und eine abgeschnittene Kopie sieht aus wie eine gültige — SQLite öffnet sie,
+ * es fehlen nur die letzten Einträge. Lieber ein Abbruch mit Meldung als ein Stand, dem
+ * hinterher niemand ansieht, dass er unvollständig ist.
+ *
+ * @param erwartet die Sollgröße; `0` oder kleiner heißt „unbekannt" und schaltet die Prüfung ab.
+ */
+internal fun kopiereGepruft(quelle: InputStream, ziel: File, erwartet: Long): Long {
+    ziel.parentFile?.mkdirs()
+    val geschrieben = ziel.outputStream().use { quelle.copyTo(it) }
+    if (erwartet > 0 && geschrieben != erwartet) {
+        throw IOException("unvollständig: $geschrieben von $erwartet Bytes")
+    }
+    return geschrieben
 }

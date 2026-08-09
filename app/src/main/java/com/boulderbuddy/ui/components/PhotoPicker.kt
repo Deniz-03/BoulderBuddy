@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import coil3.compose.AsyncImage
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -42,7 +44,7 @@ import com.boulderbuddy.ui.theme.Dimens
 fun PhotoPicker(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "Foto/Video aufnehmen",
+    label: String = stringResource(R.string.medien_standard_label),
     imageUri: String? = null,
     isVideo: Boolean = false,
 ) {
@@ -83,12 +85,13 @@ fun PhotoPicker(
             ) {
                 Icon(
                     imageVector = Icons.Filled.PlayCircleOutline,
+                    // null: "Video ausgewählt" steht darunter.
                     contentDescription = null,
                     tint = BoulderBuddy.colors.textTertiary,
                     modifier = Modifier.size(Dimens.iconL),
                 )
                 Text(
-                    text = "Video ausgewählt",
+                    text = stringResource(R.string.medien_video_gewaehlt),
                     style = MaterialTheme.typography.labelMedium,
                     color = BoulderBuddy.colors.textTertiary,
                 )
@@ -96,7 +99,7 @@ fun PhotoPicker(
         } else if (imageUri != null) {
             AsyncImage(
                 model = imageUri,
-                contentDescription = "Gewähltes Foto",
+                contentDescription = stringResource(R.string.medien_foto_gewaehlt),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()

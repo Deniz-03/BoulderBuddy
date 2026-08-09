@@ -28,7 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SelectableChip
@@ -111,12 +113,12 @@ fun SessionErstellenScreen(
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Neue Session",
+                title = stringResource(R.string.session_neu),
                 navIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück",
+                            contentDescription = stringResource(R.string.aktion_zurueck),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -157,7 +159,7 @@ fun SessionErstellenScreen(
                  */
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     Text(
-                        text = "HALLE/ORT",
+                        text = stringResource(R.string.session_halle_label),
                         style = MaterialTheme.typography.labelSmall,
                         color = BoulderBuddy.colors.textTertiary,
                     )
@@ -181,7 +183,7 @@ fun SessionErstellenScreen(
                             )
                         }
                         SelectableChip(
-                            label = "+ Neue Halle",
+                            label = stringResource(R.string.session_halle_neu),
                             selected = false,
                             onClick = onNeueHalle,
                         )
@@ -194,13 +196,13 @@ fun SessionErstellenScreen(
                 // und steuert später die Grade-Auswahl beim Boulder-Anlegen.
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
                     Text(
-                        text = "GRADING-SYSTEM",
+                        text = stringResource(R.string.session_grading_label),
                         style = MaterialTheme.typography.labelSmall,
                         color = BoulderBuddy.colors.textTertiary,
                     )
                     if (state.systems.isEmpty()) {
                         Text(
-                            text = "Noch keine Grading-Systeme vorhanden.",
+                            text = stringResource(R.string.einstellungen_grading_leer),
                             style = MaterialTheme.typography.bodyMedium,
                             color = BoulderBuddy.colors.textSecondary,
                         )
@@ -238,8 +240,8 @@ fun SessionErstellenScreen(
                     value = notiz,
                     singleLine = false,
                     minLines = 3,
-                    label = "NOTIZ (OPTIONAL)",
-                    placeholder = "Ziel für heute...",
+                    label = stringResource(R.string.session_notiz_label),
+                    placeholder = stringResource(R.string.session_notiz_platzhalter),
                     onChange = {notiz = it},
                     // Spracheingabe: erkannten Text an die Notiz anhängen (7.4b).
                     trailing = {
@@ -257,12 +259,12 @@ fun SessionErstellenScreen(
                 // wo es weitergeht, statt eine namenlose Halle im Hintergrund zu erfinden.
                 if (effectiveGymId == null) {
                     PrimaryButton(
-                        text = "Erste Halle anlegen",
+                        text = stringResource(R.string.session_erste_halle),
                         onClick = onNeueHalle,
                     )
                 } else {
                     PrimaryButton(
-                        text = "Session starten",
+                        text = stringResource(R.string.session_starten),
                         icon = Icons.Filled.PlayArrow,
                         // Halle + gewähltes Gradsystem + Notiz nach oben reichen; das ViewModel
                         // legt die Session an.
@@ -284,12 +286,21 @@ fun SessionErstellenScreen(
  */
 @Composable
 private fun LaufendeSessionHinweis(laufende: LaufendeSessionUi) {
+    val unbekannt = stringResource(R.string.session_halle_unbekannt)
     val text = when {
-        laufende.anzahl > 1 ->
-            "Es laufen bereits ${laufende.anzahl} Sessions. Die letzte: " +
-                "${laufende.gymName.ifBlank { "unbekannte Halle" }}, ${laufende.seit}."
-        laufende.gymName.isBlank() -> "Es läuft bereits eine Session, ${laufende.seit}."
-        else -> "In „${laufende.gymName}“ läuft bereits eine Session, ${laufende.seit}."
+        laufende.anzahl > 1 -> stringResource(
+            R.string.session_laeuft_mehrere,
+            laufende.anzahl,
+            laufende.gymName.ifBlank { unbekannt },
+            laufende.seit,
+        )
+        laufende.gymName.isBlank() ->
+            stringResource(R.string.session_laeuft_ohne_halle, laufende.seit)
+        else -> stringResource(
+            R.string.session_laeuft_in_halle,
+            laufende.gymName,
+            laufende.seit,
+        )
     }
     Row(
         modifier = Modifier
@@ -302,6 +313,7 @@ private fun LaufendeSessionHinweis(laufende: LaufendeSessionUi) {
     ) {
         Icon(
             imageVector = Icons.Outlined.Info,
+            // null: der Hinweistext daneben ist die ganze Information.
             contentDescription = null,
             tint = BoulderBuddy.colors.textTertiary,
             modifier = Modifier.size(Dimens.iconS),

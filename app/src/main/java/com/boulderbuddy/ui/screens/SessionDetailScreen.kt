@@ -28,7 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.AddRouteCard
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.PrimaryButton
@@ -97,13 +99,13 @@ fun SessionDetailScreen(
         topBar = {
             TopBar(
                 title = gym,
-                subtitle = "● Läuft · $elapsed h",
+                subtitle = stringResource(R.string.session_laeuft_seit, elapsed),
                 navIcon = onBack?.let { zurueck ->
                     {
                         IconButton(onClick = zurueck) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Zurück",
+                                contentDescription = stringResource(R.string.aktion_zurueck),
                                 tint = BoulderBuddy.colors.onChrome,
                             )
                         }
@@ -141,17 +143,17 @@ fun SessionDetailScreen(
                     ) {
                         StatCard(
                             value = tops.toString(),
-                            label = "Tops",
+                            label = stringResource(R.string.session_tops),
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
                             value = versuche.toString(),
-                            label = "Versuche",
+                            label = stringResource(R.string.session_versuche),
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
                             value = topGrade,
-                            label = "Top-Grade",
+                            label = stringResource(R.string.session_top_grade),
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
@@ -160,7 +162,7 @@ fun SessionDetailScreen(
                 // --- Boulder-Raster ---
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                        SectionHeader(text = "Boulder dieser Session")
+                        SectionHeader(text = stringResource(R.string.session_boulder_ueberschrift))
 
                         // null = Platzhalter für die AddRouteCard, immer als letzte Kachel.
                         val cells: List<SessionBoulderUi?> = boulders + null
@@ -225,10 +227,10 @@ fun SessionDetailScreen(
                 if (hangboardWorkouts.isNotEmpty()) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                            SectionHeader(text = "Hangboard-Training")
+                            SectionHeader(text = stringResource(R.string.session_hangboard_ueberschrift))
                             hangboardWorkouts.forEach { hb ->
                                 Text(
-                                    text = "• ${hb.summary}",
+                                    text = stringResource(R.string.session_hangboard_zeile, hb.summary),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
@@ -242,7 +244,7 @@ fun SessionDetailScreen(
                 // der Dispatcher automatisch in die abgeschlossene Ansicht.
                 item {
                     PrimaryButton(
-                        text = "Session beenden",
+                        text = stringResource(R.string.session_beenden),
                         icon = Icons.Filled.Flag,
                         onClick = { showEndDialog = true },
                     )
@@ -254,9 +256,9 @@ fun SessionDetailScreen(
     if (showEndDialog) {
         AlertDialog(
             onDismissRequest = { showEndDialog = false },
-            title = { Text("Session beenden?") },
+            title = { Text(stringResource(R.string.session_beenden_titel)) },
             text = {
-                Text("Die Session wird abgeschlossen und lässt sich danach nicht mehr bearbeiten.")
+                Text(stringResource(R.string.session_beenden_text))
             },
             confirmButton = {
                 TextButton(
@@ -264,10 +266,12 @@ fun SessionDetailScreen(
                         showEndDialog = false
                         onEndSession()
                     },
-                ) { Text("Beenden") }
+                ) { Text(stringResource(R.string.session_beenden_ja)) }
             },
             dismissButton = {
-                TextButton(onClick = { showEndDialog = false }) { Text("Abbrechen") }
+                TextButton(onClick = { showEndDialog = false }) {
+                    Text(stringResource(R.string.aktion_abbrechen))
+                }
             },
         )
     }

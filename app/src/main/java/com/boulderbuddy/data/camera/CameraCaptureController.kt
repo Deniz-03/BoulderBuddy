@@ -1,5 +1,6 @@
 package com.boulderbuddy.data.camera
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -160,6 +161,8 @@ class CameraCaptureController(private val context: Context) {
      * würde `withAudioEnabled()` eine `SecurityException` werfen — ein stummes Video ist die
      * bessere Antwort als eine verweigerte Aufnahme.
      */
+    // Genau dafür ist darfTonAufnehmen() da; Lint sieht die Prüfung hinter dem Aufruf nicht.
+    @SuppressLint("MissingPermission")
     fun videoStarten(onEreignis: (VideoEreignis) -> Unit) {
         val capture = videoCapture
         if (capture == null) {

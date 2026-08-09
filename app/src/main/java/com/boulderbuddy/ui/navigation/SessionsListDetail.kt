@@ -13,11 +13,13 @@ import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.EmptyState
@@ -179,9 +181,8 @@ private fun SessionDetailPlaceholder() {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 EmptyState(
                     icon = Icons.Outlined.TouchApp,
-                    title = "Keine Session gewählt",
-                    description = "Tippe links auf eine Session, um ihre Boulder, " +
-                        "Versuche und Notizen hier zu sehen.",
+                    title = stringResource(R.string.listdetail_keine_session),
+                    description = stringResource(R.string.listdetail_keine_session_text),
                 )
             }
         },

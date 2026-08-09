@@ -28,7 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.BoulderListRow
 import com.boulderbuddy.ui.components.SectionHeader
@@ -102,7 +104,7 @@ fun AlteSessionScreen(
                         IconButton(onClick = zurueck) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Zurück",
+                                contentDescription = stringResource(R.string.aktion_zurueck),
                                 tint = BoulderBuddy.colors.onChrome,
                             )
                         }
@@ -133,17 +135,17 @@ fun AlteSessionScreen(
                     ) {
                         StatCard(
                             value = boulderAnzahl.toString(),
-                            label = "Boulder",
+                            label = stringResource(R.string.session_alt_boulder),
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
                             value = topAnzahl.toString(),
-                            label = "Tops",
+                            label = stringResource(R.string.session_tops),
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
                             value = durationText,
-                            label = "Dauer",
+                            label = stringResource(R.string.session_alt_dauer),
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
@@ -161,8 +163,8 @@ fun AlteSessionScreen(
                             notiz = it
                             onNotesChange(it)
                         },
-                        label = "NOTIZ",
-                        placeholder = "Notiz zu dieser Session…",
+                        label = stringResource(R.string.session_alt_notiz_label),
+                        placeholder = stringResource(R.string.session_alt_notiz_platzhalter),
                         singleLine = false,
                         minLines = 3,
                         // Spracheingabe, wie in „Neue Session" und „Route hinzufügen". Sie
@@ -189,10 +191,10 @@ fun AlteSessionScreen(
                 // --- Gekletterte Boulder (read-only) ---
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                        SectionHeader(text = "Gekletterte Boulder")
+                        SectionHeader(text = stringResource(R.string.session_alt_geklettert))
                         if (boulders.isEmpty()) {
                             Text(
-                                text = "In dieser Session wurde kein Boulder geloggt.",
+                                text = stringResource(R.string.session_alt_leer),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = BoulderBuddy.colors.textSecondary,
                             )

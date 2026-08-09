@@ -37,7 +37,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.TimerControls
 import com.boulderbuddy.ui.components.TimerRing
@@ -106,16 +108,18 @@ fun HangboardTimerScreen(
         TimerPhase.REST -> BoulderBuddy.colors.routes.orange
         TimerPhase.DONE -> BoulderBuddy.colors.routes.green
     }
-    val phaseLabel: String = when (state.phase) {
-        TimerPhase.HANG -> "HANG"
-        TimerPhase.REST -> "REST"
-        TimerPhase.DONE -> "FERTIG"
-    }
+    val phaseLabel: String = stringResource(
+        when (state.phase) {
+            TimerPhase.HANG -> R.string.timer_phase_hang
+            TimerPhase.REST -> R.string.timer_phase_rest
+            TimerPhase.DONE -> R.string.timer_phase_fertig
+        },
+    )
 
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = "Hangboard-Timer",
+                title = stringResource(R.string.timer_titel),
                 actions = {
                     // Smartwatch-Indikator: reine Statusanzeige, kein Button — die Kopplung
                     // passiert in der Wear-App, hier gäbe es nichts zu tippen. Getrennt =
@@ -126,11 +130,10 @@ fun HangboardTimerScreen(
                         } else {
                             Icons.Outlined.WatchOff
                         },
-                        contentDescription = if (state.watchConnected) {
-                            "Smartwatch verbunden"
-                        } else {
-                            "Smartwatch nicht verbunden"
-                        },
+                        contentDescription = stringResource(
+                            if (state.watchConnected) R.string.timer_uhr_verbunden
+                            else R.string.timer_uhr_getrennt,
+                        ),
                         // Beide Farben sitzen auf dem Chrome und drehen deshalb mit dem
                         // Theme. Der getrennte Zustand nimmt textTertiary statt eines
                         // Alpha-Werts: 40 % Deckkraft ergab auf hellem Chrome 2,4:1.
@@ -167,7 +170,12 @@ fun HangboardTimerScreen(
                 Spacer(Modifier.height(Dimens.paddingXL))
 
                 Text(
-                    text = "Satz ${state.currentSet} / ${state.totalSets} · Rest ${state.restTime}",
+                    text = stringResource(
+                        R.string.timer_satz_stand,
+                        state.currentSet,
+                        state.totalSets,
+                        state.restTime,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = BoulderBuddy.colors.textTertiary,
                 )
@@ -243,12 +251,12 @@ private fun TimerConfigDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Timer einstellen") },
+        title = { Text(stringResource(R.string.timer_einstellen)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                 if (presets.isNotEmpty()) {
                     Text(
-                        text = "Voreinstellungen",
+                        text = stringResource(R.string.timer_voreinstellungen),
                         style = MaterialTheme.typography.labelLarge,
                         color = BoulderBuddy.colors.textTertiary,
                     )
@@ -271,7 +279,10 @@ private fun TimerConfigDialog(
                                     {
                                         Icon(
                                             Icons.Filled.Close,
-                                            contentDescription = "${preset.name} löschen",
+                                            contentDescription = stringResource(
+                                                R.string.timer_preset_loeschen,
+                                                preset.name,
+                                            ),
                                             modifier = Modifier.size(Dimens.iconS),
                                         )
                                     }
@@ -280,22 +291,27 @@ private fun TimerConfigDialog(
                         }
                     }
                     TextButton(onClick = { deleteMode = !deleteMode }) {
-                        Text(if (deleteMode) "Fertig" else "Presets bearbeiten")
+                        Text(
+                            stringResource(
+                                if (deleteMode) R.string.aktion_fertig
+                                else R.string.timer_presets_bearbeiten,
+                            ),
+                        )
                     }
                 }
 
                 StepperRow(
-                    label = "Sätze",
+                    label = stringResource(R.string.timer_saetze),
                     value = sets,
                     onChange = { sets = it.coerceAtLeast(1) },
                 )
                 StepperRow(
-                    label = "Hang (s)",
+                    label = stringResource(R.string.timer_hang_sekunden),
                     value = hangSec,
                     onChange = { hangSec = it.coerceAtLeast(1) },
                 )
                 StepperRow(
-                    label = "Pause (s)",
+                    label = stringResource(R.string.timer_pause_sekunden),
                     value = restSec,
                     onChange = { restSec = it.coerceAtLeast(0) },
                 )
@@ -303,18 +319,23 @@ private fun TimerConfigDialog(
                 TextButton(onClick = { showSaveDialog = true }) {
                     Icon(
                         Icons.Filled.Add,
+                        // null: "Als Preset speichern" steht direkt daneben.
                         contentDescription = null,
                         modifier = Modifier.size(Dimens.iconS),
                     )
                     Spacer(Modifier.width(Dimens.paddingS))
-                    Text("Als Preset speichern")
+                    Text(stringResource(R.string.timer_als_preset_speichern))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(sets, hangSec, restSec) }) { Text("Übernehmen") }
+            TextButton(onClick = { onConfirm(sets, hangSec, restSec) }) {
+                Text(stringResource(R.string.timer_uebernehmen))
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
+        },
     )
 
     if (showSaveDialog) {
@@ -337,12 +358,12 @@ private fun SavePresetDialog(
     var name by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Preset speichern") },
+        title = { Text(stringResource(R.string.timer_preset_speichern_titel)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.timer_preset_name)) },
                 singleLine = true,
             )
         },
@@ -350,9 +371,11 @@ private fun SavePresetDialog(
             TextButton(
                 onClick = { onConfirm(name) },
                 enabled = name.isNotBlank(),
-            ) { Text("Speichern") }
+            ) { Text(stringResource(R.string.aktion_speichern)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
+        },
     )
 }
 
@@ -376,7 +399,10 @@ private fun StepperRow(
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { onChange(value - 1) }) {
-                Icon(Icons.Filled.Remove, contentDescription = "$label verringern")
+                Icon(
+                    Icons.Filled.Remove,
+                    contentDescription = stringResource(R.string.timer_verringern, label),
+                )
             }
             Text(
                 text = value.toString(),
@@ -385,7 +411,10 @@ private fun StepperRow(
                 modifier = Modifier.padding(horizontal = Dimens.paddingS),
             )
             IconButton(onClick = { onChange(value + 1) }) {
-                Icon(Icons.Filled.Add, contentDescription = "$label erhöhen")
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.timer_erhoehen, label),
+                )
             }
         }
     }

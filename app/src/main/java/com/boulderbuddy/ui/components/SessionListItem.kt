@@ -17,12 +17,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
@@ -79,7 +81,10 @@ fun SessionListItem(
                 ) {
                     // "● Aktiv"-Badge immer zuerst, in der Akzentfarbe der Session
                     if (isActive) {
-                        SessionBadge(text = "● Aktiv", color = accentColor)
+                        SessionBadge(
+                            text = stringResource(R.string.session_aktiv_abzeichen),
+                            color = accentColor,
+                        )
                     }
                     badges.forEach { badge ->
                         SessionBadge(text = badge, color = BoulderBuddy.colors.borderSubtle)

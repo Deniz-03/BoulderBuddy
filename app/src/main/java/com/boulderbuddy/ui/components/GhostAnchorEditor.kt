@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import com.boulderbuddy.R
 import com.boulderbuddy.ghost.GhostTuning
 import com.boulderbuddy.ghost.model.GhostPoint
 import com.boulderbuddy.ui.theme.BoulderBuddy
@@ -99,7 +101,7 @@ fun GhostAnchorEditor(
             ) {
                 Image(
                     bitmap = frame,
-                    contentDescription = "Standbild zum Anker-Setzen",
+                    contentDescription = stringResource(R.string.ghost_standbild_anker),
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -167,7 +169,11 @@ fun GhostAnchorEditor(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "${anchors.size} / ${GhostTuning.MIN_ANCHORS}+ Anker",
+                text = stringResource(
+                    R.string.ghost_anker_zaehler,
+                    anchors.size,
+                    GhostTuning.MIN_ANCHORS,
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = if (anchors.size >= GhostTuning.MIN_ANCHORS) {
                     BoulderBuddy.colors.textSecondary
@@ -179,7 +185,7 @@ fun GhostAnchorEditor(
             TextButton(
                 onClick = onRemoveLastAnchor,
                 enabled = anchors.isNotEmpty(),
-            ) { Text("Letzten entfernen") }
+            ) { Text(stringResource(R.string.ghost_letzten_entfernen)) }
         }
     }
 }

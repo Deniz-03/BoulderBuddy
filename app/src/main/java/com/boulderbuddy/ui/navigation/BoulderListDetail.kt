@@ -13,11 +13,13 @@ import androidx.compose.material3.adaptive.layout.PaneAdaptedValue
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.dp
+import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.TopBar
@@ -119,9 +121,8 @@ private fun BoulderDetailPlaceholder() {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 EmptyState(
                     icon = Icons.Outlined.TouchApp,
-                    title = "Kein Boulder gewählt",
-                    description = "Tippe links auf einen Boulder, um Grad, Versuche, " +
-                        "Notiz und Foto hier zu sehen.",
+                    title = stringResource(R.string.listdetail_kein_boulder),
+                    description = stringResource(R.string.listdetail_kein_boulder_text),
                 )
             }
         },

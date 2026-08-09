@@ -36,7 +36,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import coil3.compose.AsyncImage
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.SectionHeader
@@ -83,7 +85,7 @@ fun BoulderDetailScreen(
                         IconButton(onClick = zurueck) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Zurück",
+                                contentDescription = stringResource(R.string.aktion_zurueck),
                                 tint = BoulderBuddy.colors.onChrome,
                             )
                         }
@@ -94,7 +96,7 @@ fun BoulderDetailScreen(
                     IconButton(onClick = onEdit) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
-                            contentDescription = "Bearbeiten",
+                            contentDescription = stringResource(R.string.aktion_bearbeiten),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -105,7 +107,7 @@ fun BoulderDetailScreen(
             if (!state.loading && !state.exists) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = "Boulder nicht gefunden.",
+                        text = stringResource(R.string.boulder_nicht_gefunden),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -161,12 +163,12 @@ fun BoulderDetailScreen(
                     ) {
                         StatCard(
                             value = state.versuche.toString(),
-                            label = "Versuche",
+                            label = stringResource(R.string.boulder_versuche),
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         StatCard(
                             value = state.sektor.ifBlank { "–" },
-                            label = "Sektor",
+                            label = stringResource(R.string.boulder_sektor),
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
@@ -192,7 +194,7 @@ fun BoulderDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
-                                    text = "Versuche anpassen",
+                                    text = stringResource(R.string.boulder_versuche_anpassen),
                                     style = MaterialTheme.typography.labelLarge,
                                     color = BoulderBuddy.colors.textSecondary,
                                 )
@@ -200,7 +202,7 @@ fun BoulderDetailScreen(
                                     IconButton(onClick = onDecrementAttempts) {
                                         Icon(
                                             Icons.Filled.Remove,
-                                            contentDescription = "Ein Versuch weniger",
+                                            contentDescription = stringResource(R.string.boulder_ein_versuch_weniger),
                                         )
                                     }
                                     Text(
@@ -212,7 +214,7 @@ fun BoulderDetailScreen(
                                     IconButton(onClick = onIncrementAttempts) {
                                         Icon(
                                             Icons.Filled.Add,
-                                            contentDescription = "Ein Versuch mehr",
+                                            contentDescription = stringResource(R.string.boulder_ein_versuch_mehr),
                                         )
                                     }
                                 }
@@ -225,7 +227,7 @@ fun BoulderDetailScreen(
                 state.notiz?.takeIf { it.isNotBlank() }?.let { notiz ->
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                            SectionHeader(text = "Notiz")
+                            SectionHeader(text = stringResource(R.string.boulder_notiz))
                             Text(
                                 text = notiz,
                                 style = MaterialTheme.typography.bodyMedium,
@@ -263,7 +265,7 @@ private fun BoulderFoto(
         when {
             fotoUri == null -> Icon(
                 imageVector = Icons.Outlined.Image,
-                contentDescription = "Kein Medium vorhanden",
+                contentDescription = stringResource(R.string.boulder_kein_medium),
                 tint = accentColor,
                 modifier = Modifier.size(Dimens.iconL),
             )
@@ -275,7 +277,7 @@ private fun BoulderFoto(
 
             else -> AsyncImage(
                 model = fotoUri,
-                contentDescription = "Boulder-Foto",
+                contentDescription = stringResource(R.string.boulder_foto),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.medium),
             )

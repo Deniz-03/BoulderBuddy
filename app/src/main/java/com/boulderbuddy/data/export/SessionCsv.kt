@@ -24,8 +24,13 @@ object SessionCsv {
     /** Anzahl der Route-spezifischen Spalten (die letzten 7 der [HEADER]-Liste). */
     private const val ROUTE_COLUMNS = 7
 
-    /** Excel erkennt UTF-8 nur mit BOM — ohne das stehen die Umlaute falsch in der Tabelle. */
-    private const val BOM = '﻿'
+    /**
+     * Excel erkennt UTF-8 nur mit BOM — ohne das stehen die Umlaute falsch in der Tabelle.
+     *
+     * Als Escape geschrieben, nicht als Zeichen: ein echtes BOM mitten in einer Quelldatei ist
+     * unsichtbar, und Werkzeuge (Lint, Editoren, `git diff`) melden es zu Recht als Verdacht.
+     */
+    private const val BOM = '\uFEFF'
 
     /**
      * Eine Zeile je Route; Sessions ohne Routen bekommen eine Zeile mit leeren Route-Feldern,

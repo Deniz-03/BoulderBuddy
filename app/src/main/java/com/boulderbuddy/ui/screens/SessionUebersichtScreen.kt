@@ -32,7 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import androidx.compose.ui.unit.dp
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.EmptyState
@@ -69,7 +72,7 @@ fun SessionUebersichtScreen(
     BoulderBuddyScaffold(
         topBar = {
             UebersichtTopBar(
-                current = "Sessions",
+                current = stringResource(R.string.uebersicht_sessions),
                 onSelectSessions = { /* bereits hier — Dropdown schließt nur */ },
                 // Navigation zur Boulder-Übersicht (BoulderUebersichtScreen).
                 onSelectBoulder = onOpenBoulderOverview,
@@ -77,7 +80,7 @@ fun SessionUebersichtScreen(
                     IconButton(onClick = onOpenSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Einstellungen",
+                            contentDescription = stringResource(R.string.aktion_einstellungen),
                             tint = BoulderBuddy.colors.onChrome,
                         )
                     }
@@ -104,10 +107,9 @@ fun SessionUebersichtScreen(
                     item {
                         EmptyState(
                             icon = Icons.Outlined.Landscape,
-                            title = "Noch keine Sessions",
-                            description = "Starte deine erste Session — danach findest du hier " +
-                                "jeden Hallenbesuch mit seinen Bouldern.",
-                            actionText = "Session starten",
+                            title = stringResource(R.string.sessions_leer_titel),
+                            description = stringResource(R.string.sessions_leer_text),
+                            actionText = stringResource(R.string.session_starten),
                             onAction = onCreateSession,
                         )
                     }
@@ -122,7 +124,11 @@ fun SessionUebersichtScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         SectionHeader(
-                            text = if (sessionCount == 1) "1 Session" else "$sessionCount Sessions",
+                            text = pluralStringResource(
+                                R.plurals.sessions_anzahl,
+                                sessionCount,
+                                sessionCount,
+                            ),
                         )
                         // Sortier-Steuerung: öffnet ein Menü mit den Kriterien. Das aktive
                         // Kriterium erneut zu wählen dreht die Richtung um.
@@ -139,7 +145,9 @@ fun SessionUebersichtScreen(
                                 )
                                 Icon(
                                     imageVector = Icons.Outlined.SwapVert,
-                                    contentDescription = "Sortierung ändern",
+                                    contentDescription = stringResource(
+                                        R.string.sessions_sortierung,
+                                    ),
                                     tint = BoulderBuddy.colors.textTertiary,
                                     modifier = Modifier.size(Dimens.iconS),
                                 )
@@ -208,7 +216,7 @@ fun SessionUebersichtScreen(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "Session hinzufügen",
+                    contentDescription = stringResource(R.string.sessions_hinzufuegen),
                 )
             }
           }

@@ -1,5 +1,6 @@
 package com.boulderbuddy.widget
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -97,7 +98,15 @@ internal data class WidgetPalette(
     val fillMuted: ColorProvider,
 )
 
-/** Ohne gesetzten Schalter: der Launcher entscheidet je Ressource gegen sein `values-night`. */
+/**
+ * Ohne gesetzten Schalter: der Launcher entscheidet je Ressource gegen sein `values-night`.
+ *
+ * `ColorProvider(resId)` ist in Glance 1.1.1 als bibliotheksintern markiert, obwohl es der
+ * einzige Weg zu genau diesem Verhalten ist — und dieses Verhalten ist der ganze Zweck der
+ * Palette (siehe oben). Die Alternative wäre ein fester Farbwert, und der schaltet am Gerät
+ * nachweislich nicht mit.
+ */
+@SuppressLint("RestrictedApi")
 private val AutoWidgetPalette = WidgetPalette(
     bg = ColorProvider(R.color.widget_bg),
     ink = ColorProvider(R.color.widget_ink),
@@ -192,7 +201,7 @@ private fun WidgetContent(context: Context, data: WidgetData) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "BoulderBuddy",
+                text = context.getString(R.string.widget_titel),
                 style = TextStyle(
                     color = farben.ink,
                     fontSize = 15.sp,
@@ -207,7 +216,7 @@ private fun WidgetContent(context: Context, data: WidgetData) {
                     .clickable(actionRunCallback<RefreshCallback>()),
             ) {
                 Text(
-                    text = "↻",
+                    text = context.getString(R.string.widget_aktualisieren),
                     style = TextStyle(color = farben.secondary, fontSize = 15.sp),
                 )
             }
@@ -227,13 +236,25 @@ private fun WidgetContent(context: Context, data: WidgetData) {
                 maxLines = 1,
             )
             Text(
-                text = "läuft gerade · ${data.routeCount} Boulder · ${data.sessionTops} Tops",
+                text = context.getString(
+                    R.string.widget_laeuft,
+                    context.resources.getQuantityString(
+                        R.plurals.widget_boulder,
+                        data.routeCount,
+                        data.routeCount,
+                    ),
+                    context.resources.getQuantityString(
+                        R.plurals.widget_tops,
+                        data.sessionTops,
+                        data.sessionTops,
+                    ),
+                ),
                 style = TextStyle(color = farben.secondary, fontSize = 12.sp),
                 maxLines = 1,
             )
         } else {
             Text(
-                text = "Keine aktive Session",
+                text = context.getString(R.string.widget_keine_session),
                 style = TextStyle(
                     color = farben.ink,
                     fontSize = 18.sp,
@@ -242,7 +263,11 @@ private fun WidgetContent(context: Context, data: WidgetData) {
                 maxLines = 1,
             )
             Text(
-                text = "${data.totalTops} Tops insgesamt",
+                text = context.resources.getQuantityString(
+                    R.plurals.widget_tops_insgesamt,
+                    data.totalTops,
+                    data.totalTops,
+                ),
                 style = TextStyle(color = farben.secondary, fontSize = 12.sp),
                 maxLines = 1,
             )
@@ -254,7 +279,10 @@ private fun WidgetContent(context: Context, data: WidgetData) {
         // daneben in fester Breite — er muss in JEDEM Zustand erreichbar bleiben.
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             WidgetButton(
-                text = if (data.hasActiveSession) "Session öffnen" else "Session starten",
+                text = context.getString(
+                    if (data.hasActiveSession) R.string.widget_session_oeffnen
+                    else R.string.session_starten,
+                ),
                 filled = true,
                 farben = farben,
                 action = actionStartActivity(sessionIntent),
@@ -262,7 +290,7 @@ private fun WidgetContent(context: Context, data: WidgetData) {
             )
             Spacer(GlanceModifier.width(8.dp))
             WidgetButton(
-                text = "Timer",
+                text = context.getString(R.string.widget_timer),
                 filled = false,
                 farben = farben,
                 action = actionStartActivity(

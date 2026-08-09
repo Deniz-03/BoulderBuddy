@@ -27,7 +27,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import com.boulderbuddy.R
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -101,7 +103,7 @@ fun UebersichtTopBar(
                     )
                     Icon(
                         imageVector = Icons.Filled.ArrowDropDown,
-                        contentDescription = "Ansicht wechseln",
+                        contentDescription = stringResource(R.string.uebersicht_wechseln),
                         tint = BoulderBuddy.colors.onChrome,
                     )
                 }
@@ -110,14 +112,14 @@ fun UebersichtTopBar(
                     onDismissRequest = { expanded = false },
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Sessions") },
+                        text = { Text(stringResource(R.string.uebersicht_sessions)) },
                         onClick = {
                             expanded = false
                             onSelectSessions()
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Boulder") },
+                        text = { Text(stringResource(R.string.uebersicht_boulder)) },
                         onClick = {
                             expanded = false
                             onSelectBoulder()
