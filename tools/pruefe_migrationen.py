@@ -369,7 +369,46 @@ else:
     print("[FEHLER] route.gradeId ist nach dem Loeschen weg")
     fehler.append("route.gradeId verloren")
 
-# 8. Fremdschluessel sind nach der Migration konsistent.
+# 8. v10 -> v11: `istStandard` markiert die mitgelieferten Systeme. Vorher stand dafuer
+# `gymId IS NULL` — und das traf nach dem Loeschen einer Halle auch deren eigenes System (v10
+# setzt `gymId` auf NULL), das damit dauerhaft unloeschbar wurde. Geprueft wird deshalb beides:
+# wen die Migration markiert, und was nach dem Loeschen der Halle davon uebrig bleibt.
+con = neu(10)
+con.executescript("""
+INSERT INTO gym VALUES (1, 'Boulderwelt', NULL, NULL, NULL, 150, 1, NULL);
+INSERT INTO grade_system VALUES (1, NULL, 'V-Scale');
+INSERT INTO grade_system VALUES (2, NULL, 'Französisch');
+INSERT INTO grade_system VALUES (3, 1, 'Hausfarben');
+INSERT INTO grade_system VALUES (4, NULL, 'Meine Skala');
+-- Gleicher Name wie ein Standard, aber an einer Halle: das ist ein eigenes System.
+INSERT INTO grade_system VALUES (5, 1, 'V-Scale');
+""")
+fahre(con, migrationen, 10, 11)
+
+systeme = con.execute("SELECT id, istStandard FROM grade_system ORDER BY id").fetchall()
+erwartet_sys = [(1, 1), (2, 1), (3, 0), (4, 0), (5, 0)]
+if systeme == erwartet_sys:
+    print("[ok] v10 -> v11 markiert genau die mitgelieferten Systeme als Standard")
+else:
+    print("[FEHLER] grade_system nach v10->v11:", systeme, "erwartet", erwartet_sys)
+    fehler.append("istStandard v10->v11")
+
+# Der Fall, der den Umbau ausgeloest hat: Halle weg, System bleibt — und bleibt loeschbar.
+# `commit()` muss vor das PRAGMA, sonst ist es ein stillschweigender No-Op (siehe oben) und
+# `gymId` bliebe auf 1 stehen, weil SET_NULL gar nicht ausgeloest wuerde.
+con.commit()
+con.execute("PRAGMA foreign_keys=ON")
+con.execute("DELETE FROM gym WHERE id = 1")
+
+verwaist = con.execute(
+    "SELECT id, gymId, istStandard FROM grade_system WHERE id IN (3, 5) ORDER BY id").fetchall()
+if verwaist == [(3, None, 0), (5, None, 0)]:
+    print("[ok] geloeschte Halle: ihre Systeme verlieren die Halle, gelten aber nicht als Standard")
+else:
+    print("[FEHLER] grade_system nach DELETE gym:", verwaist, "erwartet [(3, None, 0), (5, None, 0)]")
+    fehler.append("istStandard nach Hallen-Loeschung")
+
+# 9. Fremdschluessel sind nach der Migration konsistent.
 con.execute("PRAGMA foreign_keys=ON")
 verletzt = con.execute("PRAGMA foreign_key_check").fetchall()
 if not verletzt:
