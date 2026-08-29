@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -107,7 +108,7 @@ fun StatistikScreen(
     // Gewählter Tag und Gradsystem der Tagesstatistik. Beide fallen auf den jüngsten bzw.
     // ersten vorhandenen Wert zurück, sobald die Auswahl ins Leere zeigt — etwa wenn ein Tag
     // aus der Leiste rutscht, weil neuere dazugekommen sind.
-    var tagIndex by rememberSaveable { mutableStateOf(0) }
+    var tagIndex by rememberSaveable { mutableIntStateOf(0) }
     var tagesSystem by rememberSaveable { mutableStateOf<Int?>(null) }
     val gewaehlterTag = state.tage.getOrNull(tagIndex) ?: state.tage.firstOrNull()
     val tagesSysteme = gewaehlterTag
