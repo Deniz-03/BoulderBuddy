@@ -46,6 +46,13 @@ import com.boulderbuddy.ui.theme.Dimens
 /** Eine zusätzliche Schaltfläche, die der Aufrufer situativ einhängt (z.B. „Modell laden"). */
 data class DialogAktion(val beschriftung: String, val onClick: () -> Unit)
 
+/**
+ * Der Dialog der Spracheingabe: Zuhören, Zwischenergebnis, Endergebnis, Fehler.
+ *
+ * Er zeigt nur an und entscheidet nichts — der Zustand kommt fertig als [SpeechInputState]
+ * herein, und was daraus wird, bestimmt der Aufrufer. Diese Trennung ist der Grund, warum
+ * die Erkennungslogik in `data/speech/SpeechRecognitionModel.kt` ohne Gerät prüfbar ist.
+ */
 @Composable
 fun SpeechInputDialog(
     state: SpeechInputState,

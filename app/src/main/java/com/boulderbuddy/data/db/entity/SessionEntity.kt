@@ -8,6 +8,11 @@ import androidx.room.PrimaryKey
 /**
  * Eine Kletter-Session in einer Halle. Gym 1:N Session, Session 1:N Route.
  *
+ * Zwei weitere Dinge hängen daran, beide optional und beide mit eigener Löschregel:
+ * Hangboard-Workouts (`hangboard_workout.sessionId`, CASCADE — sie gehen mit) und
+ * Ghost-Analysen (`ghost_analysis.sessionId`, SET NULL — die bleiben, siehe
+ * [GhostAnalysisEntity]).
+ *
  * [endedAt] ist der Aktiv-Marker: `null` = Session läuft noch, gesetzt = beendet.
  * Entscheidet in `SessionRoute.kt`, ob `SessionDetailScreen` (aktiv) oder
  * `AlteSessionScreen` (read-only) angezeigt wird.

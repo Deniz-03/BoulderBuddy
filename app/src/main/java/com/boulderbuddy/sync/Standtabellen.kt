@@ -1,5 +1,18 @@
 package com.boulderbuddy.sync
 
+// =============================================================================
+// Welche Tabellen und Spalten am Abgleich teilnehmen (Sync-Plan E4)
+// =============================================================================
+//
+// Die Liste unten ist die vollständige Antwort auf „was wird verglichen". Sie ist von Hand
+// gepflegt und wird NICHT aus dem Room-Schema abgeleitet: eine neue Spalte soll jemanden
+// zwingen hinzusehen, ob sie überhaupt in einen Vergleich gehört (E15). Eine gerätelokale
+// Spalte in einer verglichenen Zeile macht aus jeder betroffenen Zeile einen Dauerkonflikt.
+//
+// Wer eine Tabelle oder Spalte ergänzt, prüft zweierlei: dass der Wert auf beiden Geräten
+// gleich aussehen KANN, und dass die Tabelle hinter ihren Eltern steht — die Reihenfolge der
+// Liste ist Teil ihrer Bedeutung.
+
 /** Was beim Löschen der Elternzeile mit der Kindzeile passiert — wie in den Entities. */
 enum class Loeschregel { KASKADE, AUF_NULL }
 

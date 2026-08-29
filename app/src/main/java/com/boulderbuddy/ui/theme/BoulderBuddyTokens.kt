@@ -6,6 +6,18 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
+// =============================================================================
+// Die eigenen Design-Tokens neben dem M3-Schema
+// =============================================================================
+//
+// Material deckt Flächen, Text und Akzent ab. Was diese App zusätzlich braucht und wofür es
+// in M3 keine Rolle gibt, steht hier: die sechs Routenfarben, die Chrome-Flächen von TopBar
+// und Navigation, die abgestuften Textfarben und das Punktmuster des Hintergrunds.
+//
+// Erreichbar über [BoulderBuddy.colors] statt über einen Import — der Wert kommt aus einem
+// CompositionLocal und dreht damit automatisch mit dem Light/Dark-Wechsel mit. Wer eine
+// dieser Farben direkt aus `Color.kt` importiert, umgeht genau das.
+
 @Immutable
 data class RouteColors(
     val red: Color,

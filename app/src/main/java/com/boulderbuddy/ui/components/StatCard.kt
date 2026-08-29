@@ -18,6 +18,13 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.LocalBoulderBuddyColors
 
+/**
+ * Eine Kennzahl mit Beschriftung — die kleinste Karte des Designsystems.
+ *
+ * Bewusst ohne eigene Höhe: mehrere nebeneinander werden vom Aufrufer über
+ * `height(IntrinsicSize.Min)` auf gleiche Höhe gebracht, sonst stehen sie je nach Textlänge
+ * unterschiedlich hoch.
+ */
 @Composable
 fun StatCard(
     label: String,

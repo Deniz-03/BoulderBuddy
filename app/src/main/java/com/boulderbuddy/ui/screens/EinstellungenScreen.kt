@@ -76,6 +76,17 @@ import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.EinstellungenUiState
 import com.boulderbuddy.ui.viewmodel.GradeSystemUi
 
+/**
+ * Die Einstellungen — und zugleich die Tür zu allem, was kein eigener Tab ist.
+ *
+ * Drei Sorten Zeile stehen hier nebeneinander: echte Schalter (Dark Mode, Haptik,
+ * Näherungs-Erinnerungen), Verwaltungs-Sprünge (Hallen, Gradsysteme, Geräte-Abgleich) und
+ * unter „Experimental" der Ghost Climber. Letzteres ist Absicht: der Ghost Climber ist
+ * bewusst kein fünfter Tab, damit der MVP-Kernfluss unberührt bleibt.
+ *
+ * Die Standort- und Notification-Freigaben werden von hier aus angefragt, in der
+ * Reihenfolge, die Android erzwingt — erst Vordergrund, dann Hintergrund, dann Benachrichtigungen.
+ */
 @Composable
 fun EinstellungenScreen(
     // Grading-Verwaltung aus dem EinstellungenViewModel.

@@ -7,6 +7,12 @@ import androidx.room.Update
 import com.boulderbuddy.data.db.entity.RouteEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Zugriff auf die geloggten Boulder.
+ *
+ * Sortiert wird nach `id` und nicht nach einem Zeitstempel — die Zeile hat keinen. Innerhalb
+ * einer Session ist das die Reihenfolge des Anlegens, also die des Kletterns.
+ */
 @Dao
 interface RouteDao {
     @Insert

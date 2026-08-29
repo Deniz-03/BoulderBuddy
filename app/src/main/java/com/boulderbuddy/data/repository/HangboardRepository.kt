@@ -8,8 +8,9 @@ import javax.inject.Inject
 /**
  * Kapselt den Zugriff auf [HangboardTemplateEntity]-Daten (Timer-Voreinstellungen).
  *
- * Should-Have: Der Timer läuft in Phase 6.9 zunächst ohne Templates; dieses Repository stellt
- * sie bereit, sobald sie angebunden werden.
+ * Speist die Preset-Auswahl im Einstell-Dialog des Hangboard-Timers: die drei mitgelieferten
+ * aus `SeedData` und alles, was der Nutzer dort selbst gespeichert hat. Presets sind
+ * gerätübergreifend gemeint und reisen deshalb beim Geräte-Abgleich mit.
  */
 interface HangboardRepository {
     /** Alle Timer-Templates, alphabetisch nach Name. */

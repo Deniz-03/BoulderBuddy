@@ -48,8 +48,11 @@ import kotlin.math.roundToInt
  * läuft über einen SEPARATEN Landmarker auf einem geweiteten Ausschnitt und beeinflusst
  * ausschließlich die Box.
  *
- * Nachverarbeitung (Stufen 1+2): L/R-Konsistenz → anatomische Plausibilität →
- * One-Euro-Glättung → Sichtbarkeits-Hysterese; die Roh-Spur bleibt als
+ * Nachverarbeitung, in dieser Reihenfolge (die Kette steht ausgeschrieben unten bei der
+ * Erzeugung des [GhostPoseTrack], samt Begründung für die Position des letzten Glieds):
+ * Pose-Gates inkl. L/R-Konsistenz und anatomischer Klemmen → begrenzte
+ * Lücken-Interpolation → One-Euro-Glättung → Sichtbarkeits-Hysterese → rigide
+ * Rekonstruktion der Gliedmaßenketten. Die Roh-Spur bleibt daneben als
  * [GhostPoseTrack.rawFrames] fürs Debug-Overlay erhalten.
  *
  * Läuft komplett auf [Dispatchers.Default] — eine einmalige Batch-Analyse, bewusst

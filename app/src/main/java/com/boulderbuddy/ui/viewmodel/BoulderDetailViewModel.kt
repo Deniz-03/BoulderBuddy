@@ -19,6 +19,18 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+// =============================================================================
+// Ein einzelner Boulder in der Detailansicht
+// =============================================================================
+//
+// Die boulderId kommt per Assisted Injection herein und nicht aus den Nav-Argumenten: der
+// Screen läuft am Tablet auch im Detail-Pane des Zwei-Spalten-Layouts, und dort gibt es
+// keine eigenen Nav-Argumente.
+//
+// Gelesen wird über `observeAll`-Flows und nicht über ein `observeById`. Das klingt
+// verschwenderisch, ist aber der Grund, dass die Ansicht sich von selbst aktualisiert, wenn
+// nebenan etwas geändert wird — und die Datenmengen sind die einer Trainings-App.
+
 data class BoulderDetailUiState(
     val loading: Boolean = true,
     val exists: Boolean = false,

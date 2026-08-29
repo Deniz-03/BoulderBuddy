@@ -10,8 +10,11 @@ import javax.inject.Inject
 /**
  * Kapselt Gradsysteme ([GradeSystemEntity]) und deren Grade ([GradeEntity]).
  *
- * Bündelt beide DAOs, weil Custom-Gradsystem & Session-Erstellung sie stets zusammen brauchen
- * (ein System mit seinen farbigen Graden).
+ * Bündelt beide DAOs, weil System und Grade nie einzeln gebraucht werden: ein Gradsystem
+ * ohne seine Grade ist nur ein Name.
+ *
+ * Ein Grad ist reine Schwierigkeit. Die Farbe eines Boulders hängt seit v4 an der Route und
+ * nicht am Grad — wer hier „farbige Grade" sucht, sucht in der falschen Schicht.
  */
 interface GradeRepository {
     /** Gradsysteme einer Halle. */

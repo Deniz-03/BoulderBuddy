@@ -9,6 +9,14 @@ import com.boulderbuddy.data.db.entity.HangboardWorkoutEntity
 import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Zugriff auf die absolvierten Hangboard-Workouts samt ihren Sätzen.
+ *
+ * Gelesen wird ausnahmslos als [HangboardWorkoutWithSegments]: ein Workout ohne seine Sätze
+ * hat keine Aussage, weil die tatsächliche Hängezeit erst aus ihnen entsteht. Deshalb steht
+ * an jeder Abfrage `@Transaction` — ohne das könnten Kopf und Sätze aus zwei verschiedenen
+ * Ständen der Datenbank stammen.
+ */
 @Dao
 interface HangboardWorkoutDao {
 

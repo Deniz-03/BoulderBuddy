@@ -8,6 +8,12 @@ import androidx.room.Update
 import com.boulderbuddy.data.db.entity.GymEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Zugriff auf die Hallen.
+ *
+ * Der interessante Teil ist das Löschen: es geht ausschließlich über [deleteAndKeepName],
+ * weil eine Halle beim Verschwinden ihren Namen in der Historie hinterlassen muss.
+ */
 @Dao
 interface GymDao {
     @Insert

@@ -7,6 +7,13 @@ import androidx.room.Update
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Zugriff auf die Gradsysteme (V-Scale, Französisch, Hausfarben einer Halle, eigene).
+ *
+ * Ob ein System geschützt ist, steht in `istStandard` und nicht daran, ob es eine Halle hat
+ * — dieses DAO kennt den Unterschied nicht und löscht, was ihm genannt wird. Die Prüfung
+ * sitzt im `GradeRepository`.
+ */
 @Dao
 interface GradeSystemDao {
     @Insert

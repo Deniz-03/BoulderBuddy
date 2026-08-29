@@ -11,8 +11,12 @@ import androidx.core.net.toUri
 enum class MediaType { IMAGE, VIDEO }
 
 /**
- * Leitet den [MediaType] einer content-URI über ihren MIME-Typ ab
- * (`content://`-URIs vom PhotoPicker beantworten `getType` zuverlässig).
+ * Leitet den [MediaType] einer content-URI über ihren MIME-Typ ab.
+ *
+ * Verlangt eine `content://`-URI — nur die beantwortet `getType` zuverlässig. Beide Quellen
+ * der App liefern das: der PhotoPicker von sich aus, und der eigene Aufnahme-Screen, weil
+ * `CameraCaptureController` seine app-internen Dateien bewusst durch den FileProvider reicht
+ * statt eine `file://`-URI zurückzugeben.
  *
  * Fallback = [MediaType.IMAGE]: ist der MIME-Typ unbekannt (z.B. abgelaufene URI ohne
  * Leserecht), rendert die App wie bisher als Bild — der sichere, bestehende Pfad.

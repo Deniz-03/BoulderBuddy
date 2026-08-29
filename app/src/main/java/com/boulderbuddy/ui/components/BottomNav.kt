@@ -53,6 +53,14 @@ enum class BottomNavTab(
 }
 
 
+/**
+ * Die untere Navigationsleiste am Telefon — vier Ziele, kein fünftes.
+ *
+ * Sichtbar ausschließlich auf den vier Tab-Zielen; Push-Screens füllen das Fenster allein
+ * (die Entscheidung darüber trifft `AppNavigation`, nicht diese Datei). Ab 600 dp Breite
+ * übernimmt stattdessen [SideNav] — eine unten angeheftete Leiste ist auf einem Tablet
+ * weder gut erreichbar noch üblich.
+ */
 @Composable
 fun BottomNav(
     selectedTab: BottomNavTab,

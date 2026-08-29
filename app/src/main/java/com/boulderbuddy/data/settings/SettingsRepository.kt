@@ -18,9 +18,15 @@ data class TimerConfig(
 )
 
 /**
- * Kapselt app-weite Einstellungen in einem Preferences-[DataStore]:
- * gewähltes Grade-System (steuert das Grade-Dropdown beim Boulder-Anlegen), zuletzt genutzte
- * Timer-Konfiguration, Dark-Mode-Override, Haptik-Schalter und der Anzeigename.
+ * Kapselt app-weite Einstellungen in einem Preferences-[DataStore]: gewähltes Grade-System
+ * (steuert das Grade-Dropdown beim Boulder-Anlegen), zuletzt genutzte Timer-Konfiguration,
+ * Dark-Mode-Override, Haptik-Schalter, Anzeigename und der globale Schalter für die
+ * Näherungs-Erinnerungen.
+ *
+ * **Was hier steht, gehört dem Gerät und wird nie abgeglichen.** Das ist die Trennlinie zur
+ * Datenbank: welche Halle es gibt, ist gemeinsame Wahrheit — ob dieses Gerät dunkel
+ * dargestellt wird oder Push schickt, ist es nicht. Der Pro-Halle-Schalter für Erinnerungen
+ * steht deshalb in `gym`, der globale hier.
  */
 interface SettingsRepository {
     /** ID des gewählten Grade-Systems; `null`, wenn noch nichts gewählt wurde. */

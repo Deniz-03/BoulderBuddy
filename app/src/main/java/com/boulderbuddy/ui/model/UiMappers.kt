@@ -11,18 +11,27 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // =============================================================================
-// UiMappers — die in Phase 5.5 auf Phase 6 verschobene Mapping-Schicht.
+// UiMappers — von der Datenschicht zu dem, was auf dem Bildschirm steht
+// =============================================================================
 //
-// Übersetzt Datenschicht-Werte (Entities/Enums) in das, was die Screens brauchen:
-//   - Grade-Hexfarbe → Compose-Color
+// Zwei Sorten von Übersetzung liegen hier:
 //   - RouteStatus (OPEN/SENT/PROJECT/SKIP) → UI-BoulderStatus (TOP/FLASH/PROJEKT)
-//   - epoch-millis → deutsche Datums-Strings
+//   - epoch-millis → deutsche Datums- und Dauer-Texte
 //
-// Bewusst zentral, damit die Regeln (z.B. "Flash = SENT mit attempts == 1") nur
-// an EINER Stelle stehen und nicht in jedem ViewModel neu erfunden werden.
+// Bewusst zentral, damit die Regeln (etwa "Flash = SENT mit attempts == 1") an EINER
+// Stelle stehen und nicht in jedem ViewModel neu erfunden werden.
+//
+// Die Farbauflösung steht NICHT hier, sondern in `ui/theme/RouteColors.kt`: seit v4 hängt
+// die Farbe an der Route und nicht am Grad, und sie kommt aus einem festen Schlüssel statt
+// aus einem gespeicherten Hexwert.
 // =============================================================================
 
 /**
+ * BEFUND B2 (Kommentarpflege): [parseHexColor] und [Color.toHexRgb] werden nirgends mehr
+ * aufgerufen — weder in der App noch in den Tests. Sie stammen aus der Zeit, als ein Grad
+ * seine Farbe als Hexwert mitbrachte (bis v4); seither kommt die Farbe über einen festen
+ * Schlüssel aus `routeColorPalette`. Beide Funktionen sind damit toter Code.
+ *
  * Parst einen Hex-Farbstring in eine Compose-[Color].
  * Akzeptiert `#RRGGBB` und `#AARRGGBB` (mit oder ohne führendes `#`).
  * Fällt bei ungültigem Wert auf ein neutrales Grau zurück, statt zu werfen —

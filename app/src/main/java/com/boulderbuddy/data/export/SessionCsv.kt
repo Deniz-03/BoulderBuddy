@@ -13,6 +13,11 @@ import java.util.TimeZone
  * BOM, aufgelöste Namen, Sessions ohne Routen) in der JVM prüfbar ist statt nur am Gerät.
  *
  * [SessionExporter] bleibt der Teil, der DAOs liest und in ein SAF-[android.net.Uri] schreibt.
+ *
+ * **Umfang: Sessions und ihre Boulder, sonst nichts.** Hangboard-Workouts und
+ * Ghost-Analysen hängen zwar ebenfalls an einer Session, stehen aber nicht in dieser Datei:
+ * eine Zeile je Boulder ist das Format, und beides passte nur als Fremdkörper hinein. Wer
+ * den Export erweitert, braucht deshalb eine zweite Tabelle, keine weiteren Spalten.
  */
 object SessionCsv {
 

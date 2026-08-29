@@ -43,6 +43,14 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/**
+ * Der Start-Tab: drei Kennzahlen, die Schnellaktionen und die letzte Session.
+ *
+ * Was hier steht, ist die Antwort auf „was mache ich jetzt" — deshalb sind die
+ * Schnellaktionen zustandsabhängig: läuft eine Session, führt die erste Kachel hinein statt
+ * eine neue zu starten. Der Screen entscheidet das nicht selbst, er zeigt nur, was der
+ * HomeViewModel bereitstellt.
+ */
 @Composable
 fun HomeScreen(
     // Anzeige-Zustand aus dem HomeViewModel (Phase 6.1). Default = leerer State hält
@@ -107,8 +115,8 @@ fun HomeScreen(
                 },
             )
         },
-        // BottomNav wird ab Phase 1.3 zentral vom Navigations-Gerüst (AppNavigation)
-        // gestellt — dieser Screen rendert sie nicht mehr selbst.
+        // Die Navigationsleiste stellt das Gerüst (AppNavigation) — dieser Screen
+        // rendert sie nicht selbst.
         // Mittlerer Hauptbereich
         content = { _ ->
             // Scrollbare Leiste die nur die Elemente Lädt die gerade auf dem Bildschirm sind -> Spart Leistung

@@ -27,8 +27,19 @@ import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.data.db.entity.StandMetaEntity
 
 /**
- * Room-Datenbank der App. Wird ab Phase 4 per Hilt bereitgestellt.
- * Schema-Export ist in `app/build.gradle.kts` aktiviert (`room.schemaLocation`).
+ * Room-Datenbank der App — die einzige. Bereitgestellt von `di/DatabaseModule`.
+ *
+ * Zwei Regeln, an denen hier alles hängt:
+ *
+ * 1. **Jede Versionserhöhung braucht eine Migration** in `Migrations.kt`. Einen destruktiven
+ *    Fallback gibt es seit dem Geräte-Abgleich nicht mehr; ohne passende Migration bricht
+ *    der Start ab, statt Daten zu löschen. Die Versionsliste unten ist die Chronik dazu —
+ *    wer erhöht, schreibt eine Zeile mehr.
+ * 2. **Der Schema-Export ist Teil des Quellcodes**, nicht Build-Abfall
+ *    (`room.schemaLocation` in `app/build.gradle.kts`, Dateien unter `app/schemas/`). Die
+ *    Migrationen sind wörtlich daraus abgeschrieben, `tools/pruefe_migrationen.py` vergleicht
+ *    beides gegeneinander, und `MigrationTest` fährt sie auf dem Gerät. Ein nicht
+ *    eingecheckter Export nimmt allen dreien die Grundlage.
  */
 @Database(
     entities = [

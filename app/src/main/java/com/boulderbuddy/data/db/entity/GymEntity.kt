@@ -4,11 +4,17 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Ein Kletter-/Boulderhalle. Wurzel der Hierarchie (1:N GradeSystem, 1:N Session).
+ * Eine Kletter-/Boulderhalle. Wurzel der Hierarchie (1:N GradeSystem, 1:N Session).
  *
- * Ab v6 (Gym-Näherungs-Push, Variante B) optional mit Koordinaten: ein Gym mit
- * `latitude`/`longitude` wird als Geofence registriert und kann Näherungs-Erinnerungen
- * auslösen; ohne Koordinaten bleibt es ein reiner Namens-Datensatz wie bisher.
+ * Seit **v8** (Gym-Näherungs-Push, Variante B; `MIGRATION_7_8`) optional mit Koordinaten:
+ * eine Halle mit `latitude`/`longitude` wird als Geofence registriert und kann
+ * Näherungs-Erinnerungen auslösen; ohne Koordinaten bleibt sie ein reiner Namens-Datensatz
+ * wie zuvor. Bestandshallen kamen ohne Position durch die Migration — „nicht geofenced" ist
+ * ein gültiger Zustand, kein halbfertiger.
+ *
+ * **Eine gelöschte Halle reißt nichts mit** (v10): sowohl `session.gymId` als auch
+ * `grade_system.gymId` stehen auf SET NULL. Die einzige Ausnahme ist `gym_visit`, das per
+ * CASCADE mitgeht — ein Besuchs-Log ohne die besuchte Halle sagt nichts mehr aus.
  */
 @Entity(tableName = "gym")
 data class GymEntity(

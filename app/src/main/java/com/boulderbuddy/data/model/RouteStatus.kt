@@ -8,7 +8,8 @@ package com.boulderbuddy.data.model
  *
  * Bewusst getrennt von der UI-Enum `BoulderStatus` (TOP/FLASH/PROJEKT) in `ui/screens/`:
  * Die UI-Enum ist eine abgeleitete Darstellung (z.B. Flash = SENT mit `attempts == 1`).
- * Das Mapping zwischen beiden entsteht in Phase 6, hier wird nicht gedoppelt.
+ * Das Mapping steht an einer Stelle — `RouteStatus.toBoulderStatus` in `ui/model/UiMappers.kt`
+ * — und wird hier nicht gedoppelt.
  */
 enum class RouteStatus {
     /** Angelegt, noch nicht abgeschlossen. */
@@ -20,6 +21,13 @@ enum class RouteStatus {
     /** Projekt – dranbleiben, noch nicht getoppt. */
     PROJECT,
 
-    /** Übersprungen / abgebrochen. */
+    /**
+     * Übersprungen / abgebrochen.
+     *
+     * Wird von der App derzeit **nirgends geschrieben** — kein Formular und kein Seed
+     * vergibt ihn. Er bleibt, weil eine ältere Datenbank ihn enthalten kann und die
+     * Anzeige ihn deshalb behandeln muss (`toBoulderStatus` bildet ihn auf PROJEKT ab).
+     * Wer „überspringen" wieder anbieten will, findet den Wert also schon vor.
+     */
     SKIP,
 }

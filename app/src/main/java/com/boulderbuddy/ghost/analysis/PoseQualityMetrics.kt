@@ -15,17 +15,29 @@ import kotlin.math.hypot
 import kotlin.math.sqrt
 
 // =============================================================================
-// Stufe 0 — Qualitäts-Kennzahlen der Pose-Erkennung (Diagnose-Doc §2, Stufe 0)
+// Qualitäts-Kennzahlen der Pose-Erkennung
 // =============================================================================
 //
-// An diesen drei Zahlen wird jede weitere Stabilisierungs-Stufe gemessen (Baseline
-// zuerst mit ML Kit erheben, dann MediaPipe/Filter dagegen vergleichen):
-//  - Jitter: MEDIAN der Frame-zu-Frame-Verschiebung sicher erkannter Landmarks in px.
+// Das Messwerkzeug der Ghost-Stabilisierung: jede Stufe wurde daran gemessen statt am
+// Eindruck beim Zusehen. Angefangen hat es mit drei Zahlen (Stufe 0, Diagnose-Doc §2),
+// gewachsen ist es auf acht — die späteren Stufen brauchten Kennzahlen, die es vorher
+// nicht gab, weil sich sonst nicht unterscheiden ließ, WORAN ein unruhiges Skelett liegt.
+//
+// Die drei von Anfang an:
+//  - jitterPx: MEDIAN der Frame-zu-Frame-Verschiebung sicher erkannter Landmarks in px.
 //    Der Median statt Mittelwert approximiert "ruhiger Griff": echte Züge sind selten
 //    und landen in den oberen Quantilen, das Grundzittern dominiert die Mitte.
-//  - Dropout: Anteil fehlender/unsicherer Landmark-Slots (33 je Frame erwartet).
-//  - Flip: Anteil der Frame-Übergänge, bei denen ein Links/Rechts-Paar überkreuzt
+//  - dropoutRate: Anteil fehlender/unsicherer Landmark-Slots (33 je Frame erwartet).
+//  - flipRate: Anteil der Frame-Übergänge, bei denen ein Links/Rechts-Paar überkreuzt
 //    besser zum Vorgänger passt als gerade — das BlazePose-Vertauschungs-Symptom.
+//
+// Dazu meanConfidence und die vier, die aus den späteren Stufen stammen — ihre
+// ausführliche Begründung steht jeweils am Feld: boneLengthCv (Verkürzung, A7),
+// boneLengthWobble (die eigentliche Morph-Metrik, S7a), boneOverExtensionRate, scaleCv,
+// centroidWobble und centroidPulse (S6a/S7b: Unruhe und Periodik des Rumpfzentrums).
+//
+// Historisch: die Baseline wurde noch mit ML Kit erhoben. Seit Stufe 3 läuft die
+// Extraktion auf MediaPipe; die alten Zahlen stehen im Diagnose-Doc, nicht mehr hier.
 
 /** Kennzahlen einer kompletten Pose-Spur. Alle Quoten in [0,1]. */
 data class PoseQualityMetrics(

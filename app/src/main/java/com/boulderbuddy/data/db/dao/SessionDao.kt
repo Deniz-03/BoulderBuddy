@@ -7,6 +7,13 @@ import androidx.room.Update
 import com.boulderbuddy.data.db.entity.SessionEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Zugriff auf die Kletter-Sessions.
+ *
+ * Der Aktiv-Marker ist `endedAt IS NULL` — es gibt kein eigenes Statusfeld. Daran hängt mehr
+ * als die Anzeige: Widget, Näherungs-Push und der Geräte-Abgleich fragen darüber, ob gerade
+ * eine Session läuft.
+ */
 @Dao
 interface SessionDao {
     /** Legt eine Session an; gibt die neue Row-ID zurück. */

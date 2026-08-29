@@ -4,9 +4,13 @@ package com.boulderbuddy.wear.data
  * Vertrag für die Uhr → Phone Data-Layer-Nachricht eines fertigen Hangboard-Durchlaufs.
  *
  * Bewusst simpel gehalten (ein `MessageClient`-Event, kleine Text-Payload), damit die Uhr
- * ohne Serialisierungs-Dependency auskommt. Der gleiche Vertrag existiert spiegelbildlich im
- * `:app`-Modul (`com.boulderbuddy.wear.HangboardWearListenerService`) — beide Module sind
- * getrennt, deshalb dupliziert statt geteilt.
+ * ohne Serialisierungs-Dependency auskommt. Die Gegenseite steht im `:app`-Modul unter
+ * `com.boulderbuddy.wearsync.HangboardWearListenerService` — beide Module sind getrennt,
+ * deshalb ist der Vertrag dupliziert statt geteilt.
+ *
+ * **Das ist die Falle dieser Datei:** Pfade und Payload-Format stehen zweimal im Repo, und
+ * nichts erzwingt ihre Gleichheit. Wer hier etwas ändert, muss die andere Seite von Hand
+ * nachziehen; ein Fehler dabei fällt erst am gekoppelten Gerät auf.
  */
 object WearSyncContract {
     /** Pfad der MessageClient-Nachricht. Muss im Phone-`WearableListenerService` übereinstimmen. */

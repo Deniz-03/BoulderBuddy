@@ -7,6 +7,12 @@ import androidx.room.Update
 import com.boulderbuddy.data.db.entity.GradeEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Zugriff auf die einzelnen Grade eines Gradsystems.
+ *
+ * Sortiert wird durchgängig nach `sortOrder` — die Reihenfolge ist die Schwierigkeit und
+ * darf nicht alphabetisch entstehen ("V10" käme sonst vor "V2").
+ */
 @Dao
 interface GradeDao {
     @Insert
