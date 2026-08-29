@@ -42,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.R
 import androidx.core.content.ContextCompat
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.EingabeDialog
 import com.boulderbuddy.ui.components.PrimaryButton
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SelectableChip
@@ -417,35 +418,26 @@ private fun KoordinatenDialog(
     val lng = parse(lngText)
     val valid = lat != null && lat in -90.0..90.0 && lng != null && lng in -180.0..180.0
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.halle_koordinaten_titel)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                TextField(
-                    value = latText,
-                    onChange = { latText = it },
-                    label = stringResource(R.string.halle_breitengrad),
-                    placeholder = stringResource(R.string.halle_breitengrad_platzhalter),
-                )
-                TextField(
-                    value = lngText,
-                    onChange = { lngText = it },
-                    label = stringResource(R.string.halle_laengengrad),
-                    placeholder = stringResource(R.string.halle_laengengrad_platzhalter),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = valid,
-                onClick = { onConfirm(lat!!, lng!!) },
-            ) { Text(stringResource(R.string.halle_koordinaten_uebernehmen)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
-        },
-    )
+    EingabeDialog(
+        titel = stringResource(R.string.halle_koordinaten_titel),
+        bestaetigenText = stringResource(R.string.halle_koordinaten_uebernehmen),
+        bestaetigenAktiv = valid,
+        onBestaetigen = { onConfirm(lat!!, lng!!) },
+        onAbbrechen = onDismiss,
+    ) {
+        TextField(
+            value = latText,
+            onChange = { latText = it },
+            label = stringResource(R.string.halle_breitengrad),
+            placeholder = stringResource(R.string.halle_breitengrad_platzhalter),
+        )
+        TextField(
+            value = lngText,
+            onChange = { lngText = it },
+            label = stringResource(R.string.halle_laengengrad),
+            placeholder = stringResource(R.string.halle_laengengrad_platzhalter),
+        )
+    }
 }
 
 private val vorschauSysteme = listOf(
