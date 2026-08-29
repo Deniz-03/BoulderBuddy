@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -145,6 +146,9 @@ fun AppNavigation(
     // gesamte Graph in einem Lambda statt zweimal im Baum: zwei NavHost-Aufrufe wären zwei
     // getrennte Back-Stacks, und beim Drehen des Tablets über die 600-dp-Grenze wäre der
     // Verlauf weg.
+    //
+    // Ein Lambda allein genügt dafür allerdings nicht — es muss auch von genau EINER Stelle
+    // aus aufgerufen werden. Warum, steht unten beim Aufruf.
     val inhalt: @Composable (Modifier) -> Unit = { inhaltModifier ->
         NavHost(
             navController = navController,
@@ -497,22 +501,40 @@ fun AppNavigation(
         }
     }
 
-    // Die Navigation ist nur auf den 4 Tab-Zielen sichtbar; Push-Screens (Einstellungen,
-    // Formulare, Kamera) füllen das Fenster allein.
-    when {
-        currentTab == null -> Box(modifier = Modifier.fillMaxSize()) { inhalt(Modifier.fillMaxSize()) }
+    /*
+     * DIE NAVIGATIONSLEISTE WECHSELT, DER NAVHOST BLEIBT AN SEINER STELLE.
+     *
+     * Hier stand ein `when` mit drei Zweigen — Push-Screen, Telefon-Tab, Tablet-Tab — und in
+     * jedem ein eigener Aufruf von `inhalt`. Drei Aufrufstellen sind für Compose drei
+     * Identitäten: sobald `currentTab` von einem Tab auf `null` kippt (also bei JEDEM Sprung
+     * von einem Tab in einen Push-Screen), wechselte der Zweig, und der NavHost wurde nicht
+     * verschoben, sondern abgebaut und neu aufgebaut.
+     *
+     * Mit ihm sein `rememberSaveableStateHolder` — der Topf, in dem der gemerkte Zustand
+     * ALLER Ziele liegt. Nach jedem Ausflug in ein Formular stand die Statistik wieder ganz
+     * oben, die Boulder-Liste ebenso, und im Sessions-Tab war die gewählte Session weg: der
+     * Pane-Navigator liegt in genau diesem Topf. Die Daten blieben immer heil (ViewModels
+     * hängen am NavBackStackEntry, nicht hier), verloren ging nur Ansichts-Zustand — deshalb
+     * las es sich als „springt komisch" und nie als Fehler.
+     *
+     * Auffällig war, dass ein Drehen des Geräts den Zustand SEHR WOHL überstand: dabei wird
+     * die ganze Composition aus dem Bundle wiederhergestellt, der Topf inbegriffen. Genau
+     * diese Unterscheidung — Konfigurationswechsel heilt, Navigation nicht — zeigt auf den
+     * Neuaufbau und nicht auf das Speichern.
+     *
+     * Jetzt gibt es nur noch **eine** Aufrufstelle, und die Leisten kommen als bedingte
+     * Geschwister dazu. Ein `if` vor einem Geschwister-Aufruf ändert dessen Identität nicht;
+     * nur ein Wechsel der Aufrufstelle tut das.
+     *
+     * `movableContentOf` wäre die andere Lösung. Sie passt hier schlecht: das Lambda müsste
+     * `remember`t werden und fröre damit `isWideLayout` und alles andere Mitgefangene auf den
+     * Stand der ersten Composition ein.
+     */
+    // Welche Leiste gilt? Beide `null` = Push-Screen, der füllt das Fenster allein.
+    val seitenLeiste = if (breite == Breite.Kompakt) null else currentTab
+    val untereLeiste = if (breite == Breite.Kompakt) currentTab else null
 
-        // Telefon: Leiste unten, wie bisher.
-        breite == Breite.Kompakt -> Column(modifier = Modifier.fillMaxSize()) {
-            inhalt(Modifier.weight(1f))
-            Box(modifier = Modifier.navigationBarsPadding()) {
-                BottomNav(
-                    selectedTab = currentTab,
-                    onTabSelect = { tab -> navController.navigateToTab(tab) },
-                )
-            }
-        }
-
+    Column(modifier = Modifier.fillMaxSize()) {
         /*
          * Ab 600 dp: Leiste an die Seite — und die Statusleiste bekommt ein eigenes,
          * durchgehendes Band darüber.
@@ -527,28 +549,47 @@ fun AppNavigation(
          * Jetzt liegt über beiden Spalten ein Band in Chrome-Farbe, so hoch wie die
          * Statusleiste. Darunter beginnen Rail und Inhalt gemeinsam; keine senkrechte Kante
          * schneidet mehr durch die Systemsymbole.
-         *
-         * `consumeWindowInsets` sorgt dafür, dass das Band nicht doppelt gezahlt wird: TopBar
-         * und SideNav setzen selbst `statusBarsPadding()`, und das wird dadurch zu 0.
-         * Am Telefon (Kompakt) ändert sich nichts — der Zweig oben ist unberührt.
          */
-        else -> Column(modifier = Modifier.fillMaxSize()) {
+        if (seitenLeiste != null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsTopHeight(WindowInsets.statusBars)
                     .background(BoulderBuddy.colors.surfaceChrome),
             )
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .consumeWindowInsets(WindowInsets.statusBars),
-            ) {
+        }
+
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                // `consumeWindowInsets` sorgt dafür, dass das Band oben nicht doppelt gezahlt
+                // wird: TopBar und SideNav setzen selbst `statusBarsPadding()`, und das wird
+                // dadurch zu 0. Ohne Band (Telefon, Push-Screen) gibt es nichts zu verrechnen.
+                .then(
+                    if (seitenLeiste != null) {
+                        Modifier.consumeWindowInsets(WindowInsets.statusBars)
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
+            if (seitenLeiste != null) {
                 SideNav(
-                    selectedTab = currentTab,
+                    selectedTab = seitenLeiste,
                     onTabSelect = { tab -> navController.navigateToTab(tab) },
                 )
-                inhalt(Modifier.weight(1f))
+            }
+            // Die einzige Aufrufstelle des NavHost — siehe oben.
+            inhalt(Modifier.weight(1f).fillMaxHeight())
+        }
+
+        // Telefon: Leiste unten.
+        if (untereLeiste != null) {
+            Box(modifier = Modifier.navigationBarsPadding()) {
+                BottomNav(
+                    selectedTab = untereLeiste,
+                    onTabSelect = { tab -> navController.navigateToTab(tab) },
+                )
             }
         }
     }
