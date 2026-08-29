@@ -26,6 +26,12 @@ interface GhostAnalysisRepository {
     /** Legt eine Analyse an und gibt ihre neue ID zurück. */
     suspend fun create(analysis: GhostAnalysisEntity): Int
 
+    /**
+     * Schreibt eine nachbearbeitete Analyse zurück: neue Anker, neuer Routenpfad, neuer
+     * Modus-Vorschlag. Session und Erstellzeitpunkt bleiben, wie sie waren.
+     */
+    suspend fun update(id: Int, homographieJson: String, routenpfadJson: String, modus: String)
+
     /** Löscht die Analyse samt ihrer Pose-Spuren, sofern keine andere sie noch braucht. */
     suspend fun delete(id: Int)
 }
@@ -44,6 +50,13 @@ class GhostAnalysisRepositoryImpl @Inject constructor(
 
     override suspend fun create(analysis: GhostAnalysisEntity): Int =
         ghostAnalysisDao.insert(analysis).toInt()
+
+    override suspend fun update(
+        id: Int,
+        homographieJson: String,
+        routenpfadJson: String,
+        modus: String,
+    ) = ghostAnalysisDao.aktualisiereAuswertung(id, homographieJson, routenpfadJson, modus)
 
     /**
      * Erst die Zeile, dann die verwaisten Dateien.

@@ -192,6 +192,21 @@ class GhostClimberViewModel @Inject constructor(
      */
     private val sessionId: Int? = savedStateHandle.toRoute<GhostClimber>().sessionId
 
+    /**
+     * Die wiederhergestellte Analyse, solange sie noch dieselbe ist — dann schreibt
+     * [saveAnalysis] auf diese Zeile zurück, statt eine zweite anzulegen.
+     *
+     * Ohne das ist „Analyse öffnen → Pfad anpassen → speichern" ein Neuanlegen: neben der
+     * alten Analyse stünde eine zweite, und die trüge die Session der aufrufenden Route —
+     * also **keine**, wenn man aus dem Session-Block heraus geöffnet hat. Wer den Routenpfad
+     * einer Session-Analyse korrigierte, fand das Ergebnis anschließend nicht mehr in seiner
+     * Session.
+     *
+     * Die Kennung fällt weg, sobald ein Video gewechselt wird ([onVideoSelected]). Dann ist
+     * es eine andere Analyse, und eine andere Analyse ist eine neue Zeile.
+     */
+    private var bearbeiteteAnalyse: Int? = null
+
     private val _uiState = MutableStateFlow(GhostClimberUiState())
     val uiState: StateFlow<GhostClimberUiState> = _uiState.asStateFlow()
 
@@ -239,6 +254,8 @@ class GhostClimberViewModel @Inject constructor(
     fun onVideoSelected(role: GhostRole, uri: String) {
         updateSlot(role) { GhostVideoSlot(uri = uri) }
         _uiState.update { it.copy(ghostTrack = null, error = null) }
+        // Anderes Video, andere Analyse — ein Speichern legt jetzt wieder neu an.
+        bearbeiteteAnalyse = null
         // Kam das Video gerade aus der Kamera, liegt es jetzt im Aufnahme-Ordner und gehört
         // in die Liste — sonst fehlte ausgerechnet die frischeste Aufnahme darin.
         ladeEigeneAufnahmen()
@@ -551,7 +568,18 @@ class GhostClimberViewModel @Inject constructor(
 
     // --- Persistenz gespeicherter Analysen (M5, A.2) ---
 
-    /** Speichert die aktuelle Analyse: Artefakt-Pfade + kompakte JSON-Ergebnisse in der DB. */
+    /**
+     * Sichert die aktuelle Auswertung — und zwar auf zwei Arten, je nachdem, was vorliegt.
+     *
+     * **Korrektur**, wenn eine wiederhergestellte Analyse nachbearbeitet wurde
+     * ([bearbeiteteAnalyse]): dann wandern nur Homographie, Routenpfad und Modus zurück in
+     * dieselbe Zeile. Session und Erstellzeitpunkt bleiben — wer den Routenpfad nachbessert,
+     * verschiebt seine Analyse nicht in eine andere Session und legt keine zweite an.
+     *
+     * **Neuanlage** sonst, mit der Session der aufrufenden Route (`null` beim Einstieg aus
+     * den Einstellungen). Die neue Zeile gilt danach als die bearbeitete: ein zweites
+     * Nachbessern derselben Analyse korrigiert sie wieder, statt eine dritte anzulegen.
+     */
     fun saveAnalysis() {
         val state = _uiState.value
         val refUri = state.reference.uri ?: return
@@ -560,6 +588,20 @@ class GhostClimberViewModel @Inject constructor(
         if (state.analysisSaved || state.routePath.size < 2) return
         viewModelScope.launch {
             try {
+                val bearbeitet = bearbeiteteAnalyse
+                if (bearbeitet != null) {
+                    // Korrektur einer vorhandenen Analyse: nur die Auswertung wandert zurück.
+                    // Session und Erstellzeitpunkt bleiben, wo sie waren — eine Nachbesserung
+                    // verschiebt die Analyse nicht und macht sie nicht neu.
+                    analysisRepository.update(
+                        id = bearbeitet,
+                        homographieJson = json.encodeToString(homography.values()),
+                        routenpfadJson = json.encodeToString(state.routePath),
+                        modus = state.suggestedMode.name,
+                    )
+                    _uiState.update { it.copy(analysisSaved = true) }
+                    return@launch
+                }
                 analysisRepository.create(
                     GhostAnalysisEntity(
                         sessionId = sessionId,
@@ -573,6 +615,7 @@ class GhostClimberViewModel @Inject constructor(
                         createdAt = System.currentTimeMillis(),
                     ),
                 )
+                    .also { neueId -> bearbeiteteAnalyse = neueId }
                 _uiState.update { it.copy(analysisSaved = true) }
             } catch (e: CancellationException) {
                 throw e
@@ -632,6 +675,8 @@ class GhostClimberViewModel @Inject constructor(
                         // Wiederhergestellt = bereits gespeichert.
                         .copy(analysisSaved = true)
                 }
+                // Ab hier ist jedes Speichern eine Korrektur dieser Zeile, kein Neuanlegen.
+                bearbeiteteAnalyse = id
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
