@@ -33,10 +33,12 @@ import kotlinx.coroutines.launch
 // =============================================================================
 // SessionsListDetail — adaptives Zwei-Spalten-Layout für den Sessions-Tab (Phase 7.1).
 //
-// Nur auf Medium/Expanded-Breiten (Tablet) verwendet: links die Sessions-Liste
-// (List-Pane), rechts die Session-Detailansicht (Detail-Pane). Auf Compact rendert
-// AppNavigation stattdessen den klassischen SessionUebersichtScreen mit Push-Navigation
-// — das Verhalten dort bleibt unverändert.
+// Auf breiten Fenstern (Tablet) stehen links die Sessions-Liste (List-Pane) und rechts die
+// Session-Detailansicht (Detail-Pane) nebeneinander. Am Telefon klappt dasselbe Scaffold auf
+// EINEN Pane um und wirkt wie die frühere Push-Navigation — verwendet wird dieser Screen aber
+// auf allen Breiten. (Bis zur Vereinheitlichung stand hier "nur auf Medium/Expanded"; das ist
+// seit dem Wegfall der `isWideLayout`-Verzweigung in AppNavigation falsch und hat beim Suchen
+// eines Navigationsfehlers erst einmal in die Irre geführt.)
 //
 // Der Pane-Zustand (welche Session ist gewählt) lebt im ThreePaneScaffoldNavigator und
 // koexistiert bewusst mit dem äußeren NavController: adaptive Navigation NUR innerhalb
