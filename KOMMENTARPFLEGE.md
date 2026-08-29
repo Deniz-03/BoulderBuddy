@@ -120,38 +120,38 @@ Abgehakt wird jede Datei einzeln — die Liste ist der Schutz davor, eine zu
 
 **data/repository/** (8)
 
-- [ ] `app/src/main/java/com/boulderbuddy/data/repository/GhostAnalysisRepository.kt` (43)
-- [ ] `app/src/main/java/com/boulderbuddy/data/repository/GradeRepository.kt` (80)
-- [ ] `app/src/main/java/com/boulderbuddy/data/repository/GymRepository.kt` (51)
-- [ ] `app/src/main/java/com/boulderbuddy/data/repository/GymVisitRepository.kt` (51)
-- [ ] `app/src/main/java/com/boulderbuddy/data/repository/HangboardRepository.kt` (43)
-- [ ] `app/src/main/java/com/boulderbuddy/data/repository/HangboardWorkoutRepository.kt` (45)
-- [ ] `app/src/main/java/com/boulderbuddy/data/repository/RouteRepository.kt` (44)
-- [ ] `app/src/main/java/com/boulderbuddy/data/repository/SessionRepository.kt` (56)
+- [x] `app/src/main/java/com/boulderbuddy/data/repository/GhostAnalysisRepository.kt` (43)
+- [x] `app/src/main/java/com/boulderbuddy/data/repository/GradeRepository.kt` (80)
+- [x] `app/src/main/java/com/boulderbuddy/data/repository/GymRepository.kt` (51)
+- [x] `app/src/main/java/com/boulderbuddy/data/repository/GymVisitRepository.kt` (51)
+- [x] `app/src/main/java/com/boulderbuddy/data/repository/HangboardRepository.kt` (43)
+- [x] `app/src/main/java/com/boulderbuddy/data/repository/HangboardWorkoutRepository.kt` (45)
+- [x] `app/src/main/java/com/boulderbuddy/data/repository/RouteRepository.kt` (44)
+- [x] `app/src/main/java/com/boulderbuddy/data/repository/SessionRepository.kt` (56)
 
 **data/settings/** (1)
 
-- [ ] `app/src/main/java/com/boulderbuddy/data/settings/SettingsRepository.kt` (128)
+- [x] `app/src/main/java/com/boulderbuddy/data/settings/SettingsRepository.kt` (128)
 
 **data/haptics/** (1)
 
-- [ ] `app/src/main/java/com/boulderbuddy/data/haptics/HapticPlayer.kt` (69)
+- [x] `app/src/main/java/com/boulderbuddy/data/haptics/HapticPlayer.kt` (69)
 
 **data/camera/** (3)
 
-- [ ] `app/src/main/java/com/boulderbuddy/data/camera/CameraCaptureController.kt` (259)
-- [ ] `app/src/main/java/com/boulderbuddy/data/camera/CaptureModel.kt` (106)
-- [ ] `app/src/main/java/com/boulderbuddy/data/camera/EigeneAufnahmen.kt` (82)
+- [x] `app/src/main/java/com/boulderbuddy/data/camera/CameraCaptureController.kt` (259)
+- [x] `app/src/main/java/com/boulderbuddy/data/camera/CaptureModel.kt` (106)
+- [x] `app/src/main/java/com/boulderbuddy/data/camera/EigeneAufnahmen.kt` (82)
 
 **data/speech/** (2)
 
-- [ ] `app/src/main/java/com/boulderbuddy/data/speech/SpeechRecognitionClient.kt` (353)
-- [ ] `app/src/main/java/com/boulderbuddy/data/speech/SpeechRecognitionModel.kt` (263)
+- [x] `app/src/main/java/com/boulderbuddy/data/speech/SpeechRecognitionClient.kt` (353)
+- [x] `app/src/main/java/com/boulderbuddy/data/speech/SpeechRecognitionModel.kt` (263)
 
 **data/export/** (2)
 
-- [ ] `app/src/main/java/com/boulderbuddy/data/export/SessionCsv.kt` (97)
-- [ ] `app/src/main/java/com/boulderbuddy/data/export/SessionExporter.kt` (46)
+- [x] `app/src/main/java/com/boulderbuddy/data/export/SessionCsv.kt` (97)
+- [x] `app/src/main/java/com/boulderbuddy/data/export/SessionExporter.kt` (46)
 
 
 ### Block 3 — Ghost-Pipeline
