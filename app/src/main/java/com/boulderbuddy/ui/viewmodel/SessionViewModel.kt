@@ -25,6 +25,7 @@ import com.boulderbuddy.ui.model.istGetoppt
 import com.boulderbuddy.ui.model.toBoulderStatus
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.screens.BoulderStatus
+import com.boulderbuddy.ui.screens.TagesSystemUi
 import com.boulderbuddy.widget.refreshBoulderWidget
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -85,6 +86,13 @@ data class SessionUiState(
     /** Getrackte Hangboard-Workouts; leer = kein "Hangboard-Training"-Block anzeigen. */
     val hangboardWorkouts: List<HangboardWorkoutUi> = emptyList(),
     /**
+     * Verlauf dieser Session je Gradsystem — leer, wenn kein Boulder einen Grad trägt.
+     * Der Schlüssel ist die System-ID, die Namen dazu stehen in [tagesSysteme].
+     */
+    val tagesstatistik: Map<Int, TagesstatistikUi> = emptyMap(),
+    /** Die Gradsysteme, die in dieser Session vorkommen — Umschaltleiste über der Kurve. */
+    val tagesSysteme: List<TagesSystemUi> = emptyList(),
+    /**
      * Ghost-Analysen dieser Session. Anders als bei den Hangboard-Workouts blendet sich
      * der Block leer NICHT aus — er ist zugleich der Einstieg (siehe SessionGhostBlock).
      */
@@ -134,8 +142,18 @@ class SessionViewModel @AssistedInject constructor(
                     ?: "Unbekannte Halle")
         },
         ghostAnalysisRepository.observeBySession(sessionId),
-    ) { state, analysen ->
-        state.copy(ghostAnalysen = analysen.map(::toGhostAnalyseUi))
+        // Die Systemnamen kommen erst hier dazu: die Aggregation drinnen kennt nur
+        // System-IDs, und ein zweiter Flow im inneren `combine` hätte dessen fünf
+        // typisierte Plätze gesprengt.
+        gradeRepository.observeAllSystems(),
+    ) { state, analysen, systeme ->
+        val namen = systeme.associate { it.id to it.name }
+        state.copy(
+            ghostAnalysen = analysen.map(::toGhostAnalyseUi),
+            tagesSysteme = state.tagesstatistik.keys
+                .mapNotNull { id -> namen[id]?.let { TagesSystemUi(id, it) } }
+                .sortedBy { it.name },
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -213,6 +231,9 @@ class SessionViewModel @AssistedInject constructor(
             hangboardWorkouts = hangboardWorkouts.map {
                 HangboardWorkoutUi(id = it.workout.id, summary = workoutSummary(it))
             },
+            // `routes` kommt aus `observeBySession` und ist nach `id` sortiert — also in der
+            // Reihenfolge des Anlegens und damit des Kletterns. Genau die braucht der Verlauf.
+            tagesstatistik = tagesstatistikJeSystem(routes, gradesById),
         )
     }
 

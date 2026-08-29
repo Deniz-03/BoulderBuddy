@@ -43,6 +43,7 @@ import com.boulderbuddy.ui.components.BarChartEntry
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.FilterChip
 import com.boulderbuddy.ui.components.SectionHeader
+import com.boulderbuddy.ui.components.SelectableChip
 import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
@@ -102,6 +103,21 @@ fun StatistikScreen(
     // beantworten dieselbe Frage aus zwei Richtungen ("wie viel" und "wie schwer"), und zwei
     // getrennte Regler nebeneinander würde man unweigerlich gegeneinander verstellen.
     var zeitraum by rememberSaveable { mutableStateOf(Zeitraum.Woche) }
+
+    // Gewählter Tag und Gradsystem der Tagesstatistik. Beide fallen auf den jüngsten bzw.
+    // ersten vorhandenen Wert zurück, sobald die Auswahl ins Leere zeigt — etwa wenn ein Tag
+    // aus der Leiste rutscht, weil neuere dazugekommen sind.
+    var tagIndex by rememberSaveable { mutableStateOf(0) }
+    var tagesSystem by rememberSaveable { mutableStateOf<Int?>(null) }
+    val gewaehlterTag = state.tage.getOrNull(tagIndex) ?: state.tage.firstOrNull()
+    val tagesSysteme = gewaehlterTag
+        ?.let { state.tagesstatistik[it.datum].orEmpty().keys }
+        .orEmpty()
+        .mapNotNull { id -> state.systemNamen[id]?.let { TagesSystemUi(id, it) } }
+        .sortedBy { it.name }
+    if (tagesSystem == null || tagesSysteme.none { it.id == tagesSystem }) {
+        tagesSystem = tagesSysteme.firstOrNull()?.id
+    }
     val routenVerlauf = state.routenVerlauf[zeitraum].orEmpty()
     val gradVerlauf = effectiveSystemId
         ?.let { state.gradVerlauf[zeitraum]?.get(it) }
@@ -150,6 +166,34 @@ fun StatistikScreen(
                 // Kurzfassung des ganzen Screens — dieselbe Rolle wie die Stat-Reihe auf Home.
                 item {
                     QuickStatsRow(quickStats)
+                }
+
+                // --- Einzelner Tag ---
+                // Steht vor den Verläufen über Wochen und Monate: die Frage „wie lief mein
+                // letzter Klettertag" ist die näherliegende, und die Antwort darauf ist noch
+                // frisch erinnerbar. Die Entwicklung über Monate schaut man seltener an.
+                if (gewaehlterTag != null) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                                state.tage.forEachIndexed { index, tag ->
+                                    SelectableChip(
+                                        label = tag.label,
+                                        selected = tag.datum == gewaehlterTag.datum,
+                                        onClick = { tagIndex = index },
+                                    )
+                                }
+                            }
+                            TagesstatistikBlock(
+                                titel = stringResource(R.string.tag_verlauf_tag),
+                                systeme = tagesSysteme,
+                                gewaehltesSystem = tagesSystem,
+                                statistik = state.tagesstatistik[gewaehlterTag.datum]
+                                    ?.get(tagesSystem),
+                                onSystemWaehlen = { tagesSystem = it },
+                            )
+                        }
+                    }
                 }
 
                 // --- Hangboard-Training ---

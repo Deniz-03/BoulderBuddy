@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,6 +47,7 @@ import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 import com.boulderbuddy.ui.viewmodel.SessionGhostAnalyseUi
+import com.boulderbuddy.ui.viewmodel.TagesstatistikUi
 import kotlinx.coroutines.launch
 
 // Status eines Boulders. getoppt = als geschafft gewertet (Top oder Flash zählen beide
@@ -70,6 +72,9 @@ fun AlteSessionScreen(
     // Ghost-Analysen dieser Session. Auch hier hinzufügbar: gefilmt wird in der Halle,
     // analysiert meist abends — die Session ist dann längst beendet.
     ghostAnalysen: List<SessionGhostAnalyseUi> = emptyList(),
+    // Verlauf dieser Session je Gradsystem; leer = kein Boulder mit Grad, Block entfällt.
+    tagesstatistik: Map<Int, TagesstatistikUi> = emptyMap(),
+    tagesSysteme: List<TagesSystemUi> = emptyList(),
     // Schreibt die geänderte Session-Notiz zurück (beim Verlassen des Feldes).
     onNotesChange: (String) -> Unit = {},
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
@@ -94,6 +99,12 @@ fun AlteSessionScreen(
     // bestätigt die kurze Rückmeldung. Beim Tippen braucht es sie nicht — dort sieht man den
     // Text ja entstehen.
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Gewähltes Gradsystem des Verlaufs — wie in der laufenden Ansicht.
+    var gewaehltesSystem by rememberSaveable { mutableStateOf<Int?>(null) }
+    if (gewaehltesSystem == null || tagesSysteme.none { it.id == gewaehltesSystem }) {
+        gewaehltesSystem = tagesSysteme.firstOrNull()?.id
+    }
     val scope = rememberCoroutineScope()
 
     // Stat-Werte werden aus den Daten ABGELEITET: Boulder = Anzahl, Tops = davon geschaffte.
@@ -222,6 +233,21 @@ fun AlteSessionScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                // --- Verlauf dieser Session ---
+                if (tagesSysteme.isNotEmpty()) {
+                    item {
+                        TagesstatistikBlock(
+                            titel = stringResource(R.string.tag_verlauf_session),
+                            systeme = tagesSysteme,
+                            gewaehltesSystem = gewaehltesSystem,
+                            statistik = tagesstatistik[gewaehltesSystem],
+                            onSystemWaehlen = { gewaehltesSystem = it },
+                            // Die Kopfzeile oben trägt Boulder, Tops und Dauer bereits.
+                            zeigeKennzahlen = false,
+                        )
                     }
                 }
 

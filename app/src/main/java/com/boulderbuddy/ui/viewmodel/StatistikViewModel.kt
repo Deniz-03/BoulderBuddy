@@ -13,6 +13,7 @@ import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.ui.components.BarChartEntry
 import com.boulderbuddy.ui.components.LinePoint
 import com.boulderbuddy.ui.model.Zeitraum
+import com.boulderbuddy.ui.model.formatRelativeDay
 import com.boulderbuddy.ui.model.eimerLabel
 import com.boulderbuddy.ui.model.eimerReihe
 import com.boulderbuddy.ui.model.eimerStart
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
+import java.time.ZoneId
 import javax.inject.Inject
 
 // =============================================================================
@@ -77,10 +79,28 @@ data class StatistikUiState(
     val hangboardSets: Int = 0,
     /** Gesamte Hängezeit (Summe der gemessenen Segment-Hängezeiten) als Kurzform. */
     val hangboardHangTime: String = "–",
+    // --- Einzelner Tag ---
+    /**
+     * Die jüngsten Klettertage für die Auswahlleiste, neuester zuerst; leer = noch nie
+     * geklettert, dann entfällt der Abschnitt.
+     */
+    val tage: List<TagUi> = emptyList(),
+    /**
+     * Verlauf je Tag und Gradsystem. Vorgehalten für alle Tage aus [tage], damit das
+     * Umschalten ohne neue Abfrage auskommt — es sind wenige Tage mit wenigen Bouldern.
+     */
+    val tagesstatistik: Map<LocalDate, Map<Int, TagesstatistikUi>> = emptyMap(),
+    /** Namen der Gradsysteme, für die Umschaltleiste über der Tageskurve. */
+    val systemNamen: Map<Int, String> = emptyMap(),
 )
 
 // Anzahl der Tage in der Aktivitäts-Heatmap (4 Wochen à 7 Tage).
 private const val ACTIVITY_DAYS = 28
+
+// Wie viele Klettertage die Auswahlleiste der Tagesstatistik anbietet. Zehn reichen: weiter
+// zurück erinnert man den einzelnen Tag ohnehin nicht, und die Leiste soll in eine Zeile
+// passen statt zu einem Kalender zu werden.
+private const val TAGE_ZUR_AUSWAHL = 10
 
 // Einheitliche Balkenfarbe der Verlaufs-Diagramme. Index in die Route-Palette, damit sie aus
 // demselben Vorrat stammt wie alles andere und nicht als Sonderfarbe danebensteht.
@@ -105,6 +125,12 @@ class StatistikViewModel @Inject constructor(
         val sessionsById = sessions.associateBy { it.id }
         val heute = LocalDate.now()
 
+        val tagesstatistik = tagesstatistiken(
+            routen = routes,
+            sessionsById = sessionsById,
+            gradesById = gradesById,
+            maxTage = TAGE_ZUR_AUSWAHL,
+        )
         val topped = routes.filter { it.status.istGetoppt }
         val flashes = topped.count { it.attempts <= 1 }
         val flashRate = if (topped.isEmpty()) "–" else "${flashes * 100 / topped.size}%"
@@ -145,6 +171,16 @@ class StatistikViewModel @Inject constructor(
             // Abrunden auf ganze Minuten sonst als "0min" erscheinen.
             hangboardHangTime = if (hangboardWorkouts.isEmpty()) "–"
                 else formatHangTime(hangboardHangMs),
+            tage = tagesstatistik.keys.sortedDescending().map { tag ->
+                // „Heute", „Gestern", sonst das Datum — dieselbe Sprache wie in der
+                // Sessions-Liste, damit derselbe Tag nicht zweimal anders heißt.
+                TagUi(datum = tag, label = formatRelativeDay(
+                    tag.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                    heute,
+                ))
+            },
+            tagesstatistik = tagesstatistik,
+            systemNamen = systems.associate { it.id to it.name },
         )
     }.stateIn(
         scope = viewModelScope,
