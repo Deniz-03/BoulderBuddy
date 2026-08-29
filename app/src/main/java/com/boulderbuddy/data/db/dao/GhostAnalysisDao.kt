@@ -30,14 +30,23 @@ interface GhostAnalysisDao {
     suspend fun getById(id: Int): GhostAnalysisEntity?
 
     /**
-     * Löscht die Analyse-Zeile — **nicht** die Dateien dahinter.
-     *
-     * BEFUND B1 (Kommentarpflege): Die Pose-Spuren im `GhostArtifactStore`
-     * (`filesDir/ghost/pose_<hash>.json`, je nach Videolänge einige hundert kB) bleiben
-     * liegen, und es gibt nirgends ein Aufräumen. Solange dasselbe Video noch einmal
-     * analysiert wird, ist das ein nützlicher Cache; ist das Video weg, ist es totes
-     * Gewicht, das nie wieder verschwindet.
+     * Löscht nur die Zeile. Die Dateien dahinter räumt das Repository ab — es muss dafür
+     * erst wissen, welche Spuren danach noch gebraucht werden ([nochGenutzteSpurPfade]).
      */
     @Query("DELETE FROM ghost_analysis WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    /**
+     * Alle Spur-Pfade, die noch an einer Analyse hängen — beide Spalten in einem Ergebnis.
+     *
+     * Zwei Analysen können sich dieselbe Spur teilen: wer denselben Versuch einmal als
+     * Referenz und einmal als Vergleich benutzt, zeigt aus zwei Zeilen auf dieselbe Datei.
+     * Deshalb wird beim Aufräumen gegen diese Liste geprüft und nicht gegen die gelöschte
+     * Zeile allein.
+     */
+    @Query(
+        "SELECT refKeypointsPath FROM ghost_analysis " +
+            "UNION SELECT cmpKeypointsPath FROM ghost_analysis"
+    )
+    suspend fun nochGenutzteSpurPfade(): List<String>
 }

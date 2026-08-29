@@ -58,6 +58,18 @@ class GhostArtifactStore @Inject constructor(
         }
 
     /**
+     * Löscht die Spur unter [path] (relativ zu `filesDir`, wie er in der DB steht).
+     *
+     * Nur aufrufen, wenn keine Analyse mehr darauf zeigt — die Datei ist zugleich der Cache
+     * für dieses Video. Wer sie einer noch benutzten Analyse wegnimmt, kostet beim nächsten
+     * Öffnen die volle Extraktion.
+     */
+    suspend fun loeschePoseTrack(path: String): Boolean = withContext(Dispatchers.IO) {
+        val file = if (path.startsWith("/")) File(path) else File(filesDir, path)
+        file.exists() && file.delete()
+    }
+
+    /**
      * Pfad der (gecachten) Pose-Spur eines Videos, **relativ zu `filesDir`** — genau so
      * landet er in der DB (M5).
      *

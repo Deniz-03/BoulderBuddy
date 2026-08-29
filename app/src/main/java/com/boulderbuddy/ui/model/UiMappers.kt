@@ -1,7 +1,5 @@
 package com.boulderbuddy.ui.model
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import com.boulderbuddy.data.model.RouteStatus
 import com.boulderbuddy.ui.screens.BoulderStatus
 import java.time.Instant
@@ -25,32 +23,6 @@ import java.util.Locale
 // die Farbe an der Route und nicht am Grad, und sie kommt aus einem festen Schlüssel statt
 // aus einem gespeicherten Hexwert.
 // =============================================================================
-
-/**
- * BEFUND B2 (Kommentarpflege): [parseHexColor] und [Color.toHexRgb] werden nirgends mehr
- * aufgerufen — weder in der App noch in den Tests. Sie stammen aus der Zeit, als ein Grad
- * seine Farbe als Hexwert mitbrachte (bis v4); seither kommt die Farbe über einen festen
- * Schlüssel aus `routeColorPalette`. Beide Funktionen sind damit toter Code.
- *
- * Parst einen Hex-Farbstring in eine Compose-[Color].
- * Akzeptiert `#RRGGBB` und `#AARRGGBB` (mit oder ohne führendes `#`).
- * Fällt bei ungültigem Wert auf ein neutrales Grau zurück, statt zu werfen —
- * eine kaputte Farbe soll nie die ganze Liste crashen.
- */
-fun parseHexColor(hex: String): Color {
-    val cleaned = hex.trim().removePrefix("#")
-    val value = cleaned.toLongOrNull(16) ?: return FallbackGrey
-    return when (cleaned.length) {
-        6 -> Color(0xFF000000L or value)  // RGB → volle Deckkraft ergänzen
-        8 -> Color(value)                 // AARRGGBB → direkt übernehmen
-        else -> FallbackGrey
-    }
-}
-
-private val FallbackGrey = Color(0xFF888888)
-
-/** Compose-[Color] → "#RRGGBB"-Hexstring (ohne Alpha), passend zu [parseHexColor]. */
-fun Color.toHexRgb(): String = "#%06X".format(0xFFFFFF and toArgb())
 
 /**
  * Bildet den persistierten [RouteStatus] auf die abgeleitete UI-Darstellung
