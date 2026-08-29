@@ -3,6 +3,7 @@ package com.boulderbuddy.ui.screens
 import android.Manifest
 import android.content.Intent
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +23,8 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.VideoLibrary
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -33,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,6 +64,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.aktuelleBreite
 import com.boulderbuddy.ui.theme.Breite
+import com.boulderbuddy.ui.viewmodel.EigeneAufnahmeUi
 import com.boulderbuddy.ui.viewmodel.GhostClimberUiState
 import com.boulderbuddy.ui.viewmodel.GhostRole
 import com.boulderbuddy.ui.viewmodel.GhostStep
@@ -119,13 +124,88 @@ fun GhostClimberScreen(
         onAufnahmeVerbraucht()
     }
 
+    /*
+     * Weggehen hat in diesem Flow bis hierher alles Handgemachte kommentarlos gelöscht: das
+     * ViewModel stirbt mit dem Bildschirm, und mit ihm Anker, Routenpfad und Ergebnis. Ein
+     * Tipp auf den Zurück-Pfeil nach minutenlanger Analyse sah dabei aus wie jeder andere.
+     *
+     * Was NICHT verloren geht, steht bewusst im Dialogtext: die Videos liegen im
+     * Aufnahme-Ordner und sind seit „Aus der App" wieder auffindbar, und die teure Pose-Spur
+     * liegt gecacht im GhostArtifactStore. Ein zweiter Anlauf ist deshalb eine Sache von
+     * Sekunden — das ändert, wie schlimm ein Verwerfen ist, und das soll man wissen.
+     *
+     * Gefragt wird ab dem ersten gesetzten Anker. Vorher ist nichts entstanden, was ein
+     * Zurück vernichten könnte: die Video-Auswahl ist zwei Tipps.
+     */
+    val etwasZuVerlieren = when (state.step) {
+        GhostStep.SELECTION -> false
+        GhostStep.ANCHORS ->
+            state.reference.anchors.isNotEmpty() || state.comparison.anchors.isNotEmpty()
+        GhostStep.PATH -> true
+        GhostStep.PREVIEW -> !state.analysisSaved
+    }
+    // Speichern gibt es nur, wo es etwas zu speichern gibt: vor der Vorschau fehlen
+    // Zeitmapping und Modus-Vorschlag, die Analyse ist noch gar keine.
+    val kannSpeichern = state.step == GhostStep.PREVIEW && !state.analysisSaved
+    var zeigeVerwerfen by remember { mutableStateOf(false) }
+    // Speichern läuft asynchron im ViewModel. Direkt hinterher zu navigieren würde dessen
+    // Scope abräumen, bevor der Schreibvorgang durch ist — deshalb erst gehen, wenn der
+    // Zustand die Speicherung bestätigt. Schlägt sie fehl, bleibt man mit der Meldung da.
+    var geheNachSpeichern by remember { mutableStateOf(false) }
+    LaunchedEffect(geheNachSpeichern, state.analysisSaved) {
+        if (geheNachSpeichern && state.analysisSaved) {
+            geheNachSpeichern = false
+            onBack()
+        }
+    }
+    val verlassen = { if (etwasZuVerlieren) zeigeVerwerfen = true else onBack() }
+    BackHandler(enabled = etwasZuVerlieren) { zeigeVerwerfen = true }
+
+    if (zeigeVerwerfen) {
+        AlertDialog(
+            onDismissRequest = { zeigeVerwerfen = false },
+            title = { Text(stringResource(R.string.ghost_verwerfen_titel)) },
+            text = { Text(stringResource(R.string.ghost_verwerfen_text)) },
+            // Alle Knöpfe untereinander in EINEM Slot statt auf Bestätigen/Verwerfen
+            // verteilt: drei Aktionen passen nicht nebeneinander in einen Dialog, und die
+            // Zeile brach dann so um, dass „Speichern" allein über den anderen beiden hing
+            // wie ein Versehen. Gestapelt ist die Reihenfolge die Aussage — obenan das,
+            // was der Nutzer hier fast immer will.
+            confirmButton = {
+                Column(horizontalAlignment = Alignment.End) {
+                    if (kannSpeichern) {
+                        TextButton(
+                            onClick = {
+                                zeigeVerwerfen = false
+                                geheNachSpeichern = true
+                                onSaveAnalysis()
+                            },
+                        ) { Text(stringResource(R.string.ghost_speichern_und_schliessen)) }
+                    }
+                    TextButton(
+                        onClick = {
+                            zeigeVerwerfen = false
+                            onBack()
+                        },
+                    ) { Text(stringResource(R.string.ghost_verwerfen_ja)) }
+                    // Abbrechen zuletzt, also am dichtesten am Daumen: ein Fehlgriff auf den
+                    // untersten Knopf soll der harmlose sein — der Dialog kommt schließlich
+                    // gerade deshalb, weil vorher einer danebengegangen ist.
+                    TextButton(onClick = { zeigeVerwerfen = false }) {
+                        Text(stringResource(R.string.aktion_abbrechen))
+                    }
+                }
+            },
+        )
+    }
+
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
                 title = stringResource(R.string.ghost_titel),
                 subtitle = stringResource(R.string.ghost_untertitel),
                 navIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = verlassen) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.aktion_zurueck),
@@ -240,6 +320,7 @@ private fun SelectionStep(
             VideoSlotPicker(
                 title = stringResource(R.string.ghost_referenz_video),
                 slot = state.reference,
+                eigeneAufnahmen = state.eigeneAufnahmen,
                 onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
                 onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
                 modifier = Modifier.weight(1f),
@@ -247,6 +328,7 @@ private fun SelectionStep(
             VideoSlotPicker(
                 title = stringResource(R.string.ghost_vergleich_video),
                 slot = state.comparison,
+                eigeneAufnahmen = state.eigeneAufnahmen,
                 onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
                 onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
                 modifier = Modifier.weight(1f),
@@ -256,12 +338,14 @@ private fun SelectionStep(
         VideoSlotPicker(
             title = stringResource(R.string.ghost_referenz_video),
             slot = state.reference,
+            eigeneAufnahmen = state.eigeneAufnahmen,
             onSelected = { onSelectVideo(GhostRole.REFERENCE, it) },
             onAufnehmen = { onKameraFuerRolle(GhostRole.REFERENCE) },
         )
         VideoSlotPicker(
             title = stringResource(R.string.ghost_vergleich_video),
             slot = state.comparison,
+            eigeneAufnahmen = state.eigeneAufnahmen,
             onSelected = { onSelectVideo(GhostRole.COMPARISON, it) },
             onAufnehmen = { onKameraFuerRolle(GhostRole.COMPARISON) },
         )
@@ -382,6 +466,7 @@ private fun SavedAnalysisRow(
 private fun VideoSlotPicker(
     title: String,
     slot: GhostVideoSlot,
+    eigeneAufnahmen: List<EigeneAufnahmeUi>,
     onSelected: (String) -> Unit,
     onAufnehmen: () -> Unit,
     modifier: Modifier = Modifier,
@@ -407,6 +492,18 @@ private fun VideoSlotPicker(
     }
 
     var zeigeQuellenwahl by rememberSaveable { mutableStateOf(false) }
+    var zeigeEigene by rememberSaveable { mutableStateOf(false) }
+
+    if (zeigeEigene) {
+        EigeneAufnahmenDialog(
+            aufnahmen = eigeneAufnahmen,
+            onWaehlen = {
+                zeigeEigene = false
+                onSelected(it)
+            },
+            onDismiss = { zeigeEigene = false },
+        )
+    }
 
     if (zeigeQuellenwahl) {
         MedienQuelleDialog(
@@ -416,6 +513,10 @@ private fun VideoSlotPicker(
             onAufnehmen = {
                 zeigeQuellenwahl = false
                 onAufnehmen()
+            },
+            onEigene = {
+                zeigeQuellenwahl = false
+                zeigeEigene = true
             },
             onGalerie = {
                 zeigeQuellenwahl = false
@@ -439,6 +540,70 @@ private fun VideoSlotPicker(
             isVideo = slot.uri != null,
         )
     }
+}
+
+/**
+ * Die Videos, die schon in der App liegen — der Weg zurück zu einer eigenen Aufnahme.
+ *
+ * Angezeigt wird der Aufnahmezeitpunkt und nicht der Dateiname: `BB_1756458012345.mp4` sagt
+ * niemandem etwas. Der Zeitpunkt reicht zum Wiedererkennen, weil man genau weiß, wann man
+ * gefilmt hat.
+ */
+@Composable
+private fun EigeneAufnahmenDialog(
+    aufnahmen: List<EigeneAufnahmeUi>,
+    onWaehlen: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.ghost_eigene_titel)) },
+        text = {
+            if (aufnahmen.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.ghost_eigene_leer),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = BoulderBuddy.colors.textSecondary,
+                )
+            } else {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                ) {
+                    aufnahmen.forEach { aufnahme ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onWaehlen(aufnahme.uri) }
+                                .padding(vertical = Dimens.paddingS),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.VideoLibrary,
+                                // null: die Zeile daneben benennt den Eintrag bereits.
+                                contentDescription = null,
+                                tint = BoulderBuddy.colors.textSecondary,
+                            )
+                            Text(
+                                text = stringResource(
+                                    R.string.ghost_eigene_zeile,
+                                    aufnahme.zeitText,
+                                    aufnahme.groesseText,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
+        },
+    )
 }
 
 @Composable

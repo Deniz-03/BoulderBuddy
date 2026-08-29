@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.boulderbuddy.data.camera.EigeneAufnahmen
 import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
 import com.boulderbuddy.data.repository.GhostAnalysisRepository
 import com.boulderbuddy.ghost.Fortschritt
@@ -119,6 +120,8 @@ data class GhostClimberUiState(
     val cmpAbortTimeMs: Long? = null,
     /** Gespeicherte Analysen (DB), neueste zuerst. */
     val savedAnalyses: List<SavedAnalysisUi> = emptyList(),
+    /** App-interne Videos als dritte Quelle neben Kamera und Galerie; neueste zuerst. */
+    val eigeneAufnahmen: List<EigeneAufnahmeUi> = emptyList(),
     /** true, nachdem die aktuelle Analyse gespeichert wurde (deaktiviert den Button). */
     val analysisSaved: Boolean = false,
 ) {
@@ -142,6 +145,17 @@ data class SavedAnalysisUi(
 )
 
 /**
+ * Listeneintrag einer app-internen Aufnahme. Angezeigt wird der Zeitpunkt und nicht der
+ * Dateiname: `BB_1756458012345.mp4` sagt niemandem etwas, und die übernommenen Dateien
+ * heißen nach ihrem Hash — beide Namen sind zum Wiedererkennen wertlos.
+ */
+data class EigeneAufnahmeUi(
+    val uri: String,
+    val zeitText: String,
+    val groesseText: String,
+)
+
+/**
  * Ghost Climber (Phase 7.5): geführter Flow über die Pipeline-Schritte.
  * M1: Videos wählen + Posen extrahieren (MediaPipe, offline, gecacht).
  * M2: Anker antippen → eigene Kotlin-Homographie → Vergleichs-Posen im Referenzraum.
@@ -160,6 +174,7 @@ class GhostClimberViewModel @Inject constructor(
     private val artifactStore: GhostArtifactStore,
     private val frameDecoder: GhostFrameDecoder,
     private val analysisRepository: GhostAnalysisRepository,
+    private val eigeneAufnahmen: EigeneAufnahmen,
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(GhostClimberUiState())
@@ -167,6 +182,10 @@ class GhostClimberViewModel @Inject constructor(
 
     private val json = Json { ignoreUnknownKeys = true }
     private val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.GERMANY)
+    // Aufnahmen mit Sekunde: zwei Versuche derselben Route entstehen oft direkt
+    // hintereinander, und auf die Minute genau hießen dann beide gleich — ausgerechnet
+    // die beiden, zwischen denen man in dieser Liste unterscheiden muss.
+    private val aufnahmeFormat = SimpleDateFormat("dd.MM.yyyy HH:mm:ss", Locale.GERMANY)
 
     init {
         // Gespeicherte Analysen live in den State spiegeln (Liste im Auswahl-Schritt).
@@ -189,6 +208,7 @@ class GhostClimberViewModel @Inject constructor(
                 }
             }
         }
+        ladeEigeneAufnahmen()
         // Den Stand der Hintergrund-Analyse mitlesen. Das ist zugleich die Wiederaufnahme:
         // ein frisch aufgebautes ViewModel bekommt beim ersten Sammeln den aktuellen Wert
         // und findet damit von selbst in einen Lauf zurück, den es nie gestartet hat.
@@ -201,6 +221,30 @@ class GhostClimberViewModel @Inject constructor(
     fun onVideoSelected(role: GhostRole, uri: String) {
         updateSlot(role) { GhostVideoSlot(uri = uri) }
         _uiState.update { it.copy(ghostTrack = null, error = null) }
+        // Kam das Video gerade aus der Kamera, liegt es jetzt im Aufnahme-Ordner und gehört
+        // in die Liste — sonst fehlte ausgerechnet die frischeste Aufnahme darin.
+        ladeEigeneAufnahmen()
+    }
+
+    /**
+     * Liest den Aufnahme-Ordner. Läuft bei jedem Aufbau dieses ViewModels: genau dann kommt
+     * jemand zurück, der seine Aufnahme sonst nicht mehr fände.
+     */
+    private fun ladeEigeneAufnahmen() {
+        viewModelScope.launch {
+            val aufnahmen = eigeneAufnahmen.videos().map {
+                EigeneAufnahmeUi(
+                    uri = it.uri,
+                    zeitText = aufnahmeFormat.format(Date(it.aufgenommenAm)),
+                    groesseText = String.format(
+                        Locale.GERMANY,
+                        "%.1f MB",
+                        it.groesseBytes / (1024.0 * 1024.0),
+                    ),
+                )
+            }
+            _uiState.update { it.copy(eigeneAufnahmen = aufnahmen) }
+        }
     }
 
     /**
@@ -586,6 +630,7 @@ class GhostClimberViewModel @Inject constructor(
 
     fun backToSelection() {
         _uiState.update { it.copy(step = GhostStep.SELECTION, error = null) }
+        ladeEigeneAufnahmen()
     }
 
     fun backToAnchors() {
