@@ -44,6 +44,7 @@ val RouteStatus.istGetoppt: Boolean get() = this == RouteStatus.SENT
 // --- Datum ------------------------------------------------------------------
 
 private val dayMonthFormatter = DateTimeFormatter.ofPattern("d. MMMM", Locale.GERMAN)
+private val dayMonthYearFormatter = DateTimeFormatter.ofPattern("d. MMMM yyyy", Locale.GERMAN)
 
 /** epoch-millis → lokales Datum in der Zeitzone des Geräts. */
 fun Long.toLocalDate(): LocalDate =
@@ -56,16 +57,31 @@ fun formatDayMonth(millis: Long): String = millis.toLocalDate().format(dayMonthF
 fun formatDayMonth(date: LocalDate): String = date.format(dayMonthFormatter)
 
 /**
- * Menschliche Kurzform relativ zu [today]: "Heute", "Gestern" oder "12. Juni".
+ * Menschliche Kurzform relativ zu [today]: "Heute", "Gestern", "12. Juni" — und
+ * "12. Juni 2025", sobald der Tag aus einem anderen Jahr stammt.
+ *
+ * **Das Jahr ist keine Zierde.** Ohne es heißen der 27. August 2025 und der 27. August 2026
+ * gleich, und alle Aufrufer sind Listen, die weit zurückreichen: die Tagesauswahl der
+ * Statistik zeigt die zehn jüngsten Klettertage, die Sessions- und die Hangboard-Historie
+ * alles. Wer selten klettert, bekommt dort zwei Einträge nebeneinander, die derselbe Tag zu
+ * sein scheinen — und muss raten, welchen er antippt.
+ *
+ * Die Grenze ist das Kalenderjahr und nicht „älter als zwölf Monate": zwei Tage desselben
+ * Jahres können nicht gleich heißen, zwei Tage verschiedener Jahre tragen verschiedene
+ * Jahreszahlen. Damit ist die Beschriftung eindeutig, ohne dass sie davon abhinge, was sonst
+ * noch in der Liste steht — ein Tag heißt immer gleich.
+ *
  * [today] injizierbar für deterministische Tests/Previews.
  */
-fun formatRelativeDay(millis: Long, today: LocalDate = LocalDate.now()): String {
-    val date = millis.toLocalDate()
-    return when (date) {
-        today -> "Heute"
-        today.minusDays(1) -> "Gestern"
-        else -> date.format(dayMonthFormatter)
-    }
+fun formatRelativeDay(millis: Long, today: LocalDate = LocalDate.now()): String =
+    formatRelativeDay(millis.toLocalDate(), today)
+
+/** Dieselbe Kurzform für ein Datum, das schon eines ist — spart den Umweg über die Millis. */
+fun formatRelativeDay(date: LocalDate, today: LocalDate = LocalDate.now()): String = when {
+    date == today -> "Heute"
+    date == today.minusDays(1) -> "Gestern"
+    date.year != today.year -> date.format(dayMonthYearFormatter)
+    else -> date.format(dayMonthFormatter)
 }
 
 private val uhrzeitFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)

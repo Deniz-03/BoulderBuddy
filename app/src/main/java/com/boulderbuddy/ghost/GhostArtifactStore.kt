@@ -63,10 +63,32 @@ class GhostArtifactStore @Inject constructor(
      * Nur aufrufen, wenn keine Analyse mehr darauf zeigt — die Datei ist zugleich der Cache
      * für dieses Video. Wer sie einer noch benutzten Analyse wegnimmt, kostet beim nächsten
      * Öffnen die volle Extraktion.
+     *
+     * **Löscht ausschließlich innerhalb von `filesDir/ghost`, alles andere wird abgelehnt.**
+     * Der Pfad kommt aus einer Datenbankspalte, und die ist keine vertrauenswürdige Quelle:
+     * sie wird beim Geräte-Abgleich mit einem fremden Stand verglichen und übernommen, und
+     * der kann aus einer Datei stammen, die der Nutzer irgendwoher ausgewählt hat. Ohne diese
+     * Schranke genügte ein `../databases/boulderbuddy.db` in einer Zeile, damit ein Tap auf
+     * „Analyse löschen" die Datenbank mitnimmt — [loadPoseTrackFromPath] akzeptiert absolute
+     * Pfade ausdrücklich, also tat es diese Funktion vorher auch.
+     *
+     * Beim LESEN ist dieselbe Schranke nicht nötig: eine fremde Datei ergibt dort kein
+     * gültiges JSON und damit `null` — das Ergebnis ist „kein Cache", nicht ein Schaden.
+     *
+     * @return `true`, wenn wirklich gelöscht wurde. `false` heißt: gab es nicht, lag
+     *   außerhalb, oder das Dateisystem wollte nicht. Der Aufrufer räumt nur auf und hat auf
+     *   keinen dieser Fälle eine sinnvolle Antwort.
      */
     suspend fun loeschePoseTrack(path: String): Boolean = withContext(Dispatchers.IO) {
-        val file = if (path.startsWith("/")) File(path) else File(filesDir, path)
-        file.exists() && file.delete()
+        val datei = if (path.startsWith("/")) File(path) else File(filesDir, path)
+        // Über `canonicalPath` und nicht über den Rohpfad: erst der löst `..` auf und folgt
+        // Symlinks — und `filesDir` IST auf Android einer (/data/user/0/… gegen /data/data/…),
+        // weshalb beide Seiten kanonisch verglichen werden müssen und nicht nur die eine.
+        val innerhalb = runCatching {
+            datei.canonicalPath.startsWith(dir.canonicalPath + File.separator)
+        }.getOrDefault(false)
+
+        innerhalb && datei.exists() && datei.delete()
     }
 
     /**

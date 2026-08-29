@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.R
@@ -43,6 +44,7 @@ import com.boulderbuddy.ui.components.BarChartEntry
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
 import com.boulderbuddy.ui.components.FilterChip
 import com.boulderbuddy.ui.components.SectionHeader
+import com.boulderbuddy.ui.components.SelectableChip
 import com.boulderbuddy.ui.components.EmptyState
 import com.boulderbuddy.ui.components.StatCard
 import com.boulderbuddy.ui.components.TopBar
@@ -64,6 +66,16 @@ import com.boulderbuddy.ui.viewmodel.StatistikUiState
 
 // Ein Quick-Stat-Kärtchen (Label + fertig formatierter Wert).
 private data class QuickStat(val label: String, val value: String)
+
+/**
+ * Die scrollbare Liste des Statistik-Tabs.
+ *
+ * Sie trägt ein Test-Tag, weil ihre Abschnitte lazy sind: was außerhalb des Bildschirms
+ * liegt, ist gar nicht komponiert und für einen UI-Test schlicht nicht da. Über das Tag kann
+ * ein Test gezielt dorthin scrollen, statt sich auf die Fensterhöhe des Prüfgeräts zu
+ * verlassen.
+ */
+const val STATISTIK_LISTE_TEST_TAG = "statistik_liste"
 
 @Composable
 fun StatistikScreen(
@@ -102,6 +114,35 @@ fun StatistikScreen(
     // beantworten dieselbe Frage aus zwei Richtungen ("wie viel" und "wie schwer"), und zwei
     // getrennte Regler nebeneinander würde man unweigerlich gegeneinander verstellen.
     var zeitraum by rememberSaveable { mutableStateOf(Zeitraum.Woche) }
+
+    /*
+     * Gewählter Tag und Gradsystem der Tagesstatistik. Beide fallen auf den jüngsten bzw.
+     * ersten vorhandenen Wert zurück, sobald die Auswahl ins Leere zeigt — etwa wenn ein Tag
+     * aus der Leiste rutscht, weil neuere dazugekommen sind.
+     *
+     * **Gemerkt wird das Datum, nicht die Position.** `state.tage` sind „die zehn jüngsten
+     * Klettertage"; die Liste rutscht also, sobald ein neuerer dazukommt. Über einen Index
+     * zeigte die Auswahl danach ohne Zutun des Nutzers auf einen anderen Tag: wer gestern
+     * angetippt hatte und dann in einer laufenden Session einen Boulder mit Grad anlegt, sieht
+     * plötzlich den Tag davor. Über `rememberSaveable` überlebte der falsche Index sogar den
+     * Prozesstod.
+     *
+     * Als ISO-Zeichenkette und nicht als `LocalDate`: was `rememberSaveable` ohne eigenen
+     * Saver ablegen darf, entscheidet eine Positivliste, und ein Fehlgriff dort fällt erst
+     * beim Speichern des Zustands auf — also genau dann, wenn man es am wenigsten merkt.
+     */
+    var gewaehltesDatum by rememberSaveable { mutableStateOf<String?>(null) }
+    var tagesSystem by rememberSaveable { mutableStateOf<Int?>(null) }
+    val gewaehlterTag = state.tage.firstOrNull { it.datum.toString() == gewaehltesDatum }
+        ?: state.tage.firstOrNull()
+    val tagesSysteme = gewaehlterTag
+        ?.let { state.tagesstatistik[it.datum].orEmpty().keys }
+        .orEmpty()
+        .mapNotNull { id -> state.systemNamen[id]?.let { TagesSystemUi(id, it) } }
+        .sortedBy { it.name }
+    if (tagesSystem == null || tagesSysteme.none { it.id == tagesSystem }) {
+        tagesSystem = tagesSysteme.firstOrNull()?.id
+    }
     val routenVerlauf = state.routenVerlauf[zeitraum].orEmpty()
     val gradVerlauf = effectiveSystemId
         ?.let { state.gradVerlauf[zeitraum]?.get(it) }
@@ -125,7 +166,7 @@ fun StatistikScreen(
         // Die Navigationsleiste stellt das Gerüst (AppNavigation), nicht der Screen.
         content = { _ ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().testTag(STATISTIK_LISTE_TEST_TAG),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,
@@ -150,6 +191,42 @@ fun StatistikScreen(
                 // Kurzfassung des ganzen Screens — dieselbe Rolle wie die Stat-Reihe auf Home.
                 item {
                     QuickStatsRow(quickStats)
+                }
+
+                // --- Einzelner Tag ---
+                // Steht vor den Verläufen über Wochen und Monate: die Frage „wie lief mein
+                // letzter Klettertag" ist die näherliegende, und die Antwort darauf ist noch
+                // frisch erinnerbar. Die Entwicklung über Monate schaut man seltener an.
+                if (gewaehlterTag != null) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
+                            // Scrollbar, weil zehn Tage nie in eine Telefonzeile passen —
+                            // schon „26. August" ist breit, mit Jahreszahl erst recht. Ohne
+                            // das Scrollen liegen die älteren Tage außerhalb des Bildschirms
+                            // und sind nicht antippbar; der Umschalter der Gradsysteme weiter
+                            // unten macht es aus demselben Grund so.
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                            ) {
+                                state.tage.forEach { tag ->
+                                    SelectableChip(
+                                        label = tag.label,
+                                        selected = tag.datum == gewaehlterTag.datum,
+                                        onClick = { gewaehltesDatum = tag.datum.toString() },
+                                    )
+                                }
+                            }
+                            TagesstatistikBlock(
+                                titel = stringResource(R.string.tag_verlauf_tag),
+                                systeme = tagesSysteme,
+                                gewaehltesSystem = tagesSystem,
+                                statistik = state.tagesstatistik[gewaehlterTag.datum]
+                                    ?.get(tagesSystem),
+                                onSystemWaehlen = { tagesSystem = it },
+                            )
+                        }
+                    }
                 }
 
                 // --- Hangboard-Training ---

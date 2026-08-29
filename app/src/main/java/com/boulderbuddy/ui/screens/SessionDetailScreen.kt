@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,6 +48,7 @@ import com.boulderbuddy.ui.theme.spaltenFuer
 import com.boulderbuddy.ui.viewmodel.HangboardWorkoutUi
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
 import com.boulderbuddy.ui.viewmodel.SessionGhostAnalyseUi
+import com.boulderbuddy.ui.viewmodel.TagesstatistikUi
 import kotlinx.coroutines.delay
 
 // Status → Farbe fürs Status-Symbol der RouteCard. Top grün, Flash orange, Projekt dezent.
@@ -68,6 +70,9 @@ fun SessionDetailScreen(
     hangboardWorkouts: List<HangboardWorkoutUi> = emptyList(),
     // Ghost-Analysen dieser Session. Der Block steht auch leer da — er ist der Einstieg.
     ghostAnalysen: List<SessionGhostAnalyseUi> = emptyList(),
+    // Verlauf dieser Session je Gradsystem; leer = kein Boulder mit Grad, Block entfällt.
+    tagesstatistik: Map<Int, TagesstatistikUi> = emptyMap(),
+    tagesSysteme: List<TagesSystemUi> = emptyList(),
     // Navigations-Callbacks (Phase 2). onAddRoute ist von SessionRoute bereits an die
     // sessionId dieser Session gebunden.
     // `null` = es gibt von hier keinen Weg zurück, also auch keinen Pfeil. Genau der Fall im
@@ -99,6 +104,13 @@ fun SessionDetailScreen(
 
     // Steuert den Bestätigungsdialog des zentralen "Session beenden"-Buttons.
     var showEndDialog by remember { mutableStateOf(false) }
+
+    // Gewähltes Gradsystem des Verlaufs. Vorbelegt mit dem ersten vorkommenden; die
+    // Umschaltleiste erscheint ohnehin erst ab zwei Systemen.
+    var gewaehltesSystem by rememberSaveable { mutableStateOf<Int?>(null) }
+    if (gewaehltesSystem == null || tagesSysteme.none { it.id == gewaehltesSystem }) {
+        gewaehltesSystem = tagesSysteme.firstOrNull()?.id
+    }
 
     BoulderBuddyScaffold(
         topBar = {
@@ -241,6 +253,21 @@ fun SessionDetailScreen(
                                 )
                             }
                         }
+                    }
+                }
+
+                // --- Verlauf dieser Session ---
+                if (tagesSysteme.isNotEmpty()) {
+                    item {
+                        TagesstatistikBlock(
+                            titel = stringResource(R.string.tag_verlauf_session),
+                            systeme = tagesSysteme,
+                            gewaehltesSystem = gewaehltesSystem,
+                            statistik = tagesstatistik[gewaehltesSystem],
+                            onSystemWaehlen = { gewaehltesSystem = it },
+                            // Tops, Versuche und Top-Grad stehen oben schon als Kopfzeile.
+                            zeigeKennzahlen = false,
+                        )
                     }
                 }
 

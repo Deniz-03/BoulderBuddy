@@ -30,6 +30,26 @@ interface GhostAnalysisDao {
     suspend fun getById(id: Int): GhostAnalysisEntity?
 
     /**
+     * Schreibt zurück, was eine Nachbearbeitung ändern kann: Anker (in der Homographie),
+     * Routenpfad und der daraus folgende Modus-Vorschlag.
+     *
+     * Bewusst nur diese drei Spalten und kein `@Update` der ganzen Zeile. Videos und
+     * Spur-Pfade bleiben dieselben — es ist ja dieselbe Analyse —, und `sessionId` wie
+     * `createdAt` sollen ausdrücklich stehen bleiben: eine Korrektur verschiebt eine Analyse
+     * nicht in eine andere Session und macht sie nicht neu.
+     */
+    @Query(
+        "UPDATE ghost_analysis SET homographyCmpJson = :homographie, " +
+            "routePathJson = :routenpfad, suggestedMode = :modus WHERE id = :id"
+    )
+    suspend fun aktualisiereAuswertung(
+        id: Int,
+        homographie: String,
+        routenpfad: String,
+        modus: String,
+    )
+
+    /**
      * Löscht nur die Zeile. Die Dateien dahinter räumt das Repository ab — es muss dafür
      * erst wissen, welche Spuren danach noch gebraucht werden ([nochGenutzteSpurPfade]).
      */

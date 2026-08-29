@@ -192,6 +192,34 @@ class GhostClimberViewModel @Inject constructor(
      */
     private val sessionId: Int? = savedStateHandle.toRoute<GhostClimber>().sessionId
 
+    /**
+     * Die wiederhergestellte Analyse, solange sie noch dieselbe ist — dann schreibt
+     * [saveAnalysis] auf diese Zeile zurück, statt eine zweite anzulegen.
+     *
+     * Ohne das ist „Analyse öffnen → Pfad anpassen → speichern" ein Neuanlegen: neben der
+     * alten Analyse stünde eine zweite, und die trüge die Session der aufrufenden Route —
+     * also **keine**, wenn man aus dem Session-Block heraus geöffnet hat. Wer den Routenpfad
+     * einer Session-Analyse korrigierte, fand das Ergebnis anschließend nicht mehr in seiner
+     * Session.
+     *
+     * Die Kennung fällt weg, sobald ein Video gewechselt wird ([onVideoSelected]). Dann ist
+     * es eine andere Analyse, und eine andere Analyse ist eine neue Zeile.
+     */
+    private var bearbeiteteAnalyse: Int? = null
+
+    /**
+     * Läuft gerade eine Wiederherstellung? Solange sie läuft, darf der Hintergrund-Lauf den
+     * Bildschirm nicht anfassen.
+     *
+     * Gesetzt wird das **synchron**, noch vor der Coroutine — und genau darin liegt der Sinn.
+     * Beim Aufbau starten zwei Dinge nebeneinander: das Herstellen der gespeicherten Analyse
+     * (Datenbank + zwei Spur-Dateien) und der Sammler auf [GhostAnalyseRunner.stand], der
+     * sofort den aktuellen Wert bekommt. Wer zuerst fertig ist, entscheidet sonst der Zufall
+     * des Dateisystems. Ein Flag, das erst in der Coroutine gesetzt wird, käme regelmäßig zu
+     * spät.
+     */
+    private var stellteAnalyseHer = false
+
     private val _uiState = MutableStateFlow(GhostClimberUiState())
     val uiState: StateFlow<GhostClimberUiState> = _uiState.asStateFlow()
 
@@ -239,6 +267,8 @@ class GhostClimberViewModel @Inject constructor(
     fun onVideoSelected(role: GhostRole, uri: String) {
         updateSlot(role) { GhostVideoSlot(uri = uri) }
         _uiState.update { it.copy(ghostTrack = null, error = null) }
+        // Anderes Video, andere Analyse — ein Speichern legt jetzt wieder neu an.
+        bearbeiteteAnalyse = null
         // Kam das Video gerade aus der Kamera, liegt es jetzt im Aufnahme-Ordner und gehört
         // in die Liste — sonst fehlte ausgerechnet die frischeste Aufnahme darin.
         ladeEigeneAufnahmen()
@@ -295,6 +325,18 @@ class GhostClimberViewModel @Inject constructor(
      * unter zwei namenlosen Kacheln.
      */
     private fun uebernimm(stand: GhostAnalyseStand) {
+        // Der Hintergrund-Lauf spricht nur in die Auswahl hinein. Weiter hinten im Flow
+        // arbeitet der Nutzer an EINEM konkreten Videopaar, und ein Lauf, den er längst
+        // hinter sich gelassen hat, darf ihm das nicht wegziehen.
+        //
+        // Im gewöhnlichen Ablauf kostet das nichts: angestoßen wird aus der Auswahl heraus,
+        // und die Übernahme des Ergebnisses ist gerade der Schritt, der zu den Ankern führt.
+        // Ohne den Wächter aber trifft ein Lauf auf eine wiederhergestellte Analyse — und
+        // ersetzt beide Slots durch fremde Videos, während `bearbeiteteAnalyse` weiter auf
+        // die alte Zeile zeigt. Wer danach speichert, schreibt Homographie und Routenpfad
+        // des fremden Paars in die gespeicherte Analyse. Sie behält ihre Videos und wird
+        // damit unbrauchbar, ohne dass irgendwo eine Meldung erscheint.
+        if (stellteAnalyseHer || _uiState.value.step != GhostStep.SELECTION) return
         when (stand) {
             is GhostAnalyseStand.Untaetig -> _uiState.update {
                 it.copy(
@@ -323,6 +365,11 @@ class GhostClimberViewModel @Inject constructor(
                         step = GhostStep.ANCHORS,
                     )
                 }
+                // Frisch gerechnete Spuren sind eine andere Analyse — aus demselben Grund
+                // wie in [onVideoSelected]. Wer aus einer wiederhergestellten Analyse zurück
+                // in die Auswahl geht und dort einen Lauf abholt, legt beim Speichern neu an,
+                // statt die alte Zeile zu überschreiben.
+                bearbeiteteAnalyse = null
                 runner.quittiere()
                 // Standbilder für die Anker-Erfassung vorladen.
                 GhostRole.entries.forEach { loadAnchorFrame(it, 0L) }
@@ -340,7 +387,20 @@ class GhostClimberViewModel @Inject constructor(
         val uri = _uiState.value.slot(role).uri ?: return
         updateSlot(role) { it.copy(anchorFrameTimeMs = timeMs) }
         viewModelScope.launch {
-            val bitmap = frameDecoder.frameAt(uri, timeMs)
+            // Der Decoder wirft, sobald die URI nicht mehr erreichbar ist — eine
+            // Galerie-Freigabe überlebt einen Neustart nur, wenn sie dauerhaft genommen
+            // wurde, und ein Video kann inzwischen gelöscht sein. Ungefangen reißt das die
+            // App mit: eine Ausnahme aus einem `launch` läuft in den Standard-Handler, und
+            // der beendet den Prozess. Ein fehlendes Standbild ist dagegen bloß ein leeres
+            // Feld — der Slot beginnt ohnehin ohne Bild.
+            val bitmap = try {
+                frameDecoder.frameAt(uri, timeMs)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("GhostClimber", "Standbild nicht lesbar: $uri", e)
+                null
+            }
             // Nur übernehmen, wenn der Zeitpunkt noch aktuell ist (Slider schneller als Decode).
             if (_uiState.value.slot(role).anchorFrameTimeMs == timeMs) {
                 updateSlot(role) { it.copy(anchorFrame = bitmap?.asImageBitmap()) }
@@ -551,15 +611,45 @@ class GhostClimberViewModel @Inject constructor(
 
     // --- Persistenz gespeicherter Analysen (M5, A.2) ---
 
-    /** Speichert die aktuelle Analyse: Artefakt-Pfade + kompakte JSON-Ergebnisse in der DB. */
+    /**
+     * Sichert die aktuelle Auswertung — und zwar auf zwei Arten, je nachdem, was vorliegt.
+     *
+     * **Korrektur**, wenn eine wiederhergestellte Analyse nachbearbeitet wurde
+     * ([bearbeiteteAnalyse]): dann wandern nur Homographie, Routenpfad und Modus zurück in
+     * dieselbe Zeile. Session und Erstellzeitpunkt bleiben — wer den Routenpfad nachbessert,
+     * verschiebt seine Analyse nicht in eine andere Session und legt keine zweite an.
+     *
+     * **Neuanlage** sonst, mit der Session der aufrufenden Route (`null` beim Einstieg aus
+     * den Einstellungen). Die neue Zeile gilt danach als die bearbeitete: ein zweites
+     * Nachbessern derselben Analyse korrigiert sie wieder, statt eine dritte anzulegen.
+     */
     fun saveAnalysis() {
         val state = _uiState.value
         val refUri = state.reference.uri ?: return
         val cmpUri = state.comparison.uri ?: return
         val homography = state.homographyCmp ?: return
         if (state.analysisSaved || state.routePath.size < 2) return
+        // Erst die alte Meldung weg. Sonst stünde neben einem frischen Versuch noch der
+        // Fehler des vorigen — und der Bildschirm könnte nicht unterscheiden, ob DIESER
+        // Versuch gescheitert ist (siehe den Verlassen-nach-Speichern-Weg in
+        // GhostClimberScreen, der genau das auswerten muss).
+        _uiState.update { it.copy(error = null) }
         viewModelScope.launch {
             try {
+                val bearbeitet = bearbeiteteAnalyse
+                if (bearbeitet != null) {
+                    // Korrektur einer vorhandenen Analyse: nur die Auswertung wandert zurück.
+                    // Session und Erstellzeitpunkt bleiben, wo sie waren — eine Nachbesserung
+                    // verschiebt die Analyse nicht und macht sie nicht neu.
+                    analysisRepository.update(
+                        id = bearbeitet,
+                        homographieJson = json.encodeToString(homography.values()),
+                        routenpfadJson = json.encodeToString(state.routePath),
+                        modus = state.suggestedMode.name,
+                    )
+                    _uiState.update { it.copy(analysisSaved = true) }
+                    return@launch
+                }
                 analysisRepository.create(
                     GhostAnalysisEntity(
                         sessionId = sessionId,
@@ -573,6 +663,7 @@ class GhostClimberViewModel @Inject constructor(
                         createdAt = System.currentTimeMillis(),
                     ),
                 )
+                    .also { neueId -> bearbeiteteAnalyse = neueId }
                 _uiState.update { it.copy(analysisSaved = true) }
             } catch (e: CancellationException) {
                 throw e
@@ -592,6 +683,7 @@ class GhostClimberViewModel @Inject constructor(
      * die teure Pose-Extraktion entfällt) und direkt die Vorschau geöffnet.
      */
     fun restoreAnalysis(id: Int) {
+        stellteAnalyseHer = true
         viewModelScope.launch {
             _uiState.update { it.copy(error = null) }
             try {
@@ -632,12 +724,18 @@ class GhostClimberViewModel @Inject constructor(
                         // Wiederhergestellt = bereits gespeichert.
                         .copy(analysisSaved = true)
                 }
+                // Ab hier ist jedes Speichern eine Korrektur dieser Zeile, kein Neuanlegen.
+                bearbeiteteAnalyse = id
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(error = e.message ?: "Analyse konnte nicht geladen werden")
                 }
+            } finally {
+                // Auch nach einem Fehlschlag: sonst bliebe der Bildschirm für den Rest seines
+                // Lebens taub für den Hintergrund-Lauf.
+                stellteAnalyseHer = false
             }
         }
     }
@@ -650,6 +748,11 @@ class GhostClimberViewModel @Inject constructor(
     fun backToSelection() {
         _uiState.update { it.copy(step = GhostStep.SELECTION, error = null) }
         ladeEigeneAufnahmen()
+        // Ein Stand, den der Wächter oben abgewiesen hat, wartet noch im Runner — ein
+        // StateFlow meldet sich von selbst erst wieder, wenn sich der Wert ändert. Hier ist
+        // der Bildschirm zurück in der Auswahl und damit aufnahmebereit; ohne diese Zeile
+        // bliebe ein fertiger Lauf bis zum nächsten Aufbau des Bildschirms unsichtbar.
+        uebernimm(runner.stand.value)
     }
 
     fun backToAnchors() {

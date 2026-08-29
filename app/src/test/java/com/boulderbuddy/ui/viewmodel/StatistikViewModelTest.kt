@@ -22,6 +22,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Aggregations-Logik der Statistik: Flash-Rate, Tops, Hangboard-Summen und Grade-Verteilung.
@@ -169,4 +171,54 @@ class StatistikViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    @Test
+    fun `zwei klettertage ein jahr auseinander bekommen verschiedene chips`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            // Die Auswahlleiste zeigt die zehn jüngsten Klettertage. Wer selten klettert,
+            // hat darin ohne Weiteres zwei Tage aus verschiedenen Jahren — und ohne
+            // Jahreszahl trügen beide dieselbe Aufschrift.
+            val juenger = LocalDate.now().minusDays(30).let {
+                // Der 29. Februar hat kein Gegenstück im Vorjahr; dann einen Tag früher.
+                if (it.monthValue == 2 && it.dayOfMonth == 29) it.minusDays(1) else it
+            }
+            val aelter = juenger.minusYears(1)
+            // Sonst prüfte der Test nichts: verschiedene Tage heißen ohnehin verschieden.
+            assertThat(aelter.dayOfMonth).isEqualTo(juenger.dayOfMonth)
+            assertThat(aelter.month).isEqualTo(juenger.month)
+
+            grades.systems.value = listOf(GradeSystemEntity(id = 1, gymId = null, name = "V-Scale"))
+            grades.grades.value = listOf(GradeEntity(id = 10, systemId = 1, label = "V4", order = 4))
+            sessions.all.value = listOf(
+                SessionEntity(id = 1, gymId = 1, date = tagesBeginn(juenger)),
+                SessionEntity(id = 2, gymId = 1, date = tagesBeginn(aelter)),
+            )
+            // Je ein getoppter Boulder MIT Grad — ein Tag ohne Grad fällt aus der Auswahl.
+            routes.all.value = listOf(
+                RouteEntity(id = 1, sessionId = 1, gradeId = 10, status = RouteStatus.SENT, attempts = 1),
+                RouteEntity(id = 2, sessionId = 2, gradeId = 10, status = RouteStatus.SENT, attempts = 2),
+            )
+
+            val vm = StatistikViewModel(sessions, routes, grades, hangboardWorkouts)
+
+            vm.uiState.test {
+                var state = awaitItem()
+                while (state.tage.size < 2) state = awaitItem()
+
+                val aufschriften = state.tage.map { it.label }
+                assertThat(aufschriften).containsNoDuplicates()
+                assertThat(aufschriften).contains("${juenger.dayOfMonth}. ${monatsname(juenger)}")
+                assertThat(aufschriften)
+                    .contains("${aelter.dayOfMonth}. ${monatsname(aelter)} ${aelter.year}")
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    private fun tagesBeginn(tag: LocalDate): Long =
+        tag.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    /** Der deutsche Monatsname, wie ihn die Aufschrift verwendet. */
+    private fun monatsname(tag: LocalDate): String =
+        java.time.format.DateTimeFormatter.ofPattern("MMMM", java.util.Locale.GERMAN).format(tag)
 }
