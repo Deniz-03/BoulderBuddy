@@ -25,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.R
@@ -66,6 +66,16 @@ import com.boulderbuddy.ui.viewmodel.StatistikUiState
 
 // Ein Quick-Stat-Kärtchen (Label + fertig formatierter Wert).
 private data class QuickStat(val label: String, val value: String)
+
+/**
+ * Die scrollbare Liste des Statistik-Tabs.
+ *
+ * Sie trägt ein Test-Tag, weil ihre Abschnitte lazy sind: was außerhalb des Bildschirms
+ * liegt, ist gar nicht komponiert und für einen UI-Test schlicht nicht da. Über das Tag kann
+ * ein Test gezielt dorthin scrollen, statt sich auf die Fensterhöhe des Prüfgeräts zu
+ * verlassen.
+ */
+const val STATISTIK_LISTE_TEST_TAG = "statistik_liste"
 
 @Composable
 fun StatistikScreen(
@@ -105,12 +115,26 @@ fun StatistikScreen(
     // getrennte Regler nebeneinander würde man unweigerlich gegeneinander verstellen.
     var zeitraum by rememberSaveable { mutableStateOf(Zeitraum.Woche) }
 
-    // Gewählter Tag und Gradsystem der Tagesstatistik. Beide fallen auf den jüngsten bzw.
-    // ersten vorhandenen Wert zurück, sobald die Auswahl ins Leere zeigt — etwa wenn ein Tag
-    // aus der Leiste rutscht, weil neuere dazugekommen sind.
-    var tagIndex by rememberSaveable { mutableIntStateOf(0) }
+    /*
+     * Gewählter Tag und Gradsystem der Tagesstatistik. Beide fallen auf den jüngsten bzw.
+     * ersten vorhandenen Wert zurück, sobald die Auswahl ins Leere zeigt — etwa wenn ein Tag
+     * aus der Leiste rutscht, weil neuere dazugekommen sind.
+     *
+     * **Gemerkt wird das Datum, nicht die Position.** `state.tage` sind „die zehn jüngsten
+     * Klettertage"; die Liste rutscht also, sobald ein neuerer dazukommt. Über einen Index
+     * zeigte die Auswahl danach ohne Zutun des Nutzers auf einen anderen Tag: wer gestern
+     * angetippt hatte und dann in einer laufenden Session einen Boulder mit Grad anlegt, sieht
+     * plötzlich den Tag davor. Über `rememberSaveable` überlebte der falsche Index sogar den
+     * Prozesstod.
+     *
+     * Als ISO-Zeichenkette und nicht als `LocalDate`: was `rememberSaveable` ohne eigenen
+     * Saver ablegen darf, entscheidet eine Positivliste, und ein Fehlgriff dort fällt erst
+     * beim Speichern des Zustands auf — also genau dann, wenn man es am wenigsten merkt.
+     */
+    var gewaehltesDatum by rememberSaveable { mutableStateOf<String?>(null) }
     var tagesSystem by rememberSaveable { mutableStateOf<Int?>(null) }
-    val gewaehlterTag = state.tage.getOrNull(tagIndex) ?: state.tage.firstOrNull()
+    val gewaehlterTag = state.tage.firstOrNull { it.datum.toString() == gewaehltesDatum }
+        ?: state.tage.firstOrNull()
     val tagesSysteme = gewaehlterTag
         ?.let { state.tagesstatistik[it.datum].orEmpty().keys }
         .orEmpty()
@@ -142,7 +166,7 @@ fun StatistikScreen(
         // Die Navigationsleiste stellt das Gerüst (AppNavigation), nicht der Screen.
         content = { _ ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().testTag(STATISTIK_LISTE_TEST_TAG),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,
@@ -177,11 +201,11 @@ fun StatistikScreen(
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
-                                state.tage.forEachIndexed { index, tag ->
+                                state.tage.forEach { tag ->
                                     SelectableChip(
                                         label = tag.label,
                                         selected = tag.datum == gewaehlterTag.datum,
-                                        onClick = { tagIndex = index },
+                                        onClick = { gewaehltesDatum = tag.datum.toString() },
                                     )
                                 }
                             }
