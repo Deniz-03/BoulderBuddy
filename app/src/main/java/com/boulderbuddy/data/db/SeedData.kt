@@ -4,11 +4,18 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * Befüllt eine frisch erstellte DB mit Beispieldaten (ein Gym + Gradsystem + Grade +
- * eine aktive Session), damit die App nach dem ersten Start nicht leer wirkt.
+ * Befüllt eine frisch erstellte DB mit Beispieldaten (eine Halle + Gradsysteme + Grade +
+ * eine aktive Session mit drei Bouldern + Timer-Presets), damit die App nach dem ersten
+ * Start nicht leer wirkt.
  *
- * Wird beim Aufbau der DB (Phase 4, Hilt) als [RoomDatabase.Callback] registriert.
+ * Wird beim Aufbau der DB als [RoomDatabase.Callback] registriert (siehe `di/DatabaseModule`).
  * [onCreate] läuft nur einmal — beim allerersten Erstellen der Datei.
+ *
+ * **Die Falle dieser Datei sind die ausgeschriebenen INSERTs.** Sie umgehen Room und damit
+ * jede Entity-Voreinstellung: eine neue `NOT NULL`-Spalte ohne SQL-Default lässt hier den
+ * Start scheitern. Und zwar ausschließlich bei einer **Neuinstallation** — auf einem Gerät
+ * mit vorhandener Datenbank läuft dieses Seed nie, der Fehler bleibt also beim Testen
+ * unsichtbar. Wer eine Spalte ergänzt, ergänzt sie in den betroffenen INSERTs mit.
  */
 object SeedData : RoomDatabase.Callback() {
 
@@ -18,9 +25,15 @@ object SeedData : RoomDatabase.Callback() {
     }
 
     /**
-     * Nach einer destruktiven Migration (Versionssprung) sind alle Tabellen neu erstellt und
-     * LEER — Room ruft dann [onDestructiveMigration] statt [onCreate]. Ohne dieses Re-Seed
-     * fehlten sonst die Standard-Gradsysteme (V-Scale/Französisch) & Beispieldaten.
+     * Nach einer destruktiven Migration sind alle Tabellen neu erstellt und LEER — Room ruft
+     * dann [onDestructiveMigration] statt [onCreate], und ohne Re-Seed fehlten die
+     * Standard-Gradsysteme.
+     *
+     * **Dieser Pfad ist derzeit tot.** Seit dem Geräte-Abgleich (Sync-Plan S0) baut
+     * `DatabaseModule` ohne `fallbackToDestructiveMigration`; ein Versionssprung ohne
+     * passende Migration bricht ab, statt zu löschen. Der Rückruf bleibt als Netz stehen,
+     * falls je wieder ein destruktiver Fallback gesetzt wird — er kostet nichts und wäre im
+     * Ernstfall genau das, was man vergisst.
      */
     override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
         super.onDestructiveMigration(db)

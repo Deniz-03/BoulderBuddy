@@ -47,7 +47,16 @@ data class RouteEntity(
      * `null` = keine Farbe gewählt (neutraler Fallback im UI).
      */
     val color: String? = null,
-    /** URI eines Fotos oder Videos. */
+    /**
+     * URI eines Fotos oder Videos; Bild oder Video wird nicht gespeichert, sondern zur
+     * Laufzeit am MIME-Typ erkannt (`util/MediaType.kt`).
+     *
+     * Immer eine `content://`-URI, aus einer von drei Quellen: Galerie-Picker (dort holt
+     * `RouteHinzufuegenScreen` ausdrücklich eine dauerhafte Leseberechtigung, sonst überlebt
+     * die URI keinen Neustart), eigener Aufnahme-Screen über den FileProvider, oder nach dem
+     * Medien-Umzug des Geräte-Abgleichs (`sync/MedienUmzug.kt`) auf die inhaltsadressierte
+     * Kopie in `filesDir/aufnahmen` umgeschrieben.
+     */
     val mediaUri: String? = null,
     val notes: String? = null,
 )

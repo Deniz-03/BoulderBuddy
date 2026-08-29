@@ -6,6 +6,13 @@ import androidx.room.Query
 import com.boulderbuddy.data.db.entity.GymVisitEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Zugriff auf das Besuchs-Log der Hallen (Gym-Näherungs-Push, M3).
+ *
+ * Reines Anlegen und Lesen — Besuche werden nie geändert und nie einzeln gelöscht; sie
+ * verschwinden nur mit ihrer Halle (CASCADE). Die Regel „höchstens ein Besuch je Halle und
+ * Tag" setzt das `GymVisitRepository` durch, mit [countForGymBetween] als Prüfung.
+ */
 @Dao
 interface GymVisitDao {
     @Insert

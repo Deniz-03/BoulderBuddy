@@ -4,7 +4,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * Handgeschriebene Room-Migrationen v1→v6 (Sync-Plan S0).
+ * Handgeschriebene Room-Migrationen, lückenlos von v1 bis zur aktuellen Schema-Version
+ * (siehe [ALLE_MIGRATIONEN] am Dateiende; Anlass war Sync-Plan S0).
  *
  * Vorher lief die App auf `fallbackToDestructiveMigration` — jedes Schema-Update hätte die
  * Daten gelöscht, also genau das, was der Geräte-Abgleich übertragbar machen soll. Die
