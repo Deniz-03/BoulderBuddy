@@ -586,6 +586,11 @@ class GhostClimberViewModel @Inject constructor(
         val cmpUri = state.comparison.uri ?: return
         val homography = state.homographyCmp ?: return
         if (state.analysisSaved || state.routePath.size < 2) return
+        // Erst die alte Meldung weg. Sonst stünde neben einem frischen Versuch noch der
+        // Fehler des vorigen — und der Bildschirm könnte nicht unterscheiden, ob DIESER
+        // Versuch gescheitert ist (siehe den Verlassen-nach-Speichern-Weg in
+        // GhostClimberScreen, der genau das auswerten muss).
+        _uiState.update { it.copy(error = null) }
         viewModelScope.launch {
             try {
                 val bearbeitet = bearbeiteteAnalyse

@@ -152,10 +152,19 @@ fun GhostClimberScreen(
     // Scope abräumen, bevor der Schreibvorgang durch ist — deshalb erst gehen, wenn der
     // Zustand die Speicherung bestätigt. Schlägt sie fehl, bleibt man mit der Meldung da.
     var geheNachSpeichern by remember { mutableStateOf(false) }
-    LaunchedEffect(geheNachSpeichern, state.analysisSaved) {
-        if (geheNachSpeichern && state.analysisSaved) {
-            geheNachSpeichern = false
-            onBack()
+    LaunchedEffect(geheNachSpeichern, state.analysisSaved, state.error) {
+        if (!geheNachSpeichern) return@LaunchedEffect
+        when {
+            state.analysisSaved -> {
+                geheNachSpeichern = false
+                onBack()
+            }
+            // Gescheitert: hier bleiben, damit die Meldung lesbar ist — und die Absicht
+            // fallen lassen. Bliebe sie stehen, schlösse der nächste erfolgreiche Griff zum
+            // regulären Speichern-Knopf den Bildschirm, ohne dass jemand darum gebeten hat.
+            // `saveAnalysis` räumt die alte Meldung vorher weg, deshalb ist ein gesetzter
+            // Fehler hier zuverlässig DIESER Versuch und kein übriggebliebener.
+            state.error != null -> geheNachSpeichern = false
         }
     }
     val verlassen = { if (etwasZuVerlieren) zeigeVerwerfen = true else onBack() }
