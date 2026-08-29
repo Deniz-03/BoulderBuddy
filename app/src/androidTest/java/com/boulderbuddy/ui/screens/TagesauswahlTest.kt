@@ -29,8 +29,8 @@ import java.time.LocalDate
  * Position statt des Datums, zeigt er danach einen anderen Tag an, ohne dass jemand etwas
  * angetippt hat.
  *
- * Unterschieden werden die Tage über ihre Kennzahlen: jeder trägt einen eigenen Top-Grad,
- * und der steht als Karte über der Kurve.
+ * Unterschieden werden die Tage über ihre Versuchssumme: die steht als Karte über der Kurve
+ * und kommt im Bild genau einmal vor.
  */
 class TagesauswahlTest {
 
