@@ -159,51 +159,51 @@ Abgehakt wird jede Datei einzeln — die Liste ist der Schutz davor, eine zu
 
 **ghost/model/** (5)
 
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/model/GhostLandmarkTypes.kt` (40)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/model/GhostPose.kt` (130)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/model/GhostSkeleton.kt` (37)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/model/GhostViewMode.kt` (11)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/model/PoseGeometry.kt` (165)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/model/GhostLandmarkTypes.kt` (40)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/model/GhostPose.kt` (130)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/model/GhostSkeleton.kt` (37)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/model/GhostViewMode.kt` (11)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/model/PoseGeometry.kt` (165)
 
 **ghost/geometry/** (2)
 
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/geometry/GhostPointVec2.kt` (12)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/geometry/Homography.kt` (221)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/geometry/GhostPointVec2.kt` (12)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/geometry/Homography.kt` (221)
 
 **ghost/analysis/** (7)
 
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/analysis/Dtw.kt` (89)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/analysis/FallDetection.kt` (64)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/analysis/GhostTimeMapping.kt` (155)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/analysis/ModeSuggestion.kt` (116)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/analysis/PoseQualityMetrics.kt` (397)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/analysis/RoutePath.kt` (121)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/analysis/Signals.kt` (93)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/analysis/Dtw.kt` (89)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/analysis/FallDetection.kt` (64)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/analysis/GhostTimeMapping.kt` (155)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/analysis/ModeSuggestion.kt` (116)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/analysis/PoseQualityMetrics.kt` (397)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/analysis/RoutePath.kt` (121)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/analysis/Signals.kt` (93)
 
 **ghost/pose/** (7)
 
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/pose/PosePlausibility.kt` (325)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/pose/PoseRaumwechsel.kt` (59)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/pose/PoseSmoothing.kt` (226)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/pose/PoseSpurQuelle.kt` (51)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/pose/RigidSkeleton.kt` (193)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/pose/RoiTracking.kt` (200)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/pose/VideoPoseExtractor.kt` (378)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/pose/PosePlausibility.kt` (325)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/pose/PoseRaumwechsel.kt` (59)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/pose/PoseSmoothing.kt` (226)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/pose/PoseSpurQuelle.kt` (51)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/pose/RigidSkeleton.kt` (193)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/pose/RoiTracking.kt` (200)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/pose/VideoPoseExtractor.kt` (378)
 
 **ghost/video/** (2)
 
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/video/GhostFrameDecoder.kt` (31)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/video/ScaledFrames.kt` (79)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/video/GhostFrameDecoder.kt` (31)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/video/ScaledFrames.kt` (79)
 
 **ghost/service/** (1)
 
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/service/GhostAnalyseService.kt` (257)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/service/GhostAnalyseService.kt` (257)
 
 **ghost/** (3)
 
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/GhostAnalyseRunner.kt` (165)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/GhostArtifactStore.kt` (113)
-- [ ] `app/src/main/java/com/boulderbuddy/ghost/GhostTuning.kt` (412)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/GhostAnalyseRunner.kt` (165)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/GhostArtifactStore.kt` (113)
+- [x] `app/src/main/java/com/boulderbuddy/ghost/GhostTuning.kt` (412)
 
 
 ### Block 4 — Geraete-Abgleich

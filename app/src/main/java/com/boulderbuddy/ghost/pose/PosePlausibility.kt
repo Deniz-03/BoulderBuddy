@@ -16,9 +16,19 @@ import kotlin.math.hypot
 //
 // BlazePose ist auf aufrechte Fitness-Posen trainiert; Kletterposen (Rücken zur
 // Kamera, Überkopf-Reaches) provozieren Links/Rechts-Vertauschungen und
-// halluzinierte Glieder (Root Causes C/D). Beide Filter laufen auf der ROHEN
-// Spur, VOR One-Euro-Glättung und Hysterese — die Filter sollen konsistente,
-// physikalisch mögliche Eingaben bekommen.
+// halluzinierte Glieder (Root Causes C/D).
+//
+// [cleanPoseFrames] ist der Einstieg und fasst mehrere Prüfungen zusammen, die über die
+// Stufen dazugekommen sind: Skala- und Positions-Gate gegen das ganze Skelett, das
+// Ruck-Gate über die Zentroid-Beschleunigung (S3), die Links/Rechts-Konsistenz und die
+// anatomischen Klemmen. Was die Gates verwerfen, wird begrenzt interpoliert — zu lange
+// Strecken werden geleert statt geraten ([PoseGateStats.dropped]).
+//
+// **Das alles läuft auf der ROHEN Spur**, als erste Stufe der Kette in
+// [com.boulderbuddy.ghost.pose.extractPoseTrack]: vor der Lücken-Interpolation, vor
+// One-Euro und vor der Hysterese. Die späteren Stufen sollen konsistente, physikalisch
+// mögliche Eingaben bekommen — eine Glättung über eine vertauschte Pose glättet den
+// Fehler mit ein, statt ihn zu entfernen.
 
 /**
  * Wie viele Frames die einzelnen Pose-Gates ersetzt haben (S4d). Ohne diese Zahlen ist

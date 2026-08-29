@@ -3,10 +3,18 @@ package com.boulderbuddy.ghost
 /**
  * Zentrale Stellschrauben der Ghost-Climber-Pipeline (Phase 7.5).
  *
- * Alle Werte sind **empirisch zu kalibrieren** (Anhang A.6): Startwerte sind plausible
- * Defaults für Demo/Abgabe, keine gemessenen Schwellen. Bewusst EIN Ort statt verstreuter
- * Magic Numbers, damit eine spätere Kalibrierung (gelabelte Versuchspaare → Histogramme →
- * Trennlinien) nur diese Datei anfassen muss.
+ * Bewusst EIN Ort statt verstreuter Magic Numbers, damit eine Kalibrierung nur diese
+ * Datei anfassen muss.
+ *
+ * Die Werte sind unterschiedlich gut belegt, und das steht jeweils am Wert:
+ *
+ * * Die Schwellen der **Vergleichs-Logik** (DTW-Band, Modus-Vorschlag, Sturzerkennung)
+ *   sind weiterhin plausible Startwerte im Sinne von Anhang A.6 — sie bräuchten gelabelte
+ *   Versuchspaare, und die gibt es nicht.
+ * * Die Werte der **Pose-Stabilisierung** (One-Euro, Gates, ROI, rigide Rekonstruktion)
+ *   sind dagegen an echten Aufnahmen gemessen worden; wo eine Zahl aus einer Messung
+ *   stammt, steht sie im Kommentar dabei. Wer daran dreht, verschiebt keinen Schätzwert,
+ *   sondern ein Ergebnis — und sollte gegen die Fixtures in `fixtures/ghost/` nachmessen.
  */
 object GhostTuning {
 

@@ -16,6 +16,21 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// =============================================================================
+// Ghost Climber — der laufende Analyse-Vorgang, unabhängig vom Bildschirm (7.5h)
+// =============================================================================
+//
+// Hier liegt der Zustand EINES Laufs: welche zwei Videos, wie weit, Ergebnis oder Fehler.
+// Der Runner ist ein Singleton und gehört bewusst weder dem ViewModel noch dem Dienst:
+//
+// * Das ViewModel stirbt mit dem Bildschirm, die sieben Minuten Rechnung dürfen das nicht.
+// * Der Dienst hält den Prozess am Leben und zeigt den Fortschritt an — er rechnet aber
+//   nicht selbst und weiß vom Ergebnis nur, dass es eines gibt.
+//
+// Daraus folgt die Arbeitsteilung: der Bildschirm stößt an und liest [GhostAnalyseRunner.stand]
+// mit, der Dienst hängt sich an denselben Stand. Ein neu aufgebauter Bildschirm findet über
+// diesen Stand in einen Lauf zurück, von dessen Start er nichts mitbekommen hat.
+
 /** Frame-Zähler eines Videos; `gesamt == 0` heißt „noch nicht angefangen". */
 data class Fortschritt(val fertig: Int = 0, val gesamt: Int = 0)
 

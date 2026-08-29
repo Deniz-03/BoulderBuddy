@@ -14,9 +14,16 @@ import javax.inject.Inject
  * Ablage der Ghost-Climber-Analyse-Artefakte als JSON-Dateien im App-Storage
  * (Plan A.2: Keypoints & Co. NICHT als DB-BLOBs — nur Pfade landen später in der DB).
  *
- * Die Pose-Extraktion ist der teuerste Schritt der Pipeline (Minuten pro Video),
- * deshalb wird die Pose-Spur pro Video-URI gecacht: gleiche URI + gleiche Abtastrate
- * ⇒ Extraktion entfällt.
+ * Die Pose-Extraktion ist der teuerste Schritt der Pipeline (Minuten pro Video), deshalb
+ * wird die Pose-Spur gecacht. Der Schlüssel ist mehr als die URI: Abtastrate UND ein
+ * Marker der Pipeline-Fassung stecken mit drin (siehe `poseTrackFile`), damit eine
+ * Änderung an Modell oder Filterkette alte Spuren automatisch veralten lässt, statt sie
+ * mit anderer Semantik weiterzuverwenden.
+ *
+ * Weil die URI-Zeichenkette Teil des Schlüssels ist, muss dieselbe Datei überall dieselbe
+ * URI ergeben. Deshalb reichen sowohl der Aufnahme-Screen als auch die Liste „Aus der App"
+ * ihre Dateien durch denselben FileProvider — zwei Schreibweisen derselben Datei wären
+ * zwei Cache-Einträge und damit zweimal dieselbe Rechnung.
  */
 class GhostArtifactStore @Inject constructor(
     @ApplicationContext context: Context,
