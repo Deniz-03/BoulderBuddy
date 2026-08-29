@@ -19,6 +19,14 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 
+/**
+ * Die Kachel eines Boulders im Raster einer Session: Grad groß, Name darunter, farbiger Rand.
+ *
+ * Die Farbe kommt als fertiger [Color] herein und wird nicht hier aufgelöst — sie steht als
+ * Schlüssel an der Route und wird im ViewModel über `routeColorForKey` zur Farbe. Auch
+ * `onClick` ist nullbar: wohin ein Tap führt, ist Sache des Screens; die Kachel selbst ist
+ * keine Navigation.
+ */
 @Composable
 fun RouteCard(
     grade: String,

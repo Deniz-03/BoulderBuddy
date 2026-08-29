@@ -32,6 +32,15 @@ import com.boulderbuddy.ui.theme.BoulderBuddy
 import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 
+/**
+ * Die obere Leiste — Titel, optionaler Untertitel, Zurück-Pfeil links, Aktionen rechts.
+ *
+ * Zwei Eigenheiten, die beide aus dem Light Mode stammen: die Leiste trägt eine eigene
+ * Trennlinie nach unten (im Light Mode liegt das Chrome farblich dicht am Inhalt und läse
+ * sich ohne Kante nicht als Rahmen), und sie wird mit `drawWithContent` gezeichnet statt mit
+ * `drawBehind` — die Füllfarbe der `Surface` kommt nach dem übergebenen Modifier und würde
+ * eine dahinter gezeichnete Linie überdecken.
+ */
 @Composable
 fun TopBar(
     title: String,

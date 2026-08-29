@@ -20,6 +20,17 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.PillShape
 
+/**
+ * Ein Filter-Chip für Auswahlleisten (Boulder-Übersicht, Statistik-Zeitraum).
+ *
+ * Nicht zu verwechseln mit [SelectableChip]: dieser hier steht über einer Liste und
+ * schränkt sie ein, der andere wählt in einem Formular einen Wert.
+ *
+ * BEFUND B3 (Kommentarpflege): `selectedColor` wird von keinem Aufrufer gesetzt — alle fünf
+ * Fundstellen nehmen die Vorgabe. Der Parameter sieht nach einer gepflegten Möglichkeit aus
+ * und ist keine; wer die Farbfilter der Boulder-Übersicht in ihrer eigenen Routenfarbe
+ * erwartet, findet hier den Haken, an dem das hängen würde.
+ */
 @Composable
 fun FilterChip(
     label: String,

@@ -2,6 +2,14 @@ package com.boulderbuddy.ui.theme
 
 import androidx.compose.ui.unit.dp
 
+/**
+ * Abstände, Rundungsmaße und Breiten-Obergrenzen an einer Stelle.
+ *
+ * Die Padding-Stufen sind die übliche 4-dp-Reihe. Interessanter sind die Obergrenzen weiter
+ * unten: sie sind das Ergebnis der Tablet-Runde und der Grund, dass die App auf 1280 dp nicht
+ * auseinanderfällt. Wer einen neuen Screen baut, braucht von hier meist genau zwei Dinge —
+ * ein Padding und eine Breitenbegrenzung (`inhaltsBreite()` in `Modifiers.kt`).
+ */
 object Dimens {
     val paddingXS  = 4.dp
     val paddingS   = 8.dp

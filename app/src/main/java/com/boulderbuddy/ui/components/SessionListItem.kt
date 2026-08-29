@@ -30,6 +30,12 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.PillShape
 
+/**
+ * Eine Session in der Liste: Halle, Datum und ein paar Kurz-Kennzahlen als Badges.
+ *
+ * `isActive` färbt den linken Balken und setzt das „läuft gerade"-Badge — die laufende
+ * Session soll in der Liste ohne Lesen erkennbar sein.
+ */
 @Composable
 fun SessionListItem(
     gym: String,

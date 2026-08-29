@@ -20,6 +20,18 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.dotPattern
 import androidx.compose.ui.tooling.preview.Preview
 
+/**
+ * Das Grundgerüst jedes Screens: Chrome oben, Chrome unten, dazwischen der Inhalt auf der
+ * gemusterten Grundfläche.
+ *
+ * Bewusst KEIN Material-`Scaffold`. Dessen Fläche gehört Material, und der Hintergrund
+ * dieser App ist ein eigener — Creme mit Punktmuster, im Dark Mode dunkel mit demselben
+ * Muster. Über ein Material-Scaffold ließe er sich nur als Overlay legen, was jede
+ * Elevation-Fläche darüber wieder ausbleicht.
+ *
+ * `topBar` und `bottomBar` sind nullbar, weil Push-Screens keine untere Leiste haben und
+ * einzelne Ansichten (Kamera, Vollbild-Player) gar keine.
+ */
 @Composable
 fun BoulderBuddyScaffold(
     modifier: Modifier = Modifier,
