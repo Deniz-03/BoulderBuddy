@@ -15,6 +15,10 @@ interface GhostAnalysisDao {
     @Query("SELECT * FROM ghost_analysis ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<GhostAnalysisEntity>>
 
+    /** Analysen einer Session, neueste zuerst (Block in der Session-Ansicht). */
+    @Query("SELECT * FROM ghost_analysis WHERE sessionId = :sessionId ORDER BY createdAt DESC")
+    fun observeBySession(sessionId: Int): Flow<List<GhostAnalysisEntity>>
+
     @Query("SELECT * FROM ghost_analysis WHERE id = :id")
     suspend fun getById(id: Int): GhostAnalysisEntity?
 

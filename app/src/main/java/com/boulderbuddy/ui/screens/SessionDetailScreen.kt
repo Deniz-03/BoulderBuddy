@@ -46,6 +46,7 @@ import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.theme.spaltenFuer
 import com.boulderbuddy.ui.viewmodel.HangboardWorkoutUi
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
+import com.boulderbuddy.ui.viewmodel.SessionGhostAnalyseUi
 import kotlinx.coroutines.delay
 
 // Status → Farbe fürs Status-Symbol der RouteCard. Top grün, Flash orange, Projekt dezent.
@@ -65,6 +66,8 @@ fun SessionDetailScreen(
     boulders: List<SessionBoulderUi> = emptyList(),
     // Getrackte Hangboard-Workouts dieser Session; leer = Block wird ausgeblendet.
     hangboardWorkouts: List<HangboardWorkoutUi> = emptyList(),
+    // Ghost-Analysen dieser Session. Der Block steht auch leer da — er ist der Einstieg.
+    ghostAnalysen: List<SessionGhostAnalyseUi> = emptyList(),
     // Navigations-Callbacks (Phase 2). onAddRoute ist von SessionRoute bereits an die
     // sessionId dieser Session gebunden.
     // `null` = es gibt von hier keinen Weg zurück, also auch keinen Pfeil. Genau der Fall im
@@ -73,6 +76,8 @@ fun SessionDetailScreen(
     onBack: (() -> Unit)? = {},
     onOpenBoulder: (Int) -> Unit = {},
     onAddRoute: () -> Unit = {},
+    onOpenGhostAnalyse: (Int) -> Unit = {},
+    onAddGhostAnalyse: () -> Unit = {},
     onEndSession: () -> Unit = {},
 ) {
     // Verstrichene Session-Dauer als "HH:mm" für den Header ("● Läuft · 01:12 h"),
@@ -237,6 +242,15 @@ fun SessionDetailScreen(
                             }
                         }
                     }
+                }
+
+                // --- Ghost Climber ---
+                item {
+                    SessionGhostBlock(
+                        analysen = ghostAnalysen,
+                        onOeffnen = onOpenGhostAnalyse,
+                        onHinzufuegen = onAddGhostAnalyse,
+                    )
                 }
 
                 // --- Zentraler "Session beenden"-Button ---

@@ -118,10 +118,14 @@ val STAND_TABELLEN: List<Tabelle> = listOf(
     ),
     Tabelle(
         name = "ghost_analysis",
+        // `sessionId` reist mit (v12): in welcher Session eine Analyse entstanden ist, ist
+        // Nutzer-Zuordnung und kein Gerätezustand — sie sieht auf Phone und Tablet gleich aus.
         spalten = listOf(
-            "refMediaUri", "cmpMediaUri", "refKeypointsPath", "cmpKeypointsPath",
+            "sessionId", "refMediaUri", "cmpMediaUri", "refKeypointsPath", "cmpKeypointsPath",
             "homographyCmpJson", "routePathJson", "suggestedMode", "createdAt",
         ),
+        // AUF_NULL wie in der Entity: eine gelöschte Session nimmt ihre Analysen nicht mit.
+        eltern = listOf(Elternbezug("sessionId", "session", Loeschregel.AUF_NULL)),
     ),
     // Besuche (Gym-Näherungs-Push M3). Steht hinter `gym`, weil es ihr Kind ist.
     //

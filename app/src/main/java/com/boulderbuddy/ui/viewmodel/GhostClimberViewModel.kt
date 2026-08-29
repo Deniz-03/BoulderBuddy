@@ -5,7 +5,9 @@ import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.boulderbuddy.data.camera.EigeneAufnahmen
 import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
 import com.boulderbuddy.data.repository.GhostAnalysisRepository
@@ -32,6 +34,7 @@ import com.boulderbuddy.ghost.pose.transformedBy
 import com.boulderbuddy.ghost.model.GhostPoint
 import com.boulderbuddy.ghost.model.GhostPoseTrack
 import com.boulderbuddy.ghost.video.GhostFrameDecoder
+import com.boulderbuddy.ui.navigation.GhostClimber
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -175,7 +178,19 @@ class GhostClimberViewModel @Inject constructor(
     private val frameDecoder: GhostFrameDecoder,
     private val analysisRepository: GhostAnalysisRepository,
     private val eigeneAufnahmen: EigeneAufnahmen,
+    savedStateHandle: SavedStateHandle,
 ) : AndroidViewModel(application) {
+
+    /**
+     * Session, an die eine hier gespeicherte Analyse gehängt wird; `null` = eigenständig.
+     *
+     * Kommt aus dem Nav-Argument und nicht aus `sessionRepository.observeActive()`. Der
+     * Unterschied ist der Fall, den die naheliegende Variante falsch macht: eine Analyse
+     * entsteht oft Stunden nach dem Klettern zu Hause, und läuft dann zufällig noch eine
+     * vergessene Session, hinge sie plötzlich in dieser. Wer aus einer Session heraus öffnet,
+     * hat die Zuordnung dagegen ausgesprochen.
+     */
+    private val sessionId: Int? = savedStateHandle.toRoute<GhostClimber>().sessionId
 
     private val _uiState = MutableStateFlow(GhostClimberUiState())
     val uiState: StateFlow<GhostClimberUiState> = _uiState.asStateFlow()
@@ -209,6 +224,9 @@ class GhostClimberViewModel @Inject constructor(
             }
         }
         ladeEigeneAufnahmen()
+        // Direkt auf eine gespeicherte Analyse gesprungen (Tap im Session-Block): sie wird
+        // gleich beim Aufbau hergestellt, damit man nicht auf einer leeren Auswahl landet.
+        savedStateHandle.toRoute<GhostClimber>().analyseId?.let(::restoreAnalysis)
         // Den Stand der Hintergrund-Analyse mitlesen. Das ist zugleich die Wiederaufnahme:
         // ein frisch aufgebautes ViewModel bekommt beim ersten Sammeln den aktuellen Wert
         // und findet damit von selbst in einen Lauf zurück, den es nie gestartet hat.
@@ -544,6 +562,7 @@ class GhostClimberViewModel @Inject constructor(
             try {
                 analysisRepository.create(
                     GhostAnalysisEntity(
+                        sessionId = sessionId,
                         refMediaUri = refUri,
                         cmpMediaUri = cmpUri,
                         refKeypointsPath = artifactStore.poseTrackPath(refUri),

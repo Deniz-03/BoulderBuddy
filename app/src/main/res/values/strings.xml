@@ -421,6 +421,14 @@
     <string name="session_versuche">Versuche</string>
     <string name="session_top_grade">Top-Grade</string>
     <string name="session_boulder_ueberschrift">Boulder dieser Session</string>
+    <!-- Ghost-Climber-Block der Session. Steht auch leer da, weil er zugleich der
+         Einstieg ist — sonst gaebe es aus der Session heraus keinen Weg zur ersten
+         Analyse. -->
+    <string name="session_ghost_ueberschrift">Ghost Climber</string>
+    <string name="session_ghost_leer">Noch keine Analyse in dieser Session.</string>
+    <string name="session_ghost_hinzufuegen">+ Analyse hinzufügen</string>
+    <!-- Beispiel: „14:32 · Overlay" -->
+    <string name="session_ghost_zeile">%1$s · %2$s</string>
     <string name="session_hangboard_ueberschrift">Hangboard-Training</string>
     <string name="session_hangboard_zeile">• %1$s</string>
     <string name="session_beenden">Session beenden</string>

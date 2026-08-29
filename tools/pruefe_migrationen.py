@@ -408,7 +408,39 @@ else:
     print("[FEHLER] grade_system nach DELETE gym:", verwaist, "erwartet [(3, None, 0), (5, None, 0)]")
     fehler.append("istStandard nach Hallen-Loeschung")
 
-# 9. Fremdschluessel sind nach der Migration konsistent.
+# 9. v11 -> v12: eine Ghost-Analyse darf in einer Session stehen — und ueberlebt sie.
+# Beides wird geprueft, weil beides eine Entscheidung ist: Bestandszeilen bekommen NULL
+# (sie gehoerten zu keiner Session, und Raten waere schlimmer als NULL), und das Loeschen
+# der Session setzt nur die Zuordnung zurueck statt die Analyse mitzunehmen.
+con = neu(11)
+con.executescript("""
+INSERT INTO gym VALUES (1, 'Boulderwelt', NULL, NULL, NULL, 150, 1, NULL);
+INSERT INTO session VALUES (7, 1, 'Boulderwelt', NULL, 1000, NULL, NULL, NULL);
+INSERT INTO ghost_analysis VALUES
+    (1, 'content://ref', 'content://cmp', 'ghost/a.json', 'ghost/b.json', '[]', '[]',
+     'OVERLAY', 1000);
+""")
+fahre(con, migrationen, 11, 12)
+
+if con.execute("SELECT sessionId FROM ghost_analysis WHERE id = 1").fetchone() == (None,):
+    print("[ok] v11 -> v12: bestehende Analysen haengen an keiner Session")
+else:
+    print("[FEHLER] ghost_analysis.sessionId ist nach v11->v12 nicht NULL")
+    fehler.append("ghost_analysis.sessionId v11->v12")
+
+con.execute("UPDATE ghost_analysis SET sessionId = 7 WHERE id = 1")
+con.commit()
+con.execute("PRAGMA foreign_keys=ON")
+con.execute("DELETE FROM session WHERE id = 7")
+
+uebrig = con.execute("SELECT id, sessionId FROM ghost_analysis").fetchall()
+if uebrig == [(1, None)]:
+    print("[ok] geloeschte Session: die Ghost-Analyse bleibt und wird eigenstaendig")
+else:
+    print("[FEHLER] ghost_analysis nach DELETE session:", uebrig, "erwartet [(1, None)]")
+    fehler.append("ghost_analysis nach Session-Loeschung")
+
+# 10. Fremdschluessel sind nach der Migration konsistent.
 con.execute("PRAGMA foreign_keys=ON")
 verletzt = con.execute("PRAGMA foreign_key_check").fetchall()
 if not verletzt:

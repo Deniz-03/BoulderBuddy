@@ -26,6 +26,10 @@ fun SessionRoute(
     onBack: (() -> Unit)? = {},
     onOpenBoulder: (Int) -> Unit = {},
     onAddRoute: (Int) -> Unit = {},
+    // Ghost Climber aus dieser Session heraus: öffnen bzw. neu anlegen. Beide bekommen die
+    // sessionId vom Aufrufer gebunden, wie onAddRoute.
+    onOpenGhostAnalyse: (Int) -> Unit = {},
+    onAddGhostAnalyse: (Int) -> Unit = {},
     // Assisted-Injection: sessionId wird explizit übergeben. key = "session_$sessionId"
     // stellt sicher, dass beim Umschalten der Auswahl im Tablet-Detail-Pane (Phase 7.1)
     // ein frischer ViewModel je Session entsteht.
@@ -44,9 +48,12 @@ fun SessionRoute(
             topGrade = state.topGrade,
             boulders = state.boulders,
             hangboardWorkouts = state.hangboardWorkouts,
+            ghostAnalysen = state.ghostAnalysen,
             onBack = onBack,
             onOpenBoulder = onOpenBoulder,
             onAddRoute = { onAddRoute(sessionId) },
+            onOpenGhostAnalyse = onOpenGhostAnalyse,
+            onAddGhostAnalyse = { onAddGhostAnalyse(sessionId) },
             onEndSession = viewModel::endSession,
         )
         else -> AlteSessionScreen(
@@ -55,9 +62,12 @@ fun SessionRoute(
             durationText = state.durationText,
             notes = state.notes,
             boulders = state.boulders,
+            ghostAnalysen = state.ghostAnalysen,
             onNotesChange = viewModel::updateNotes,
             onBack = onBack,
             onOpenBoulder = onOpenBoulder,
+            onOpenGhostAnalyse = onOpenGhostAnalyse,
+            onAddGhostAnalyse = { onAddGhostAnalyse(sessionId) },
         )
     }
 }

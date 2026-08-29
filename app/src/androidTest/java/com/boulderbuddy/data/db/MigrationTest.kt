@@ -369,10 +369,51 @@ class MigrationTest {
         }
     }
 
+    /**
+     * v12 hängt die Ghost-Analyse an eine Session — und lässt sie deren Löschung überleben.
+     *
+     * Beides ist eine Entscheidung und keine Selbstverständlichkeit: das Hangboard-Workout
+     * daneben kaskadiert. Geprüft wird deshalb der Unterschied, nicht bloß die neue Spalte.
+     */
+    @Test
+    fun v11_zu_v12_haengt_die_analyse_an_eine_session_und_ueberlebt_sie() {
+        helper.createDatabase(TEST_DB, 11).use { db ->
+            db.execSQL(
+                "INSERT INTO ghost_analysis (id, refMediaUri, cmpMediaUri, refKeypointsPath, " +
+                    "cmpKeypointsPath, homographyCmpJson, routePathJson, suggestedMode, " +
+                    "createdAt) VALUES (1, 'content://ref', 'content://cmp', 'ghost/a.json', " +
+                    "'ghost/b.json', '[]', '[]', 'OVERLAY', 1000)",
+            )
+            db.execSQL(
+                "INSERT INTO session (id, gymId, gymName, gradeSystemId, date, durationMin, " +
+                    "notes, endedAt) VALUES (7, NULL, 'Boulderwelt', NULL, 1000, NULL, NULL, NULL)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(TEST_DB, 12, true, *ALLE_MIGRATIONEN).use { db ->
+            // Eine Analyse von vorher gehörte zu keiner Session; sie einer zuzuordnen wäre
+            // geraten.
+            db.query("SELECT sessionId FROM ghost_analysis WHERE id = 1").use { c ->
+                assertThat(c.moveToFirst()).isTrue()
+                assertThat(c.isNull(0)).isTrue()
+            }
+
+            db.execSQL("PRAGMA foreign_keys=ON")
+            db.execSQL("UPDATE ghost_analysis SET sessionId = 7 WHERE id = 1")
+            db.execSQL("DELETE FROM session WHERE id = 7")
+
+            // Der Punkt: die Zeile ist noch da, nur ohne Session.
+            db.query("SELECT sessionId FROM ghost_analysis WHERE id = 1").use { c ->
+                assertThat(c.moveToFirst()).isTrue()
+                assertThat(c.isNull(0)).isTrue()
+            }
+        }
+    }
+
     private companion object {
         const val TEST_DB = "migration-test.db"
 
         /** Mitziehen, wenn die Schema-Version steigt — hier steht das Ziel des Voll-Durchlaufs. */
-        const val NEUESTE = 11
+        const val NEUESTE = 12
     }
 }
