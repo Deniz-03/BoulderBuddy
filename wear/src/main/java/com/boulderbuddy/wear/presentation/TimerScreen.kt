@@ -35,6 +35,15 @@ private val HangColor = Color(0xFF4CAF50)   // grün – aktiv hängen
 private val RestColor = Color(0xFFFFA726)   // orange – Pause
 private val DoneColor = Color(0xFF64B5F6)   // blau – fertig
 
+/**
+ * Der Hangboard-Timer auf der Uhr — dieselbe Zustandsmaschine wie am Telefon, aber für ein
+ * Handgelenk gebaut.
+ *
+ * Daraus folgen die Unterschiede zur Phone-Fassung: `ScalingLazyColumn` statt `LazyColumn`
+ * (die Wear-Liste staucht ihre Ränder am runden Display), Farben als lokale Konstanten statt
+ * aus einem Designsystem, und keine Einstellmöglichkeit — die Konfiguration kommt vom
+ * Telefon über den Preset-Kanal.
+ */
 @Composable
 fun TimerScreen(viewModel: TimerViewModel = viewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
