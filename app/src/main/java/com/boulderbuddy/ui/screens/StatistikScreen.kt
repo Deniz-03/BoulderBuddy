@@ -200,7 +200,15 @@ fun StatistikScreen(
                 if (gewaehlterTag != null) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                            // Scrollbar, weil zehn Tage nie in eine Telefonzeile passen —
+                            // schon „26. August" ist breit, mit Jahreszahl erst recht. Ohne
+                            // das Scrollen liegen die älteren Tage außerhalb des Bildschirms
+                            // und sind nicht antippbar; der Umschalter der Gradsysteme weiter
+                            // unten macht es aus demselben Grund so.
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
+                            ) {
                                 state.tage.forEach { tag ->
                                     SelectableChip(
                                         label = tag.label,
