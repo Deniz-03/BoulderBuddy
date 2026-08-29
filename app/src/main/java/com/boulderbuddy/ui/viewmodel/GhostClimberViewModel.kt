@@ -387,7 +387,20 @@ class GhostClimberViewModel @Inject constructor(
         val uri = _uiState.value.slot(role).uri ?: return
         updateSlot(role) { it.copy(anchorFrameTimeMs = timeMs) }
         viewModelScope.launch {
-            val bitmap = frameDecoder.frameAt(uri, timeMs)
+            // Der Decoder wirft, sobald die URI nicht mehr erreichbar ist — eine
+            // Galerie-Freigabe überlebt einen Neustart nur, wenn sie dauerhaft genommen
+            // wurde, und ein Video kann inzwischen gelöscht sein. Ungefangen reißt das die
+            // App mit: eine Ausnahme aus einem `launch` läuft in den Standard-Handler, und
+            // der beendet den Prozess. Ein fehlendes Standbild ist dagegen bloß ein leeres
+            // Feld — der Slot beginnt ohnehin ohne Bild.
+            val bitmap = try {
+                frameDecoder.frameAt(uri, timeMs)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("GhostClimber", "Standbild nicht lesbar: $uri", e)
+                null
+            }
             // Nur übernehmen, wenn der Zeitpunkt noch aktuell ist (Slider schneller als Decode).
             if (_uiState.value.slot(role).anchorFrameTimeMs == timeMs) {
                 updateSlot(role) { it.copy(anchorFrame = bitmap?.asImageBitmap()) }
