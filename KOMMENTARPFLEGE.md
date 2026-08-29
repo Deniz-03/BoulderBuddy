@@ -239,32 +239,32 @@ Abgehakt wird jede Datei einzeln — die Liste ist der Schutz davor, eine zu
 
 **proximity/** (12)
 
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/GeofenceBootReceiver.kt` (41)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/GeofenceBroadcastReceiver.kt` (58)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/GeofenceManager.kt` (127)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/GymLocationClient.kt` (40)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/GymVisitStats.kt` (100)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/LocationPermissions.kt` (33)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/ProximityEntryPoint.kt` (17)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/ProximityEventHandler.kt` (64)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/ProximityNotificationPolicy.kt` (90)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/ProximityNotifier.kt` (99)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/ProximityPushStateStore.kt` (32)
-- [ ] `app/src/main/java/com/boulderbuddy/proximity/Tasks.kt` (17)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/GeofenceBootReceiver.kt` (41)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/GeofenceBroadcastReceiver.kt` (58)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/GeofenceManager.kt` (127)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/GymLocationClient.kt` (40)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/GymVisitStats.kt` (100)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/LocationPermissions.kt` (33)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/ProximityEntryPoint.kt` (17)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/ProximityEventHandler.kt` (64)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/ProximityNotificationPolicy.kt` (90)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/ProximityNotifier.kt` (99)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/ProximityPushStateStore.kt` (32)
+- [x] `app/src/main/java/com/boulderbuddy/proximity/Tasks.kt` (17)
 
 **wearsync/** (3)
 
-- [ ] `app/src/main/java/com/boulderbuddy/wearsync/HangboardPresetPublisher.kt` (68)
-- [ ] `app/src/main/java/com/boulderbuddy/wearsync/HangboardWearListenerService.kt` (237)
-- [ ] `app/src/main/java/com/boulderbuddy/wearsync/WearConnection.kt` (62)
+- [x] `app/src/main/java/com/boulderbuddy/wearsync/HangboardPresetPublisher.kt` (68)
+- [x] `app/src/main/java/com/boulderbuddy/wearsync/HangboardWearListenerService.kt` (237)
+- [x] `app/src/main/java/com/boulderbuddy/wearsync/WearConnection.kt` (62)
 
 **widget/** (5)
 
-- [ ] `app/src/main/java/com/boulderbuddy/widget/BoulderWidget.kt` (344)
-- [ ] `app/src/main/java/com/boulderbuddy/widget/BoulderWidgetReceiver.kt` (9)
-- [ ] `app/src/main/java/com/boulderbuddy/widget/WidgetData.kt` (125)
-- [ ] `app/src/main/java/com/boulderbuddy/widget/WidgetIntent.kt` (43)
-- [ ] `app/src/main/java/com/boulderbuddy/widget/WidgetRefresh.kt` (20)
+- [x] `app/src/main/java/com/boulderbuddy/widget/BoulderWidget.kt` (344)
+- [x] `app/src/main/java/com/boulderbuddy/widget/BoulderWidgetReceiver.kt` (9)
+- [x] `app/src/main/java/com/boulderbuddy/widget/WidgetData.kt` (125)
+- [x] `app/src/main/java/com/boulderbuddy/widget/WidgetIntent.kt` (43)
+- [x] `app/src/main/java/com/boulderbuddy/widget/WidgetRefresh.kt` (20)
 
 
 ### Block 6 — App-Gerüst

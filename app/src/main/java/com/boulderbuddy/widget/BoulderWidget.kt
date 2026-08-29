@@ -48,6 +48,21 @@ import com.boulderbuddy.ui.theme.HEX_LIGHT_SURFACE_HIGHEST
 import com.boulderbuddy.ui.theme.HEX_LIGHT_TEXT_SECONDARY
 import kotlinx.coroutines.flow.first
 
+// =============================================================================
+// Homescreen-Widget (7.4c) — dieselbe App, aber ein fremdes Zuhause
+// =============================================================================
+//
+// Gezeichnet mit Glance, also in einem anderen Prozess und mit RemoteViews als Ziel. Daraus
+// folgt fast alles, was hier ungewohnt aussieht:
+//
+// * Kein Zugriff auf das Compose-Theme der App — die Farben müssen als eigene Palette
+//   danebenstehen (siehe direkt unten, samt der Lehre daraus, was „angelehnt" kostet).
+// * Der Zustand ist flach und primitiv ([WidgetData]), weil er über Prozessgrenzen geht.
+// * Das Bild bleibt stehen, wenn niemand es anstößt — deshalb `refreshBoulderWidget`
+//   (`WidgetRefresh.kt`) nach Session-Start und -Ende.
+// * Ein Tap kann keine Composable-Callbacks auslösen, sondern nur einen Intent starten;
+//   welches Ziel gemeint ist, steht als Extra darin ([WidgetIntent]).
+
 /**
  * Die Farben des Widgets — dieselben Werte wie in der App (`PaletteHex.kt` bzw. `colors.xml`).
  *

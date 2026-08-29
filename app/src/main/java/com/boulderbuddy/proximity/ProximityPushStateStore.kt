@@ -13,8 +13,9 @@ import javax.inject.Singleton
  *
  * Entscheidung (Plan §6, "eins von beiden"): DataStore-Key pro Gym statt einer Spalte auf
  * `GymEntity` — der Zeitstempel ist flüchtiger Politik-Zustand der App, keine Domänen-Eigen-
- * schaft der Halle. So bleibt das DB-Schema stabil (kein v7 nur für einen Cooldown) und
- * Room-Flows, die Gyms beobachten (UI-Listen), re-emittieren nicht bei jedem Push.
+ * schaft der Halle. Das spart eine Schema-Version samt Migration für einen Wert, den kein
+ * zweites Gerät je sehen soll; und Room-Flows, die Hallen beobachten (UI-Listen),
+ * re-emittieren nicht bei jedem Push.
  */
 @Singleton
 class ProximityPushStateStore @Inject constructor(
