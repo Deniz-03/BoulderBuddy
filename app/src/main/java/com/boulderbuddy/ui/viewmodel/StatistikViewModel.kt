@@ -28,7 +28,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
-import java.time.ZoneId
 import javax.inject.Inject
 
 // =============================================================================
@@ -98,8 +97,11 @@ data class StatistikUiState(
 private const val ACTIVITY_DAYS = 28
 
 // Wie viele Klettertage die Auswahlleiste der Tagesstatistik anbietet. Zehn reichen: weiter
-// zurück erinnert man den einzelnen Tag ohnehin nicht, und die Leiste soll in eine Zeile
-// passen statt zu einem Kalender zu werden.
+// zurück erinnert man den einzelnen Tag ohnehin nicht, und die Leiste soll eine Leiste
+// bleiben statt zu einem Kalender zu werden.
+//
+// In eine Bildschirmzeile passen zehn Tage nicht — die Leiste scrollt deshalb waagerecht
+// (siehe StatistikScreen).
 private const val TAGE_ZUR_AUSWAHL = 10
 
 // Einheitliche Balkenfarbe der Verlaufs-Diagramme. Index in die Route-Palette, damit sie aus
@@ -174,10 +176,7 @@ class StatistikViewModel @Inject constructor(
             tage = tagesstatistik.keys.sortedDescending().map { tag ->
                 // „Heute", „Gestern", sonst das Datum — dieselbe Sprache wie in der
                 // Sessions-Liste, damit derselbe Tag nicht zweimal anders heißt.
-                TagUi(datum = tag, label = formatRelativeDay(
-                    tag.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                    heute,
-                ))
+                TagUi(datum = tag, label = formatRelativeDay(tag, heute))
             },
             tagesstatistik = tagesstatistik,
             systemNamen = systems.associate { it.id to it.name },
