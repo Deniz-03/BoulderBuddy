@@ -53,6 +53,8 @@ fun SessionsListDetail(
     onOpenSettings: () -> Unit,
     onOpenBoulder: (Int) -> Unit,
     onAddRoute: (Int) -> Unit,
+    onOpenGhostAnalyse: (Int) -> Unit,
+    onAddGhostAnalyse: (Int) -> Unit,
 ) {
     // contentKey des Detail-Panes = die gewählte sessionId.
     val navigator = rememberListDetailPaneScaffoldNavigator<Int>()
@@ -150,6 +152,8 @@ fun SessionsListDetail(
                             },
                             onOpenBoulder = onOpenBoulder,
                             onAddRoute = onAddRoute,
+                            onOpenGhostAnalyse = onOpenGhostAnalyse,
+                            onAddGhostAnalyse = onAddGhostAnalyse,
                         )
                     } else {
                         SessionDetailPlaceholder()

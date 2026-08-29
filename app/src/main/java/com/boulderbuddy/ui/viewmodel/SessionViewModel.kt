@@ -4,19 +4,23 @@ import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
 import com.boulderbuddy.data.db.entity.HangboardWorkoutWithSegments
 import com.boulderbuddy.data.db.entity.RouteEntity
 import com.boulderbuddy.data.db.entity.SessionEntity
+import com.boulderbuddy.data.repository.GhostAnalysisRepository
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.ghost.model.GhostViewMode
 import com.boulderbuddy.ui.model.formatDayMonth
 import com.boulderbuddy.ui.model.formatDurationShort
+import com.boulderbuddy.ui.model.formatUhrzeit
 import com.boulderbuddy.ui.model.istGetoppt
 import com.boulderbuddy.ui.model.toBoulderStatus
 import com.boulderbuddy.ui.theme.routeColorForKey
@@ -50,6 +54,19 @@ data class HangboardWorkoutUi(
 )
 
 /**
+ * Eine Ghost-Climber-Analyse, die in dieser Session entstanden ist.
+ *
+ * Uhrzeit statt Datum: innerhalb einer Session ist das Datum für jede Zeile dasselbe und
+ * unterscheidet nichts. Die Uhrzeit ordnet die Analyse dem Versuch zu, an den man sich
+ * erinnert.
+ */
+data class SessionGhostAnalyseUi(
+    val id: Int,
+    val zeitText: String,
+    val modusLabel: String,
+)
+
+/**
  * Gemeinsamer Zustand für die beiden Session-Ansichten. [istAktiv] entscheidet,
  * ob [com.boulderbuddy.ui.screens.SessionDetailScreen] (aktiv) oder
  * [com.boulderbuddy.ui.screens.AlteSessionScreen] (read-only) gerendert wird.
@@ -67,6 +84,11 @@ data class SessionUiState(
     val boulders: List<SessionBoulderUi> = emptyList(),
     /** Getrackte Hangboard-Workouts; leer = kein "Hangboard-Training"-Block anzeigen. */
     val hangboardWorkouts: List<HangboardWorkoutUi> = emptyList(),
+    /**
+     * Ghost-Analysen dieser Session. Anders als bei den Hangboard-Workouts blendet sich
+     * der Block leer NICHT aus — er ist zugleich der Einstieg (siehe SessionGhostBlock).
+     */
+    val ghostAnalysen: List<SessionGhostAnalyseUi> = emptyList(),
 )
 
 // Assisted Injection: die sessionId wird explizit übergeben (nicht mehr aus den
@@ -81,6 +103,7 @@ class SessionViewModel @AssistedInject constructor(
     gymRepository: GymRepository,
     gradeRepository: GradeRepository,
     hangboardWorkoutRepository: HangboardWorkoutRepository,
+    ghostAnalysisRepository: GhostAnalysisRepository,
     // Nur fürs Homescreen-Widget: nach dem Beenden soll es keine aktive Session mehr anbieten.
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -90,20 +113,29 @@ class SessionViewModel @AssistedInject constructor(
         fun create(sessionId: Int): SessionViewModel
     }
 
+    // Zwei verschachtelte `combine`, weil das typisierte `combine` bei fünf Flows endet und
+    // die Ghost-Analysen der sechste wären. Die Verschachtelung ist zugleich die ehrlichere
+    // Struktur: die Analysen gehen in keine Berechnung ein, sie werden nur angehängt.
     val uiState: StateFlow<SessionUiState> = combine(
-        // observeAll (statt eines observeById) macht die Ansicht reaktiv auf endSession:
-        // sobald endedAt gesetzt wird, kippt istAktiv und der Dispatcher zeigt die Alt-Ansicht.
-        sessionRepository.observeAll(),
-        routeRepository.observeBySession(sessionId),
-        gymRepository.observeAll(),
-        gradeRepository.observeAllGrades(),
-        hangboardWorkoutRepository.observeBySession(sessionId),
-    ) { sessions, routes, gyms, grades, hangboardWorkouts ->
-        val session = sessions.firstOrNull { it.id == sessionId }
-            ?: return@combine SessionUiState(loading = false, exists = false)
-        buildState(session, routes, grades.associateBy { it.id }, hangboardWorkouts,
-            gymName = session.hallenName { id -> gyms.firstOrNull { it.id == id }?.name }
-                ?: "Unbekannte Halle")
+        combine(
+            // observeAll (statt eines observeById) macht die Ansicht reaktiv auf endSession:
+            // sobald endedAt gesetzt wird, kippt istAktiv und der Dispatcher zeigt die
+            // Alt-Ansicht.
+            sessionRepository.observeAll(),
+            routeRepository.observeBySession(sessionId),
+            gymRepository.observeAll(),
+            gradeRepository.observeAllGrades(),
+            hangboardWorkoutRepository.observeBySession(sessionId),
+        ) { sessions, routes, gyms, grades, hangboardWorkouts ->
+            val session = sessions.firstOrNull { it.id == sessionId }
+                ?: return@combine SessionUiState(loading = false, exists = false)
+            buildState(session, routes, grades.associateBy { it.id }, hangboardWorkouts,
+                gymName = session.hallenName { id -> gyms.firstOrNull { it.id == id }?.name }
+                    ?: "Unbekannte Halle")
+        },
+        ghostAnalysisRepository.observeBySession(sessionId),
+    ) { state, analysen ->
+        state.copy(ghostAnalysen = analysen.map(::toGhostAnalyseUi))
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -183,6 +215,16 @@ class SessionViewModel @AssistedInject constructor(
             },
         )
     }
+
+    private fun toGhostAnalyseUi(analyse: GhostAnalysisEntity) = SessionGhostAnalyseUi(
+        id = analyse.id,
+        zeitText = formatUhrzeit(analyse.createdAt),
+        modusLabel = if (analyse.suggestedMode == GhostViewMode.SIDE_BY_SIDE.name) {
+            "Side-by-Side"
+        } else {
+            "Overlay"
+        },
+    )
 
     // Kurzbeschreibung eines Workouts: manuell über die Plan-Werte, auto über die gemessene
     // Gesamt-Hängezeit (dort gibt es keine Vorgabe).

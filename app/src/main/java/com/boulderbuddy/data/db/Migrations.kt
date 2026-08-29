@@ -484,6 +484,53 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
 }
 
 /** Alle Migrationen in einer Liste — so kann `DatabaseModule` sie am Stück übergeben. */
+/**
+ * v11 → v12: `ghost_analysis.sessionId` — eine Ghost-Analyse darf in einer Session stehen.
+ *
+ * `ALTER TABLE ADD COLUMN` reicht hier nicht: SQLite kann einer bestehenden Tabelle keinen
+ * Fremdschlüssel nachrüsten, und Rooms Schema-Prüfung vergleicht ihn mit. Also das übliche
+ * Verfahren — neu anlegen, kopieren, droppen, umbenennen, Index setzen.
+ *
+ * Bestandszeilen bekommen `NULL`: eine Analyse aus der Zeit davor gehörte zu keiner Session,
+ * und sie einer zu unterschieben (etwa der zeitlich nächsten) wäre geraten, nicht migriert.
+ *
+ * `SET NULL` und nicht `CASCADE` — die Begründung steht in `GhostAnalysisEntity`.
+ */
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `_new_ghost_analysis` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`sessionId` INTEGER, " +
+                "`refMediaUri` TEXT NOT NULL, " +
+                "`cmpMediaUri` TEXT NOT NULL, " +
+                "`refKeypointsPath` TEXT NOT NULL, " +
+                "`cmpKeypointsPath` TEXT NOT NULL, " +
+                "`homographyCmpJson` TEXT NOT NULL, " +
+                "`routePathJson` TEXT NOT NULL, " +
+                "`suggestedMode` TEXT NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`sessionId`) REFERENCES `session`(`id`) " +
+                "ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL(
+            "INSERT INTO `_new_ghost_analysis` " +
+                "(`id`,`sessionId`,`refMediaUri`,`cmpMediaUri`,`refKeypointsPath`," +
+                "`cmpKeypointsPath`,`homographyCmpJson`,`routePathJson`,`suggestedMode`," +
+                "`createdAt`) " +
+                "SELECT `id`, NULL, `refMediaUri`, `cmpMediaUri`, `refKeypointsPath`, " +
+                "`cmpKeypointsPath`, `homographyCmpJson`, `routePathJson`, `suggestedMode`, " +
+                "`createdAt` FROM `ghost_analysis`",
+        )
+        db.execSQL("DROP TABLE `ghost_analysis`")
+        db.execSQL("ALTER TABLE `_new_ghost_analysis` RENAME TO `ghost_analysis`")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ghost_analysis_sessionId` " +
+                "ON `ghost_analysis` (`sessionId`)",
+        )
+    }
+}
+
 val ALLE_MIGRATIONEN: Array<Migration> = arrayOf(
     MIGRATION_1_2,
     MIGRATION_2_3,
@@ -495,4 +542,5 @@ val ALLE_MIGRATIONEN: Array<Migration> = arrayOf(
     MIGRATION_8_9,
     MIGRATION_9_10,
     MIGRATION_10_11,
+    MIGRATION_11_12,
 )

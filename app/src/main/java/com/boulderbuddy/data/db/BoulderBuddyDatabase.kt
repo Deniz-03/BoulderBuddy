@@ -65,6 +65,9 @@ import com.boulderbuddy.data.db.entity.StandMetaEntity
     // v11: grade_system.istStandard — ob ein System zur App gehört, hing bis dahin an
     // `gymId == null`. Seit v10 bedeutet das aber auch „Halle wurde gelöscht", und selbst
     // angelegte Systeme haben ohnehin keine Halle mehr: der Marker muss eigenständig sein.
+    // v12: ghost_analysis.sessionId — eine Ghost-Analyse darf in einer Session stehen, wie
+    // ein Hangboard-Workout. SET NULL statt CASCADE: die Analyse überlebt das Löschen ihrer
+    // Session (siehe GhostAnalysisEntity).
     //
     // Das Feature war auf seinem Branch einmal v6 — dieselbe Nummer, die der Hangboard-Umbau
     // schon vergeben hatte. Auf einem Gerät, das beide Stände nacheinander sah, verglich Room
@@ -74,7 +77,7 @@ import com.boulderbuddy.data.db.entity.StandMetaEntity
     // Ab dem Geräte-Abgleich (Sync-Plan S0) gibt es echte Migrationen für jeden Schritt:
     // siehe Migrations.kt. Wer die Version erhöht, schreibt dort die passende Migration —
     // einen destruktiven Fallback gibt es nicht mehr.
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)

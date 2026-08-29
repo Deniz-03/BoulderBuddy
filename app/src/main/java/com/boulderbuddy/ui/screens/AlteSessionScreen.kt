@@ -45,6 +45,7 @@ import com.boulderbuddy.ui.theme.BoulderBuddyTheme
 import com.boulderbuddy.ui.theme.Dimens
 import com.boulderbuddy.ui.theme.inhaltsBreite
 import com.boulderbuddy.ui.viewmodel.SessionBoulderUi
+import com.boulderbuddy.ui.viewmodel.SessionGhostAnalyseUi
 import kotlinx.coroutines.launch
 
 // Status eines Boulders. getoppt = als geschafft gewertet (Top oder Flash zählen beide
@@ -66,12 +67,17 @@ fun AlteSessionScreen(
     durationText: String = "1.5h",
     notes: String = "",
     boulders: List<SessionBoulderUi> = emptyList(),
+    // Ghost-Analysen dieser Session. Auch hier hinzufügbar: gefilmt wird in der Halle,
+    // analysiert meist abends — die Session ist dann längst beendet.
+    ghostAnalysen: List<SessionGhostAnalyseUi> = emptyList(),
     // Schreibt die geänderte Session-Notiz zurück (beim Verlassen des Feldes).
     onNotesChange: (String) -> Unit = {},
     // Navigations-Callbacks (Phase 2). Defaults = {} halten Preview & Tests lauffähig.
     // `onBack = null` = kein Weg zurück, also kein Pfeil — siehe SessionDetailScreen.
     onBack: (() -> Unit)? = {},
     onOpenBoulder: (Int) -> Unit = {},
+    onOpenGhostAnalyse: (Int) -> Unit = {},
+    onAddGhostAnalyse: () -> Unit = {},
 ) {
     /*
      * Session-Notiz: nachträglich editierbar (die Reflexion schreibt man meist nach der Session).
@@ -217,6 +223,15 @@ fun AlteSessionScreen(
                             }
                         }
                     }
+                }
+
+                // --- Ghost Climber ---
+                item {
+                    SessionGhostBlock(
+                        analysen = ghostAnalysen,
+                        onOeffnen = onOpenGhostAnalyse,
+                        onHinzufuegen = onAddGhostAnalyse,
+                    )
                 }
             }
 

@@ -89,6 +89,10 @@ fun formatRelativeDay(millis: Long, today: LocalDate = LocalDate.now()): String 
 
 private val uhrzeitFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
 
+/** epoch-millis → "14:32" in der Zeitzone des Geräts. */
+fun formatUhrzeit(millis: Long): String =
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).format(uhrzeitFormatter)
+
 /**
  * Startzeitpunkt als „seit"-Angabe: heute nur die Uhrzeit, sonst mit dem Tag davor.
  *

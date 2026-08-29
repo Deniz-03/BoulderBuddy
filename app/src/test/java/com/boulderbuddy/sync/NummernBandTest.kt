@@ -134,8 +134,11 @@ class NummernBandTest {
 
     @Test
     fun kinderVon_findet_alle_direkten_kinder() {
+        // ghost_analysis hängt seit v12 ebenfalls an der Session — allerdings mit AUF_NULL,
+        // nicht mit KASKADE wie die beiden anderen. `kinderVon` unterscheidet das nicht (das
+        // tun erst die Aufrufer), also steht es hier mit in der Liste.
         assertThat(kinderVon("session").map { it.name })
-            .containsExactly("route", "hangboard_workout")
+            .containsExactly("route", "hangboard_workout", "ghost_analysis")
         assertThat(kinderVon("ghost_analysis")).isEmpty()
     }
 }

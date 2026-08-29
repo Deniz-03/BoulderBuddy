@@ -126,7 +126,7 @@ fun AppNavigation(
                 initialNavSessionId?.let { navController.navigate(Session(sessionId = it)) }
             // Aus dem Fortschritts-Push der Ghost-Analyse zurück in den Flow (7.5h): der
             // Bildschirm holt sich den Stand beim Aufbau aus dem Runner.
-            WidgetIntent.TARGET_GHOST -> navController.navigate(GhostClimber)
+            WidgetIntent.TARGET_GHOST -> navController.navigate(GhostClimber())
         }
     }
 
@@ -225,6 +225,12 @@ fun AppNavigation(
                     onOpenSettings = { navController.navigate(Einstellungen) },
                     onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
                     onAddRoute = { sessionId -> navController.navigate(RouteHinzufuegen(sessionId)) },
+                    onOpenGhostAnalyse = { analyseId ->
+                        navController.navigate(GhostClimber(analyseId = analyseId))
+                    },
+                    onAddGhostAnalyse = { sessionId ->
+                        navController.navigate(GhostClimber(sessionId = sessionId))
+                    },
                 )
             }
             composable<Stats> {
@@ -268,7 +274,7 @@ fun AppNavigation(
                     onSetUserName = viewModel::setUserName,
                     exportMessage = exportMessage,
                     onExportMessageShown = viewModel::consumeExportMessage,
-                    onOpenGhostClimber = { navController.navigate(GhostClimber) },
+                    onOpenGhostClimber = { navController.navigate(GhostClimber()) },
                     onOpenAbgleich = { navController.navigate(Abgleich) },
                     onOpenGymVerwaltung = { navController.navigate(GymVerwaltung) },
                     onSetProximityAlerts = viewModel::setProximityAlerts,
@@ -492,6 +498,12 @@ fun AppNavigation(
                     onBack = { navController.popBackStack() },
                     onOpenBoulder = { boulderId -> navController.navigate(BoulderDetail(boulderId)) },
                     onAddRoute = { sessionId -> navController.navigate(RouteHinzufuegen(sessionId)) },
+                    onOpenGhostAnalyse = { analyseId ->
+                        navController.navigate(GhostClimber(analyseId = analyseId))
+                    },
+                    onAddGhostAnalyse = { sessionId ->
+                        navController.navigate(GhostClimber(sessionId = sessionId))
+                    },
                 )
             }
         }
