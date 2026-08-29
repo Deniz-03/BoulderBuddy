@@ -13,6 +13,20 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// =============================================================================
+// Geräte-Abgleich — der Ablauf, den beide Transportwege teilen (Sync-Plan S6/S8)
+// =============================================================================
+//
+// Diese Datei ist die Mitte des Features: sie nimmt eine fremde Datenbankdatei entgegen und
+// führt sie mit der eigenen zusammen. Wie die Datei hergekommen ist — über Nearby oder von
+// Hand ausgewählt — steht hier bewusst nirgends.
+//
+// Die Reihenfolge ist immer dieselbe: [Abgleicher.pruefe] schaut nur hin und schlägt vor,
+// erst [Abgleicher.fuehreZusammen] bzw. [Abgleicher.uebernimmGanz] ändert etwas. Die
+// eigentliche Entscheidung, welche Zeile gewinnt, fällt android-frei in `Abgleich.kt`; was
+// hier steht, ist das Drumherum: Vorprüfungen, Sicherungskopien, Nummernbänder und die
+// Möglichkeit, alles wieder rückgängig zu machen.
+
 /** Was in einem Stand steckt — Zahlen statt Fachbegriffen, für die Erstbegegnung (E10). */
 data class Bestandszahlen(
     val hallen: Int,

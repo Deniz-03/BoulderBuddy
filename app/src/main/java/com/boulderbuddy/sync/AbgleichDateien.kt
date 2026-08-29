@@ -10,6 +10,19 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// =============================================================================
+// Die Dateien des Abgleichs — und die Sorgfalt, die SQLite dabei verlangt
+// =============================================================================
+//
+// Drei Dateien spielen mit: der eigene Stand (die Room-Datenbank), `basis.db` als Gedächtnis
+// des letzten gemeinsamen Standes und `vorher.db` für das Rückgängigmachen.
+//
+// Zwei Dinge gehen hier schief, wenn man sie nicht ausdrücklich behandelt, und beide
+// verlieren Daten statt nur zu scheitern: eine Datenbankdatei ohne ihren WAL kopieren
+// (dann fehlt der neueste Stand), und eine Datenbankdatei löschen, ohne `-wal` und `-shm`
+// mitzulöschen (dann erbt die nächste Datei gleichen Namens einen fremden WAL). Deshalb
+// gibt es hier eigene Funktionen dafür, statt `File.copyTo` und `File.delete`.
+
 /** Ein gescheiterter Checkpoint bricht den Abgleich ab, statt einen halben Stand zu senden. */
 class CheckpointFehlgeschlagen(nachricht: String) : IllegalStateException(nachricht)
 

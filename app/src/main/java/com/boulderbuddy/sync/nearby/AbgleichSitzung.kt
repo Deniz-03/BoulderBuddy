@@ -22,6 +22,22 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// =============================================================================
+// Nearby-Abgleich, Sitzungsablauf (Sync-Plan S4/S5)
+// =============================================================================
+//
+// Die Datei hat zwei Hälften: oben [Sitzungsstand], die Kurzfassung fürs Auge des Nutzers,
+// darunter [AbgleichSitzung] mit dem Ablauf selbst — bewusst linear von oben nach unten
+// gelesen statt als Zustandsautomat.
+//
+// **Das ist der Teil des Abgleichs ohne automatisierte Absicherung.** Alles, was ohne Funk
+// prüfbar ist, liegt woanders und ist es auch: der Vergleich in `Abgleich.kt` (reine
+// Funktionen, JVM-Tests), der Gesprächsablauf in `Protokoll.kt` (ebenfalls android-frei),
+// der Datei-Weg in `StandDatei.kt`. Hier bleibt der Rest — zwei Geräte, ein Raum, von Hand.
+// Die Reihenfolge, in der man das prüft, steht im SYNC_PLAN unter „S0 zuerst und allein".
+//
+// Wer hier etwas ändert, ändert also den einzigen Teil, den kein Test auffängt.
+
 /** Woran der Abgleich gerade ist — das, was der Bildschirm zeigt. */
 sealed interface Sitzungsstand {
     data object Untaetig : Sitzungsstand
