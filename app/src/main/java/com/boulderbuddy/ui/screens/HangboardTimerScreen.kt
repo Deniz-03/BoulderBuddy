@@ -41,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.R
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.EingabeDialog
 import com.boulderbuddy.ui.components.TimerControls
 import com.boulderbuddy.ui.components.TimerRing
 import com.boulderbuddy.ui.components.TopBar
@@ -356,27 +357,20 @@ private fun SavePresetDialog(
     onDismiss: () -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.timer_preset_speichern_titel)) },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text(stringResource(R.string.timer_preset_name)) },
-                singleLine = true,
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(name) },
-                enabled = name.isNotBlank(),
-            ) { Text(stringResource(R.string.aktion_speichern)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
-        },
-    )
+    EingabeDialog(
+        titel = stringResource(R.string.timer_preset_speichern_titel),
+        bestaetigenText = stringResource(R.string.aktion_speichern),
+        bestaetigenAktiv = name.isNotBlank(),
+        onBestaetigen = { onConfirm(name) },
+        onAbbrechen = onDismiss,
+    ) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text(stringResource(R.string.timer_preset_name)) },
+            singleLine = true,
+        )
+    }
 }
 
 // Eine Label-Zeile mit -/+ Steppern. onChange bekommt den unbeschränkten neuen Wert;

@@ -47,8 +47,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -60,6 +62,7 @@ import com.boulderbuddy.R
 import com.boulderbuddy.proximity.hasBackgroundLocationPermission
 import com.boulderbuddy.proximity.hasFineLocationPermission
 import com.boulderbuddy.ui.components.BoulderBuddyScaffold
+import com.boulderbuddy.ui.components.EingabeDialog
 import com.boulderbuddy.ui.components.SectionHeader
 import com.boulderbuddy.ui.components.SelectableChip
 import com.boulderbuddy.ui.components.SettingsRow
@@ -514,35 +517,26 @@ private fun NameAendernDialog(
 ) {
     var name by rememberSaveable { mutableStateOf(current) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.einstellungen_name)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingM)) {
-                // Kein Platzhalter-Beispiel: bei einem Feld, das genau eine offensichtliche
-                // Eingabe hat, erklärt ein „z.B. …" nichts — es schiebt nur einen fremden
-                // Namen ins Feld, den man beim Tippen erst mental wegräumen muss.
-                TextField(
-                    value = name,
-                    onChange = { name = it },
-                )
-                Text(
-                    text = stringResource(R.string.einstellungen_name_hinweis),
-                    // Ein Satz gehört in einen Body-Stil, nicht in den Versalien-Label-Stil.
-                    style = MaterialTheme.typography.bodySmall,
-                    color = BoulderBuddy.colors.textSecondary,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(name) }) {
-                Text(stringResource(R.string.aktion_speichern))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
-        },
-    )
+    EingabeDialog(
+        titel = stringResource(R.string.einstellungen_name),
+        bestaetigenText = stringResource(R.string.aktion_speichern),
+        onBestaetigen = { onSave(name) },
+        onAbbrechen = onDismiss,
+    ) {
+        // Kein Platzhalter-Beispiel: bei einem Feld, das genau eine offensichtliche
+        // Eingabe hat, erklärt ein „z.B. …" nichts — es schiebt nur einen fremden
+        // Namen ins Feld, den man beim Tippen erst mental wegräumen muss.
+        TextField(
+            value = name,
+            onChange = { name = it },
+        )
+        Text(
+            text = stringResource(R.string.einstellungen_name_hinweis),
+            // Ein Satz gehört in einen Body-Stil, nicht in den Versalien-Label-Stil.
+            style = MaterialTheme.typography.bodySmall,
+            color = BoulderBuddy.colors.textSecondary,
+        )
+    }
 }
 
 // Listet alle Gradsysteme. Löschbare (Custom, `deletable`) bekommen einen Papierkorb; die
@@ -626,70 +620,67 @@ private fun GradingSystemAnlegenDialog(
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     // Start mit zwei leeren Zeilen; weitere per "Grad hinzufügen".
-    val labels = remember { mutableStateListOf("", "") }
+    //
+    // rememberSaveable und nicht remember: der Name daneben überlebte das Drehen längst, die
+    // Grade nicht — man drehte einmal und hatte einen benannten Dialog voll leerer Felder.
+    // `mutableStateListOf` kann kein Bundle, deshalb der listSaver über die reine Liste.
+    val labels = rememberSaveable(
+        saver = listSaver(
+            save = { it.toList() },
+            restore = { it.toMutableStateList() },
+        ),
+    ) { mutableStateListOf("", "") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.einstellungen_grading_neu)) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+    EingabeDialog(
+        titel = stringResource(R.string.einstellungen_grading_neu),
+        bestaetigenText = stringResource(R.string.aktion_anlegen),
+        bestaetigenAktiv = name.isNotBlank() && labels.any { it.isNotBlank() },
+        onBestaetigen = { onCreate(name, labels.toList()) },
+        onAbbrechen = onDismiss,
+    ) {
+        TextField(
+            value = name,
+            onChange = { name = it },
+            label = stringResource(R.string.einstellungen_grading_name_label),
+            placeholder = stringResource(
+                R.string.einstellungen_grading_name_platzhalter,
+            ),
+        )
+        Text(
+            text = stringResource(R.string.einstellungen_grading_grade_hinweis),
+            style = MaterialTheme.typography.bodySmall,
+            color = BoulderBuddy.colors.textSecondary,
+        )
+        labels.forEachIndexed { index, label ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
             ) {
                 TextField(
-                    value = name,
-                    onChange = { name = it },
-                    label = stringResource(R.string.einstellungen_grading_name_label),
+                    value = label,
+                    onChange = { labels[index] = it },
                     placeholder = stringResource(
-                        R.string.einstellungen_grading_name_platzhalter,
+                        R.string.einstellungen_grading_grad_platzhalter,
+                        index,
                     ),
+                    modifier = Modifier.weight(1f),
                 )
-                Text(
-                    text = stringResource(R.string.einstellungen_grading_grade_hinweis),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = BoulderBuddy.colors.textSecondary,
-                )
-                labels.forEachIndexed { index, label ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.paddingS),
-                    ) {
-                        TextField(
-                            value = label,
-                            onChange = { labels[index] = it },
-                            placeholder = stringResource(
-                                R.string.einstellungen_grading_grad_platzhalter,
-                                index,
-                            ),
-                            modifier = Modifier.weight(1f),
-                        )
-                        IconButton(
-                            onClick = { if (labels.size > 1) labels.removeAt(index) },
-                        ) {
-                            Icon(
-                                Icons.Filled.Remove,
-                                contentDescription = stringResource(
-                                    R.string.einstellungen_grading_grad_entfernen,
-                                ),
-                            )
-                        }
-                    }
-                }
-                TextButton(onClick = { labels.add("") }) {
-                    Text(stringResource(R.string.einstellungen_grading_grad_hinzufuegen))
+                IconButton(
+                    onClick = { if (labels.size > 1) labels.removeAt(index) },
+                ) {
+                    Icon(
+                        Icons.Filled.Remove,
+                        contentDescription = stringResource(
+                            R.string.einstellungen_grading_grad_entfernen,
+                        ),
+                    )
                 }
             }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = name.isNotBlank() && labels.any { it.isNotBlank() },
-                onClick = { onCreate(name, labels.toList()) },
-            ) { Text(stringResource(R.string.aktion_anlegen)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.aktion_abbrechen)) }
-        },
-    )
+        }
+        TextButton(onClick = { labels.add("") }) {
+            Text(stringResource(R.string.einstellungen_grading_grad_hinzufuegen))
+        }
+    }
 }
 
 // Einfach-Auswahl des Standard-Gradings aus den real vorhandenen Grade-Systemen

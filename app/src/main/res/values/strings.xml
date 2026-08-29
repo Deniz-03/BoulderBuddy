@@ -244,6 +244,10 @@
     <string name="ghost_fortschritt_fertig">%1$s: fertig (%2$d Frames)</string>
     <string name="ghost_fortschritt_frame">%1$s: Frame %2$d / %3$d</string>
     <string name="ghost_fortschritt_vorbereitung">%1$s: wird vorbereitet…</string>
+    <string name="ghost_eigene_titel">Aufnahmen in der App</string>
+    <string name="ghost_eigene_leer">Hier steht noch nichts — nimm ein Video in der App auf, dann findest du es an dieser Stelle wieder.</string>
+    <!-- Beispiel: „29.08.2026 10:40 · 12,4 MB" -->
+    <string name="ghost_eigene_zeile">%1$s · %2$s</string>
 
     <!-- Ghost, Schritt 2: Anker -->
     <string name="ghost_anker_hinweis">Tippe in beiden Videos DIESELBEN %1$d+ markanten Wandpunkte (Griffe/Volumes) in derselben Reihenfolge an — gleiche Farbe = gleicher Punkt. Mit dem Regler findest du ein Standbild mit freier Wand.</string>
@@ -273,6 +277,14 @@
     <string name="ghost_side_by_side_hinweis">Links Referenz (steuert die Wiedergabe), rechts der Vergleichs-Versuch — beide laufen unverzerrt in ihrem eigenen Tempo. Ehrlicher als ein Overlay, wenn die Beta sich deutlich unterscheidet.</string>
     <string name="ghost_sturz_hinweis">Sturz/Abbruch erkannt: das betroffene Skelett blendet am Abbruchpunkt aus, der andere Versuch klettert weiter.</string>
     <string name="ghost_gespeichert">Analyse gespeichert ✓</string>
+    <!-- Vor dem Verlassen einer begonnenen Analyse. Der Titel fragt und stellt nicht fest,
+         weil der Dialog ab dem ersten Anker kommt und nicht erst in der Vorschau. Der
+         zweite Satz ist wichtig: die teure Pose-Extraktion ist gecacht, und die Videos
+         stehen unter „Aus der App" — verloren geht nur das Angetippte. -->
+    <string name="ghost_verwerfen_titel">Analyse verwerfen?</string>
+    <string name="ghost_verwerfen_text">Wenn du jetzt gehst, ist alles Angetippte weg. Die Videos und die berechneten Posen bleiben erhalten — ein neuer Anlauf mit denselben Videos geht deshalb schnell.</string>
+    <string name="ghost_verwerfen_ja">Verwerfen</string>
+    <string name="ghost_speichern_und_schliessen">Speichern</string>
     <string name="ghost_speichern">Analyse speichern</string>
     <string name="ghost_pfad_anpassen">Pfad anpassen</string>
 
@@ -511,6 +523,10 @@
     <string name="medien_standard_label">Foto/Video aufnehmen</string>
     <string name="medien_video_gewaehlt">Video ausgewählt</string>
     <string name="medien_foto_gewaehlt">Gewähltes Foto</string>
+    <!-- Dritte Quelle: was schon in der App liegt. Eine eigene Aufnahme steht app-intern
+         und taucht in keiner Galerie auf — ohne diesen Weg ist sie nicht wiederzufinden. -->
+    <string name="medien_eigene">Aus der App</string>
+    <string name="medien_eigene_erklaerung">Ein Video, das du schon in der App aufgenommen hast.</string>
 
     <!-- Spracheingabe der Notiz -->
     <string name="sprache_einsprechen">Notiz einsprechen</string>

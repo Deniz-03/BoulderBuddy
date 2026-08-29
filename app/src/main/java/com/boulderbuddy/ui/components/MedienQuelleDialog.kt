@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,11 @@ import com.boulderbuddy.ui.theme.Dimens
  * CameraX-Screen gibt es beide Wege, also muss der Nutzer sie auch unterscheiden können.
  *
  * @param nurVideo blendet die Foto-Formulierung aus (Ghost Climber kann nur Video).
+ * @param onEigene dritte Quelle „Aus der App"; `null` blendet sie aus. Sie steht nicht
+ *   überall, weil sie nicht überall etwas löst: im Boulder-Formular hängt das Medium an der
+ *   Route und ist über sie wiederzufinden. Im Ghost Climber hängt es an nichts — verlässt man
+ *   den Bildschirm vor dem Speichern, ist eine app-interne Aufnahme über keinen Picker der
+ *   Welt mehr erreichbar, weil sie in keiner Galerie auftaucht.
  */
 @Composable
 fun MedienQuelleDialog(
@@ -41,6 +47,7 @@ fun MedienQuelleDialog(
     onGalerie: () -> Unit,
     onDismiss: () -> Unit,
     nurVideo: Boolean = false,
+    onEigene: (() -> Unit)? = null,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -71,6 +78,14 @@ fun MedienQuelleDialog(
                     ),
                     onClick = onGalerie,
                 )
+                onEigene?.let {
+                    QuellenZeile(
+                        icon = Icons.Outlined.VideoLibrary,
+                        titel = stringResource(R.string.medien_eigene),
+                        erklaerung = stringResource(R.string.medien_eigene_erklaerung),
+                        onClick = it,
+                    )
+                }
             }
         },
         confirmButton = {},
