@@ -422,7 +422,7 @@ Abgehakt wird jede Datei einzeln — die Liste ist der Schutz davor, eine zu
 - [x] `wear/src/main/java/com/boulderbuddy/wear/sensing/HangDetection.kt` (237)
 - [x] `wear/src/main/java/com/boulderbuddy/wear/sensing/SensorLogParser.kt` (52)
 - [x] `wear/src/main/java/com/boulderbuddy/wear/sensing/SensorLoggingService.kt` (219)
-- [ ] `wear/src/test/java/com/boulderbuddy/wear/sensing/HangDetectorTest.kt` (188)
+- [x] `wear/src/test/java/com/boulderbuddy/wear/sensing/HangDetectorTest.kt` (188)
 
 
 ### Block 10 — Tests
@@ -430,63 +430,104 @@ Abgehakt wird jede Datei einzeln — die Liste ist der Schutz davor, eine zu
 
 **Tests** (60)
 
-- [ ] `app/src/androidTest/java/com/boulderbuddy/data/db/MigrationTest.kt` (419)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/data/db/TestDatabase.kt` (14)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/GradeDaoTest.kt` (62)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/GymDaoLoeschenTest.kt` (98)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/GymVisitDaoTest.kt` (86)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/RouteDaoTest.kt` (59)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/SessionDaoTest.kt` (81)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/data/repository/SessionRepositoryTest.kt` (58)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/sync/StandZugriffTest.kt` (231)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/ui/components/DiagrammBreiteTest.kt` (168)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/ui/screens/AlteSessionNotizTest.kt` (65)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/ui/screens/HangboardTimerScreenTest.kt` (71)
-- [ ] `app/src/androidTest/java/com/boulderbuddy/ui/theme/InhaltsBreiteTest.kt` (180)
-- [ ] `app/src/test/java/com/boulderbuddy/data/camera/CaptureModelTest.kt` (103)
-- [ ] `app/src/test/java/com/boulderbuddy/data/db/entity/HallenNameTest.kt` (59)
-- [ ] `app/src/test/java/com/boulderbuddy/data/export/SessionCsvTest.kt` (215)
-- [ ] `app/src/test/java/com/boulderbuddy/data/repository/GymVisitRepositoryTest.kt` (87)
-- [ ] `app/src/test/java/com/boulderbuddy/data/speech/SpeechRecognitionModelTest.kt` (229)
-- [ ] `app/src/test/java/com/boulderbuddy/fake/FakeRepositories.kt` (228)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/GhostAnalyseRunnerTest.kt` (185)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/analysis/DtwTest.kt` (76)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/analysis/FallDetectionTest.kt` (55)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/analysis/GhostTimeMappingTest.kt` (142)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/analysis/ModeSuggestionTest.kt` (76)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/analysis/PoseShapeMetricsTest.kt` (235)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/analysis/RoutePathTest.kt` (68)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/geometry/HomographyTest.kt` (100)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/model/GhostPoseTest.kt` (63)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/model/PoseInterpolationTest.kt` (79)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/pose/OneEuroSweepTest.kt` (167)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/pose/PosePlausibilityTest.kt` (229)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/pose/PoseRaumwechselTest.kt` (119)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/pose/PoseSmoothingTest.kt` (186)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/pose/RigidSkeletonInvariantTest.kt` (223)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/pose/RigidSkeletonTest.kt` (193)
-- [ ] `app/src/test/java/com/boulderbuddy/ghost/pose/RoiTrackingTest.kt` (239)
-- [ ] `app/src/test/java/com/boulderbuddy/proximity/GymVisitStatsTest.kt` (143)
-- [ ] `app/src/test/java/com/boulderbuddy/proximity/ProximityNotificationPolicyTest.kt` (134)
-- [ ] `app/src/test/java/com/boulderbuddy/sync/AbgleichDateienTest.kt` (67)
-- [ ] `app/src/test/java/com/boulderbuddy/sync/AbgleichTest.kt` (739)
-- [ ] `app/src/test/java/com/boulderbuddy/sync/MedienNamenTest.kt` (70)
-- [ ] `app/src/test/java/com/boulderbuddy/sync/NummernBandTest.kt` (144)
-- [ ] `app/src/test/java/com/boulderbuddy/sync/nearby/EmpfangeneDateiTest.kt` (93)
-- [ ] `app/src/test/java/com/boulderbuddy/sync/nearby/ProtokollTest.kt` (253)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/components/SideBySideSyncTest.kt` (76)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/model/DurationFormatTest.kt` (40)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/model/ZeitraumTest.kt` (123)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/theme/Kontrast.kt` (47)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/theme/PaletteContrastTest.kt` (329)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/theme/ShapeScaleTest.kt` (81)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/theme/SpaltenFuerTest.kt` (79)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/viewmodel/HallenReihenfolgeTest.kt` (83)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/viewmodel/HangboardTimerViewModelTest.kt` (217)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/viewmodel/LaufendeSessionTest.kt` (94)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/viewmodel/SessionListViewModelTest.kt` (145)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/viewmodel/StatistikVerlaufTest.kt` (283)
-- [ ] `app/src/test/java/com/boulderbuddy/ui/viewmodel/StatistikViewModelTest.kt` (172)
-- [ ] `app/src/test/java/com/boulderbuddy/util/MainDispatcherRule.kt` (28)
-- [ ] `app/src/test/java/com/boulderbuddy/widget/WidgetDataTest.kt` (120)
-- [ ] `app/src/test/java/com/boulderbuddy/widget/WidgetPaletteTest.kt` (95)
+- [x] `app/src/androidTest/java/com/boulderbuddy/data/db/MigrationTest.kt` (419)
+- [x] `app/src/androidTest/java/com/boulderbuddy/data/db/TestDatabase.kt` (14)
+- [x] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/GradeDaoTest.kt` (62)
+- [x] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/GymDaoLoeschenTest.kt` (98)
+- [x] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/GymVisitDaoTest.kt` (86)
+- [x] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/RouteDaoTest.kt` (59)
+- [x] `app/src/androidTest/java/com/boulderbuddy/data/db/dao/SessionDaoTest.kt` (81)
+- [x] `app/src/androidTest/java/com/boulderbuddy/data/repository/SessionRepositoryTest.kt` (58)
+- [x] `app/src/androidTest/java/com/boulderbuddy/sync/StandZugriffTest.kt` (231)
+- [x] `app/src/androidTest/java/com/boulderbuddy/ui/components/DiagrammBreiteTest.kt` (168)
+- [x] `app/src/androidTest/java/com/boulderbuddy/ui/screens/AlteSessionNotizTest.kt` (65)
+- [x] `app/src/androidTest/java/com/boulderbuddy/ui/screens/HangboardTimerScreenTest.kt` (71)
+- [x] `app/src/androidTest/java/com/boulderbuddy/ui/theme/InhaltsBreiteTest.kt` (180)
+- [x] `app/src/test/java/com/boulderbuddy/data/camera/CaptureModelTest.kt` (103)
+- [x] `app/src/test/java/com/boulderbuddy/data/db/entity/HallenNameTest.kt` (59)
+- [x] `app/src/test/java/com/boulderbuddy/data/export/SessionCsvTest.kt` (215)
+- [x] `app/src/test/java/com/boulderbuddy/data/repository/GymVisitRepositoryTest.kt` (87)
+- [x] `app/src/test/java/com/boulderbuddy/data/speech/SpeechRecognitionModelTest.kt` (229)
+- [x] `app/src/test/java/com/boulderbuddy/fake/FakeRepositories.kt` (228)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/GhostAnalyseRunnerTest.kt` (185)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/analysis/DtwTest.kt` (76)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/analysis/FallDetectionTest.kt` (55)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/analysis/GhostTimeMappingTest.kt` (142)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/analysis/ModeSuggestionTest.kt` (76)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/analysis/PoseShapeMetricsTest.kt` (235)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/analysis/RoutePathTest.kt` (68)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/geometry/HomographyTest.kt` (100)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/model/GhostPoseTest.kt` (63)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/model/PoseInterpolationTest.kt` (79)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/pose/OneEuroSweepTest.kt` (167)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/pose/PosePlausibilityTest.kt` (229)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/pose/PoseRaumwechselTest.kt` (119)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/pose/PoseSmoothingTest.kt` (186)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/pose/RigidSkeletonInvariantTest.kt` (223)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/pose/RigidSkeletonTest.kt` (193)
+- [x] `app/src/test/java/com/boulderbuddy/ghost/pose/RoiTrackingTest.kt` (239)
+- [x] `app/src/test/java/com/boulderbuddy/proximity/GymVisitStatsTest.kt` (143)
+- [x] `app/src/test/java/com/boulderbuddy/proximity/ProximityNotificationPolicyTest.kt` (134)
+- [x] `app/src/test/java/com/boulderbuddy/sync/AbgleichDateienTest.kt` (67)
+- [x] `app/src/test/java/com/boulderbuddy/sync/AbgleichTest.kt` (739)
+- [x] `app/src/test/java/com/boulderbuddy/sync/MedienNamenTest.kt` (70)
+- [x] `app/src/test/java/com/boulderbuddy/sync/NummernBandTest.kt` (144)
+- [x] `app/src/test/java/com/boulderbuddy/sync/nearby/EmpfangeneDateiTest.kt` (93)
+- [x] `app/src/test/java/com/boulderbuddy/sync/nearby/ProtokollTest.kt` (253)
+- [x] `app/src/test/java/com/boulderbuddy/ui/components/SideBySideSyncTest.kt` (76)
+- [x] `app/src/test/java/com/boulderbuddy/ui/model/DurationFormatTest.kt` (40)
+- [x] `app/src/test/java/com/boulderbuddy/ui/model/ZeitraumTest.kt` (123)
+- [x] `app/src/test/java/com/boulderbuddy/ui/theme/Kontrast.kt` (47)
+- [x] `app/src/test/java/com/boulderbuddy/ui/theme/PaletteContrastTest.kt` (329)
+- [x] `app/src/test/java/com/boulderbuddy/ui/theme/ShapeScaleTest.kt` (81)
+- [x] `app/src/test/java/com/boulderbuddy/ui/theme/SpaltenFuerTest.kt` (79)
+- [x] `app/src/test/java/com/boulderbuddy/ui/viewmodel/HallenReihenfolgeTest.kt` (83)
+- [x] `app/src/test/java/com/boulderbuddy/ui/viewmodel/HangboardTimerViewModelTest.kt` (217)
+- [x] `app/src/test/java/com/boulderbuddy/ui/viewmodel/LaufendeSessionTest.kt` (94)
+- [x] `app/src/test/java/com/boulderbuddy/ui/viewmodel/SessionListViewModelTest.kt` (145)
+- [x] `app/src/test/java/com/boulderbuddy/ui/viewmodel/StatistikVerlaufTest.kt` (283)
+- [x] `app/src/test/java/com/boulderbuddy/ui/viewmodel/StatistikViewModelTest.kt` (172)
+- [x] `app/src/test/java/com/boulderbuddy/util/MainDispatcherRule.kt` (28)
+- [x] `app/src/test/java/com/boulderbuddy/widget/WidgetDataTest.kt` (120)
+- [x] `app/src/test/java/com/boulderbuddy/widget/WidgetPaletteTest.kt` (95)
+
+## Ergebnis
+
+282 von 282 Dateien durchgegangen.
+
+**Was falsch war — und was daran auffällt.** Rund zwanzig Aussagen stimmten nicht
+mehr, und sie verteilen sich nicht gleichmäßig. Falsch wird fast ausschließlich,
+was **über die eigene Datei hinauszeigt**:
+
+* Versionsangaben („Koordinaten ab v6" — es war v8; „Migrationen v1→v6" — es sind v12)
+* Reihenfolgen („L/R → Plausibilität → One-Euro" — die rigide Rekonstruktion am Ende
+  fehlte, ausgerechnet das Glied, um das am längsten gerungen wurde)
+* Ankündigungen („die Presets werden angebunden, sobald…" — sie sind es seit Langem;
+  „Push-Navigation folgt in Phase 2")
+* Verweise auf Orte („`com.boulderbuddy.wear.HangboardWearListenerService`" — es ist
+  `wearsync`; „Mapping entsteht in Phase 6" — es steht in `UiMappers.kt`)
+* Aufzählungen, die nicht mitgewachsen sind (drei Kennzahlen statt acht, die
+  Einstellungen ohne den Näherungs-Schalter)
+
+Was eine Datei über **sich selbst** sagt, stimmte fast immer. Das ist kein Zufall:
+den Satz daneben liest man beim Ändern, den Verweis zwei Dateien weiter nicht.
+
+**Was fehlte.** Rund dreißig Dateien hatten gar keine Erklärung — darunter
+`MainActivity`, `BoulderBuddyScaffold`, `TopBar` und neun DAOs. Bei den Bausteinen
+ist das verschmerzbar, bei der einzigen Activity der App war es die auffälligste
+Lücke des Durchgangs.
+
+**Was gut war.** Der Geräte-Abgleich und die Ghost-Stabilisierung sind durchgehend
+belastbar dokumentiert, inklusive der Stellen, an denen der Code bewusst vom Plan
+abweicht. Alle 61 Testdateien tragen einen Kopf, der sagt, *warum* es den Test gibt.
+Eine abschließende Prüfung aller `[Verweise]` in Doc-Kommentaren fand **keinen
+einzigen** toten Verweis auf eigenen Code.
+
+**Ein Fehler in eigener Sache.** Beim Schreiben des Kopfes für `FilterChip` habe ich
+behauptet, die Farbfilter setzten ihre Auswahlfarbe selbst. Nachgesehen: kein
+Aufrufer tut das (Befund B3). Der Durchgang hat also unterwegs bewiesen, wie leicht
+ein plausibler Kommentar entsteht, der nicht stimmt — und dass Nachsehen die einzige
+Abhilfe ist.
+
+**Nicht angefasst.** Kein Umbau, keine Umbenennung, keine Verhaltensänderung. Die
+drei Befunde sind vermerkt, nicht repariert.
