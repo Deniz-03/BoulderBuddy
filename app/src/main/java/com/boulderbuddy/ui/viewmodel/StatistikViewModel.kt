@@ -29,6 +29,21 @@ import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import javax.inject.Inject
 
+// =============================================================================
+// Statistik — alles Gerechnete für den Statistik-Tab
+// =============================================================================
+//
+// Aggregiert Sessions, Boulder, Grade und Hangboard-Workouts zu Kennzahlen, Verläufen und
+// der Aktivitäts-Heatmap. Der Screen bekommt ausschließlich fertige Werte: formatierte
+// Texte und Listen von Balkenhöhen, keine Entities und keine Rechenvorschrift.
+//
+// Ghost-Analysen gehen hier bewusst NICHT ein. Sie hängen zwar an einer Session, sind aber
+// kein Trainingsergebnis, das sich sinnvoll summieren ließe.
+//
+// Die Regeln, die man beim Ändern kennen muss (jeweils am Ort begründet): Grade werden nur
+// innerhalb desselben Gradsystems verglichen, und der Verlauf zeigt den höchsten und nicht
+// den durchschnittlichen Grad.
+
 data class StatistikUiState(
     val flashRate: String = "–",
     val totalTops: Int = 0,

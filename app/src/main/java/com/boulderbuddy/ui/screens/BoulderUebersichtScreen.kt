@@ -126,7 +126,7 @@ fun BoulderUebersichtScreen(
             )
         },
         // Keine BottomNav: Dies ist ein Push-Ziel (kein Top-Level-Tab). Die gemeinsame
-        // BottomNav stellt das Navigations-Gerüst nur auf den 4 Tab-Zielen (Phase 1.3).
+        // Die Navigationsleiste stellt das Gerüst, und nur auf den vier Tab-Zielen.
         content = { _ ->
             /*
              * `LazyVerticalGrid` mit `GridCells.Adaptive` statt `LazyColumn` + `chunked(2)`.

@@ -148,7 +148,7 @@ fun HangboardTimerScreen(
                 }
             )
         },
-        // BottomNav wird ab Phase 1.3 zentral vom Navigations-Gerüst gestellt.
+        // Die Navigationsleiste stellt das Gerüst (AppNavigation), nicht der Screen.
         content = { _ ->
             Column(
                 modifier = Modifier

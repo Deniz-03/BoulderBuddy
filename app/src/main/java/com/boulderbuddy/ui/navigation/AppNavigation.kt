@@ -90,16 +90,29 @@ const val GYM_ERGEBNIS = "gym_ergebnis_id"
 
 // =============================================================================
 // AppNavigation — der NavHost: verbindet jede Route aus Destinations.kt mit
-//                  dem passenden Screen und stellt die gemeinsame BottomNav.
+//                  dem passenden Screen und stellt die gemeinsame Navigation.
 // =============================================================================
 //
-// Phase 1: Navigations-Gerüst mit Platzhalter-Daten (noch keine ViewModels/Room).
-//   - Type-safe Routen (composable<Route> / toRoute()).
-//   - BottomNav ist HOCHGEZOGEN: nicht mehr in den Tab-Screens, sondern hier —
-//     sichtbar nur bei den 4 Tab-Zielen (Home/Sessions/Stats/Timer).
-//   - Tab-Wechsel mit launchSingleTop + saveState/restoreState -> kein Stacking.
+// Diese Datei ist die einzige Stelle, an der die Screens einander kennen. Ein Screen bekommt
+// seine Sprünge als Callbacks hereingereicht und weiß nicht, wohin sie führen — was
+// zusammengehört, entscheidet sich hier.
 //
-// Push-Navigation (Screen-Callbacks) folgt in Phase 2.
+// Vier Dinge, die man beim Ändern wissen muss:
+//
+//   - **Routen sind typisiert** (`composable<Route>` / `toRoute()`), definiert in
+//     `Destinations.kt`. Argumente reisen als Felder der Route, nicht als String-Keys.
+//   - **Die Navigationsleiste ist hochgezogen** und steht nicht in den Tab-Screens: unten
+//     am Telefon, seitlich ab 600 dp, gar nicht auf Push-Zielen.
+//   - **Tab-Wechsel stapeln nicht** (`launchSingleTop` + `saveState`/`restoreState`, siehe
+//     `topLevelNavOptions`). Wer daran dreht, sollte den Kommentar dort lesen — die
+//     Kombination hat einen Nav-Quirk, der sonst zu „man kommt nicht mehr auf Home".
+//   - **Der NavHost steht an genau EINER Aufrufstelle** im Baum. Warum das kein Detail ist,
+//     steht weiter unten beim Aufruf; kurz: sonst verliert die App bei jedem Sprung in ein
+//     Formular den gemerkten Zustand aller Tab-Ziele.
+//
+// Ergebnisse laufen rückwärts über den `savedStateHandle` des vorigen Back-Stack-Eintrags
+// (siehe die `*_ERGEBNIS`-Konstanten oben) — Compose-Navigation kennt kein
+// `startActivityForResult`.
 
 @Composable
 fun AppNavigation(
