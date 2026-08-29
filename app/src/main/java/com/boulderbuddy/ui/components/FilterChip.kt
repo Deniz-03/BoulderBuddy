@@ -26,10 +26,11 @@ import com.boulderbuddy.ui.theme.PillShape
  * Nicht zu verwechseln mit [SelectableChip]: dieser hier steht über einer Liste und
  * schränkt sie ein, der andere wählt in einem Formular einen Wert.
  *
- * BEFUND B3 (Kommentarpflege): `selectedColor` wird von keinem Aufrufer gesetzt — alle fünf
- * Fundstellen nehmen die Vorgabe. Der Parameter sieht nach einer gepflegten Möglichkeit aus
- * und ist keine; wer die Farbfilter der Boulder-Übersicht in ihrer eigenen Routenfarbe
- * erwartet, findet hier den Haken, an dem das hängen würde.
+ * `selectedColor` wird in der App **nirgends** gesetzt: alle fünf Fundstellen in den Screens
+ * nehmen die Vorgabe, gesetzt wird er nur von der Preview weiter unten. Der Parameter bleibt
+ * trotzdem — er kostet nichts und ist der Haken, an dem die naheliegende Erweiterung hängt:
+ * die Farbfilter der Boulder-Übersicht in ihrer eigenen Routenfarbe zu zeigen. Wer stattdessen
+ * aufräumen will, entfernt ihn samt der Preview-Zeile.
  */
 @Composable
 fun FilterChip(

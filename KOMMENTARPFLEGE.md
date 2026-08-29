@@ -50,14 +50,15 @@ Schweregrade: **hoch** = falsches Verhalten für den Nutzer sichtbar ·
 **mittel** = falsch, aber im Alltag unauffällig · **niedrig** = Unsauberkeit,
 Stolperstein beim Lesen.
 
-Befunde werden **nicht** repariert. Das ist der Punkt der Trennung: ein Durchgang,
-der nebenbei Verhalten ändert, ist nicht mehr nachvollziehbar.
+Befunde werden **während des Durchgangs nicht** repariert. Das ist der Punkt der
+Trennung: ein Durchgang, der nebenbei Verhalten ändert, ist nicht mehr
+nachvollziehbar. Was danach mit ihnen passiert ist, steht in der letzten Spalte.
 
-| Nr | Datei | Befund | Schwere |
-|----|-------|--------|---------|
-| B1 | `data/db/dao/GhostAnalysisDao.kt` | `deleteById` entfernt nur die Zeile. Die Pose-Spuren im `GhostArtifactStore` (`filesDir/ghost/pose_<hash>.json`, je nach Videolänge einige hundert kB) bleiben liegen, und es gibt nirgends ein Aufräumen. Als Cache für ein erneut analysiertes Video nützlich — ist das Video weg, totes Gewicht ohne Verfallsdatum. | niedrig |
-| B2 | `ui/model/UiMappers.kt` | `parseHexColor` und `Color.toHexRgb` werden nirgends mehr aufgerufen — weder in der App noch in den Tests. Reste aus der Zeit, als ein Grad seine Farbe als Hexwert mitbrachte (bis v4). | niedrig |
-| B3 | `ui/components/FilterChip.kt` | `selectedColor` wird von keinem der fünf Aufrufer gesetzt. Der Parameter sieht nach gepflegter Möglichkeit aus und ist keine. | niedrig |
+| Nr | Datei | Befund | Schwere | Erledigt |
+|----|-------|--------|---------|----------|
+| B1 | `data/db/dao/GhostAnalysisDao.kt` | `deleteById` entfernt nur die Zeile. Die Pose-Spuren im `GhostArtifactStore` (`filesDir/ghost/pose_<hash>.json`, je nach Videolänge einige hundert kB) bleiben liegen, und es gibt nirgends ein Aufräumen. Als Cache für ein erneut analysiertes Video nützlich — ist das Video weg, totes Gewicht ohne Verfallsdatum. | niedrig | **behoben** — `delete` räumt die Spuren ab, sofern keine andere Analyse sie noch braucht; zwei Instrumented-Tests decken beide Fälle. |
+| B2 | `ui/model/UiMappers.kt` | `parseHexColor` und `Color.toHexRgb` werden nirgends mehr aufgerufen — weder in der App noch in den Tests. Reste aus der Zeit, als ein Grad seine Farbe als Hexwert mitbrachte (bis v4). | niedrig | **behoben** — beide Funktionen entfernt, samt den dadurch überflüssigen Imports. |
+| B3 | `ui/components/FilterChip.kt` | `selectedColor` wird von keinem der fünf Aufrufer gesetzt. Der Parameter sieht nach gepflegter Möglichkeit aus und ist keine. | niedrig | **bewusst gelassen** — der Parameter kostet nichts und ist der Haken für die naheliegende Erweiterung (Farbfilter in Routenfarbe). Steht so am Code. |
 
 ## Reihenfolge
 
