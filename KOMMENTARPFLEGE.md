@@ -272,14 +272,14 @@ Abgehakt wird jede Datei einzeln — die Liste ist der Schutz davor, eine zu
 
 **di/** (3)
 
-- [ ] `app/src/main/java/com/boulderbuddy/di/DatabaseModule.kt` (86)
-- [ ] `app/src/main/java/com/boulderbuddy/di/RepositoryModule.kt` (92)
-- [ ] `app/src/main/java/com/boulderbuddy/di/SettingsModule.kt` (47)
+- [x] `app/src/main/java/com/boulderbuddy/di/DatabaseModule.kt` (86)
+- [x] `app/src/main/java/com/boulderbuddy/di/RepositoryModule.kt` (92)
+- [x] `app/src/main/java/com/boulderbuddy/di/SettingsModule.kt` (47)
 
 **com/boulderbuddy (Wurzel)** (2)
 
-- [ ] `app/src/main/java/com/boulderbuddy/BoulderBuddyApp.kt` (30)
-- [ ] `app/src/main/java/com/boulderbuddy/MainActivity.kt` (164)
+- [x] `app/src/main/java/com/boulderbuddy/BoulderBuddyApp.kt` (30)
+- [x] `app/src/main/java/com/boulderbuddy/MainActivity.kt` (164)
 
 
 ### Block 7 — UI-Bausteine

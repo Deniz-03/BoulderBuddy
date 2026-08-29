@@ -20,6 +20,22 @@ import com.boulderbuddy.widget.WidgetIntent
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 
+/**
+ * Die einzige Activity der App — alles Weitere ist Compose-Navigation.
+ *
+ * Sie hat genau drei Aufgaben, und alle drei sind heikler, als sie aussehen:
+ *
+ * 1. **Randlos zeichnen**, und zwar vor dem ersten Frame. `enableEdgeToEdge()` steht deshalb
+ *    ganz oben in [onCreate] und nicht in einem Effekt der Composition — sonst springt das
+ *    Layout sichtbar, sobald der Effekt greift.
+ * 2. **Das Theme setzen**, bevor die Systemleisten ihre Icon-Helligkeit bekommen. Der
+ *    Dark-Mode-Override kommt aus dem DataStore und damit asynchron; die Korrektur läuft
+ *    nach, sobald er feststeht.
+ * 3. **Sprungziele entgegennehmen** — vom Homescreen-Widget, von der Näherungs-Notification
+ *    und vom Fortschritts-Push der Ghost-Analyse. Ein Ziel wird **genau einmal** angesteuert;
+ *    der Marker dafür steht im Intent und nicht im `savedInstanceState`, und warum das der
+ *    entscheidende Unterschied ist, steht ausführlich in [onCreate].
+ */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
