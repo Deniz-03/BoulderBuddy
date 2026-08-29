@@ -84,6 +84,27 @@ class GhostAnalysisRepositoryTest {
     }
 
     @Test
+    fun delete_ruehrt_nichts_ausserhalb_des_ghost_ordners_an() = runTest {
+        // Der Pfad in der Zeile ist keine vertrauenswürdige Angabe: er wird beim
+        // Geräte-Abgleich mit einem fremden Stand verglichen und übernommen. Ein `..` darin
+        // darf nicht dazu führen, dass „Analyse löschen" die Datenbank mitnimmt.
+        val fremd = File(filesDir, "nicht_anfassen.txt").apply { writeText("wichtig") }
+        val eigen = spurAnlegen("pose_eigen.json")
+        val id = repository.create(
+            analyse(ref = GhostArtifactStore.ORDNER + "/../nicht_anfassen.txt", cmp = eigen),
+        )
+
+        repository.delete(id)
+
+        assertThat(fremd.exists()).isTrue()
+        // Die Spur im eigenen Ordner verschwindet trotzdem — die Schranke blockiert nicht
+        // pauschal, sie prüft nur, wohin der Pfad zeigt.
+        assertThat(spurExistiert(eigen)).isFalse()
+
+        fremd.delete()
+    }
+
+    @Test
     fun delete_laesst_spuren_stehen_die_eine_andere_analyse_noch_braucht() = runTest {
         val geteilt = spurAnlegen("pose_geteilt.json")
         val nurHier = spurAnlegen("pose_nur_hier.json")
