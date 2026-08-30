@@ -4,7 +4,7 @@ package com.boulderbuddy.ghost.model
  * Landmark-Indizes der BlazePose-Topologie (33 Punkte) als eigene Konstanten.
  * Die Werte sind in ML Kit (`PoseLandmark.*`) und MediaPipe Pose Landmarker identisch —
  * eigene Konstanten machen das Datenmodell unabhängig von der Pose-Bibliothek
- * (Stufe 3: Migration ML Kit → MediaPipe, FABLE_GHOSTCLIMBER_STABILISIERUNG.md).
+ * (Stufe 3: Migration ML Kit → MediaPipe).
  */
 object GhostLandmarkTypes {
     const val NOSE = 0

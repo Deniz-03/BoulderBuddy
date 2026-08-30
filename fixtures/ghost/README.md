@@ -1,7 +1,7 @@
 # Ghost-Climber-Regressions-Fixtures (Stufe 0)
 
-5-Sekunden-On-Wall-Ausschnitte der beiden Referenzvideos (Diagnose-Doc
-`FABLE_GHOSTCLIMBER_STABILISIERUNG.md`, Stufe 0) — Kletterer an der Wand,
+5-Sekunden-On-Wall-Ausschnitte der beiden Referenzvideos (Diagnose-Stufe 0
+der Ghost-Climber-Stabilisierung) — Kletterer an der Wand,
 Rücken zur Kamera, Überkopf-Reach, graues Shirt vor grauer Wand (der
 Out-of-Distribution-Fall, an dem die Pose-Qualität gemessen wird).
 

@@ -7,7 +7,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 
 // =============================================================================
-// Stufe 1 — One-Euro-Filter pro Landmark (FABLE_GHOSTCLIMBER_STABILISIERUNG.md)
+// Stufe 1 — One-Euro-Filter pro Landmark
 // =============================================================================
 //
 // Der One-Euro-Filter (Casiez et al., CHI 2012) ist der Standard für Echtzeit-
