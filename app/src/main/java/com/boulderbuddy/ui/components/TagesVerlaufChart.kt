@@ -107,14 +107,26 @@ fun TagesVerlaufChart(
                     .testTag(TAGES_VERLAUF_TEST_TAG),
             ) {
                 val radius = 5.dp.toPx()
-                // Innenabstand auf beiden Achsen, sonst wären die Punkte an den Rändern
+                // Innenabstand nach oben und unten, sonst wären die Punkte an den Rändern
                 // angeschnitten.
                 val nutzHoehe = size.height - 2 * radius
-                val nutzBreite = size.width - 2 * radius
-                val schritt = if (boulder.size > 1) nutzBreite / (boulder.size - 1) else 0f
 
-                fun xFuer(index: Int): Float =
-                    if (boulder.size > 1) radius + index * schritt else size.width / 2f
+                /*
+                 * Waagerecht bekommt jeder Boulder eine gleich breite Spalte, und der Punkt
+                 * sitzt in deren Mitte.
+                 *
+                 * Das ist keine Geschmacksfrage, sondern die Bedingung dafür, dass die
+                 * Ziffern darunter stimmen: die Beschriftungszeile ist eine `Row` aus
+                 * `weight(1f)`-Zellen, jede Ziffer steht also in der Mitte ihrer Spalte.
+                 * Vorher verteilte diese Funktion die Punkte stattdessen von `radius` bis
+                 * `Breite - radius` — zwei verschiedene Rechnungen, die sich nur in der
+                 * Mitte treffen. Am Gerät stand der erste Punkt rund 110 px links neben
+                 * seiner „1.", der letzte ebenso weit rechts neben seiner „3.", und
+                 * ausgerechnet der mittlere passte.
+                 */
+                val spaltenBreite = size.width / boulder.size
+
+                fun xFuer(index: Int): Float = (index + 0.5f) * spaltenBreite
 
                 fun yFuer(order: Int): Float {
                     val anteil = if (spanne == null) 0.5f else (order - minWert) / spanne

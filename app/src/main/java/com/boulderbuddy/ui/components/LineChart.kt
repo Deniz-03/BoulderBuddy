@@ -113,15 +113,25 @@ fun LineChart(
                 if (points.isEmpty()) return@Canvas
 
                 val radius = 4.dp.toPx()
-                // Innenabstand auf BEIDEN Achsen, damit die Punkte an den Rändern nicht
-                // angeschnitten werden. Ohne den waagerechten Abstand ragte der letzte Punkt
-                // zur Hälfte aus der Zeichenfläche heraus.
+                // Innenabstand nach oben und unten, damit die Punkte dort nicht
+                // angeschnitten werden.
                 val nutzHoehe = size.height - 2 * radius
-                val nutzBreite = size.width - 2 * radius
-                val schritt = if (points.size > 1) nutzBreite / (points.size - 1) else 0f
 
-                fun xFuer(index: Int): Float =
-                    if (points.size > 1) radius + index * schritt else size.width / 2f
+                /*
+                 * Waagerecht bekommt jeder Zeitabschnitt eine gleich breite Spalte, und sein
+                 * Punkt sitzt in deren Mitte — dieselbe Aufteilung, die die Zeitachse
+                 * darunter über `weight(1f)` ohnehin schon benutzt.
+                 *
+                 * Vorher liefen die Punkte von `radius` bis `Breite - radius`, die Labels
+                 * dagegen in gleich breiten Zellen: zwei Rechnungen, die sich nur in der
+                 * Mitte treffen. Je weiter außen ein Abschnitt lag, desto weiter stand seine
+                 * Beschriftung daneben. Der Kommentar an der Zeitachse unten stimmte damit
+                 * nur zur Hälfte — der Spacer allein richtet nichts aus, wenn die Punkte
+                 * innerhalb der Zeichenfläche anders verteilt sind als die Zellen.
+                 */
+                val spaltenBreite = size.width / points.size
+
+                fun xFuer(index: Int): Float = (index + 0.5f) * spaltenBreite
 
                 fun yFuer(wert: Float): Float {
                     val anteil = if (spanne == null) 0.5f else (wert - minWert) / spanne
@@ -152,8 +162,10 @@ fun LineChart(
             }
         }
 
-        // Zeitachse. Der führende Spacer hat exakt die Breite der Wertespalte, damit die
-        // Beschriftungen unter ihren Punkten stehen.
+        // Zeitachse. Zwei Dinge müssen stimmen, damit eine Beschriftung unter ihrem Punkt
+        // steht: der führende Spacer hat exakt die Breite der Wertespalte (verschiebt die
+        // ganze Zeile), und die Punkte oben sitzen in der Mitte derselben `weight(1f)`-
+        // Spalten (siehe `xFuer` in der Zeichenfläche).
         Row(modifier = Modifier.fillMaxWidth()) {
             Spacer(Modifier.width(AchsenBreite))
             points.forEach { punkt ->
