@@ -2,6 +2,8 @@ package com.boulderbuddy.ui.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
@@ -51,6 +53,7 @@ data class EinstellungenUiState(
 
 @HiltViewModel
 class EinstellungenViewModel @Inject constructor(
+    private val texte: Texte,
     @param:ApplicationContext private val appContext: Context,
     private val gradeRepository: GradeRepository,
     private val settingsRepository: SettingsRepository,
@@ -166,9 +169,11 @@ class EinstellungenViewModel @Inject constructor(
         viewModelScope.launch {
             _exportMessage.value = try {
                 val count = sessionExporter.exportCsv(uri)
-                "$count Sessions als CSV exportiert"
+                texte.mehrzahl(
+                    R.plurals.einstellungen_export_ok, count, count,
+                )
             } catch (e: Exception) {
-                "Export fehlgeschlagen: ${e.message}"
+                texte.hole(R.string.einstellungen_export_fehler, e.message.orEmpty())
             }
         }
     }

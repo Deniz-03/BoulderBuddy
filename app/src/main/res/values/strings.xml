@@ -603,6 +603,171 @@
     <string name="push_kanal_beschreibung">Erinnert dich, eine Session zu starten, wenn du an einer Halle ankommst.</string>
 
     <!--
+      Die vier Ziele der Navigationsleiste. Sie stehen nur als Vorlesetext da - sichtbar sind
+      die Symbole. Trotzdem hierher: es ist der Text, ueber den ein Screenreader-Nutzer die
+      App bedient, und der gehoert genauso in die Ressourcen wie jede Ueberschrift.
+    -->
+    <string name="nav_home">Home</string>
+    <string name="nav_sessions">Sessions</string>
+    <string name="nav_statistik">Statistik</string>
+    <string name="nav_timer">Hangboard-Timer</string>
+
+    <!-- Home -->
+    <string name="home_gruss_mit_name">Hallo, %1$s 👋</string>
+    <string name="home_gruss_neutral">Hallo 👋</string>
+    <!-- Beispiel: "Top · V-Scale". Ohne System nur die allgemeine Beschriftung. -->
+    <string name="home_top_grade_system">Top · %1$s</string>
+    <string name="home_top_grade">Top Grade</string>
+
+    <!-- Boulder-Detail -->
+    <string name="boulder_ohne_namen">Boulder</string>
+    <string name="boulder_sektor_wert">Sektor %1$s</string>
+    <!-- Die drei Status-Plaketten. %1$s ist das Symbol, das der Status selbst mitbringt. -->
+    <string name="boulder_status_top">%1$s Top</string>
+    <string name="boulder_status_flash">%1$s Flash</string>
+    <string name="boulder_status_projekt">%1$s Projekt</string>
+    <!-- Kurzform auf der Boulder-Kachel; "Versuche" waere in der Kachel zu lang. Die
+         Abkuerzung ist in Ein- und Mehrzahl gleich - als plurals steht das ausdruecklich da,
+         statt sich auf den Zufall zu verlassen. -->
+    <plurals name="boulder_versuche_kurz">
+        <item quantity="one">%d Vers.</item>
+        <item quantity="other">%d Vers.</item>
+    </plurals>
+
+    <!-- Session-Uebersicht: Richtung der Sortierung (nur Vorlesetext am Pfeil-Symbol). -->
+    <string name="sortierung_absteigend">Absteigend</string>
+    <string name="sortierung_aufsteigend">Aufsteigend</string>
+    <string name="session_nicht_gefunden">Session nicht gefunden.</string>
+    <string name="session_notiz_gespeichert">Notiz gespeichert</string>
+
+    <!-- Statistik: Unterzeile der Aktivitaets-Heatmap. -->
+    <string name="statistik_aktivitaet_spanne">Deine Kletteraktivität · %1$s</string>
+    <string name="statistik_aktivitaet_standard">Deine Kletteraktivität der letzten 4 Wochen</string>
+
+    <!-- Spracheingabe: der Titel wechselt, sobald etwas schiefgegangen ist. -->
+    <string name="sprache_titel">Notiz einsprechen</string>
+    <string name="sprache_titel_fehler">Spracheingabe</string>
+
+    <!--
+      Die drei Stufen des Statistik-Verlaufs, jeweils in Mehrzahl (Umschalter) und Einzahl
+      (Ueberschriften wie "Routen pro Woche").
+
+      Zwei Eintraege statt einem mit `dropLast(1)`: das Abschneiden des letzten Buchstabens
+      ergab aus "Wochen" zwar "Woche", haette aber bei jedem anderen Wort still Unsinn
+      geliefert - und die Einzahl ist ohnehin nicht immer die Mehrzahl minus ein Zeichen.
+    -->
+    <string name="zeitraum_woche">Wochen</string>
+    <string name="zeitraum_woche_einzahl">Woche</string>
+    <string name="zeitraum_monat">Monate</string>
+    <string name="zeitraum_monat_einzahl">Monat</string>
+    <string name="zeitraum_jahr">Jahre</string>
+    <string name="zeitraum_jahr_einzahl">Jahr</string>
+
+    <!--
+      Anzahl-Plaketten. Frueher hiessen sie widget_* und standen nur dem Homescreen-Widget
+      zur Verfuegung; denselben Text fuer die Sessions-Liste ein zweites Mal anzulegen waere
+      genau das, was diese Datei verhindern soll. Bei Boulder ist die Mehrzahl gleich, bei
+      Top nicht - und ein einzelner Top ist am Anfang der Normalfall.
+    -->
+    <plurals name="anzahl_boulder">
+        <item quantity="one">%d Boulder</item>
+        <item quantity="other">%d Boulder</item>
+    </plurals>
+    <plurals name="anzahl_tops">
+        <item quantity="one">%d Top</item>
+        <item quantity="other">%d Tops</item>
+    </plurals>
+
+    <!-- Session-Uebersicht: wonach sortiert wird. -->
+    <string name="sortierung_datum">Datum</string>
+    <string name="sortierung_halle">Halle</string>
+    <string name="sortierung_boulder">Boulder</string>
+
+    <!-- Session: Untertitel und Zusammenfassungen. -->
+    <string name="session_abgeschlossen">%1$s · abgeschlossen</string>
+    <!-- Beispiel: "Heute · läuft gerade · 5 Boulder" -->
+    <string name="session_untertitel">%1$s · %2$s</string>
+
+    <!-- Einstellungen: Rueckmeldung des CSV-Exports. -->
+    <plurals name="einstellungen_export_ok">
+        <item quantity="one">%d Session als CSV exportiert</item>
+        <item quantity="other">%d Sessions als CSV exportiert</item>
+    </plurals>
+    <string name="einstellungen_export_fehler">Export fehlgeschlagen: %1$s</string>
+
+    <!-- Halle: gelerntes Besuchsmuster und die beiden Standort-Absagen. -->
+    <plurals name="halle_besuche">
+        <item quantity="one">%d Besuch</item>
+        <item quantity="other">%d Besuche</item>
+    </plurals>
+    <!-- Beispiel: "8 Besuche · meist dienstags" -->
+    <string name="halle_besuche_tag">%1$s · meist %2$ss</string>
+    <string name="halle_standort_nicht_ermittelbar">Kein Standort verfügbar — sind die Standortdienste an?</string>
+    <string name="halle_standort_fehler">Standort konnte nicht ermittelt werden: %1$s</string>
+
+    <!-- Hangboard-Historie: woher ein Durchlauf stammt und wie er zustande kam. -->
+    <string name="historie_eigenstaendig">Eigenständig</string>
+    <string name="historie_session">Session</string>
+    <string name="historie_auto">Auto</string>
+    <string name="historie_manuell">Manuell</string>
+    <plurals name="historie_saetze">
+        <item quantity="one">%d Satz</item>
+        <item quantity="other">%d Sätze</item>
+    </plurals>
+    <string name="historie_haengezeit">%1$s Hängezeit</string>
+
+    <!-- Hangboard-Timer: wo der fertige Durchlauf gelandet ist. -->
+    <string name="timer_gespeichert_in_halle">In Session „%1$s“ gespeichert</string>
+    <string name="timer_gespeichert_aktive_session">In aktiver Session gespeichert</string>
+    <string name="timer_gespeichert_eigenstaendig">Als eigenständiges Hangboard-Training gespeichert</string>
+    <string name="timer_zusammenfassung">%1$s · %2$s Hängezeit</string>
+
+
+    <!--
+      Geraete-Abgleich: die laufende Fortschrittszeile und die Bilanz danach.
+
+      Sie standen bis hierher im ViewModel, ausgerechnet unter einem Kommentar, der sagt, die
+      Sprache gehoere in den Screen. Jetzt stimmt beides.
+    -->
+    <string name="abgleich_schritt_vorbereiten">Stand wird vorbereitet …</string>
+    <string name="abgleich_schritt_pruefen">Stand wird geprüft …</string>
+    <string name="abgleich_schritt_zusammenfuehren">Wird zusammengeführt …</string>
+    <string name="abgleich_schritt_uebernehmen">Stand wird übernommen …</string>
+    <string name="abgleich_schritt_zuruecknehmen">Wird zurückgenommen …</string>
+    <!-- Beispiel: "Stand abgegeben (412 KB)." -->
+    <string name="abgleich_meldung_abgegeben">Stand abgegeben (%1$d KB).</string>
+    <string name="abgleich_meldung_gleichstand">Beide Geräte sind bereits auf demselben Stand.</string>
+    <string name="abgleich_meldung_uebernommen">Der Stand des anderen Geräts ist übernommen.</string>
+    <string name="abgleich_meldung_nichts_geaendert">Nichts geändert — der Stand dieses Geräts bleibt.</string>
+    <string name="abgleich_meldung_zurueckgenommen">Der letzte Abgleich ist zurückgenommen.</string>
+    <string name="abgleich_meldung_nichts_zurueckzunehmen">Es gibt nichts zurückzunehmen.</string>
+    <string name="abgleich_meldung_fehlgeschlagen">Der Abgleich ist fehlgeschlagen.</string>
+    <!-- Vorgeschlagener Dateiname beim Abgeben ueber den Datei-Weg. -->
+    <string name="abgleich_dateiname">BoulderBuddy-Stand.db</string>
+
+    <!--
+      Ghost Climber: die Absagen, die im Analyse-Bildschirm stehen. Jede nennt, woran es lag -
+      "Analyse fehlgeschlagen" allein liesse den Nutzer ratlos vor demselben Video zurueck.
+    -->
+    <string name="ghost_fehler_keine_person">Im Referenz-Video wurde keine Person sicher erkannt</string>
+    <string name="ghost_fehler_homographie">Homographie fehlgeschlagen — Anker prüfen</string>
+    <string name="ghost_fehler_synchronisation">Synchronisation fehlgeschlagen</string>
+    <string name="ghost_fehler_speichern">Speichern fehlgeschlagen</string>
+    <string name="ghost_fehler_nicht_gefunden">Analyse nicht gefunden</string>
+    <string name="ghost_fehler_daten_geloescht">Analyse-Daten wurden gelöscht — bitte neu analysieren</string>
+    <string name="ghost_fehler_laden">Analyse konnte nicht geladen werden</string>
+    <string name="ghost_fehler_spur_referenz">Referenz: keine verwertbare Pose-Spur</string>
+    <string name="ghost_fehler_spur_vergleich">Vergleich: keine verwertbare Pose-Spur</string>
+
+    <!-- Hangboard-Zusammenfassungen in der Session bzw. unter dem fertigen Timer. -->
+    <string name="hangboard_zusammenfassung_manuell">%1$s · %2$ds Hang / %3$ds Pause</string>
+    <string name="hangboard_zusammenfassung_auto">%1$s · %2$s Hängezeit (Auto)</string>
+
+    <!-- Timer: die beiden Zustaende des mittleren Knopfes. -->
+    <string name="timer_pause">Pause</string>
+    <string name="timer_start">Start</string>
+
+    <!--
       Fehlgeschlagene Schreibvorgaenge. Sie laufen alle ueber denselben Kanal
       (ui/Fehlerkanal.kt) und erscheinen als Snackbar ueber dem, was gerade zu sehen ist.
 
@@ -627,14 +792,6 @@
          plurals und eine Vorlage, die sie zusammensetzt. Bei Boulder ist die Mehrzahl
          gleich, bei Top nicht - und ein einzelner Top ist der Normalfall am Anfang. -->
     <string name="widget_laeuft">läuft gerade · %1$s · %2$s</string>
-    <plurals name="widget_boulder">
-        <item quantity="one">%d Boulder</item>
-        <item quantity="other">%d Boulder</item>
-    </plurals>
-    <plurals name="widget_tops">
-        <item quantity="one">%d Top</item>
-        <item quantity="other">%d Tops</item>
-    </plurals>
     <string name="widget_keine_session">Keine aktive Session</string>
     <plurals name="widget_tops_insgesamt">
         <item quantity="one">%d Top insgesamt</item>

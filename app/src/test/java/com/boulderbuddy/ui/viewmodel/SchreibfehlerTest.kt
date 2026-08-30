@@ -13,6 +13,7 @@ import com.boulderbuddy.fake.FakeRouteRepository
 import com.boulderbuddy.fake.FakeSessionRepository
 import com.boulderbuddy.fake.FakeSettingsRepository
 import com.boulderbuddy.fake.FakeWearConnection
+import com.boulderbuddy.fake.FakeTexte
 import com.boulderbuddy.ui.Fehlerkanal
 import com.boulderbuddy.util.MainDispatcherRule
 import com.google.common.truth.Truth.assertThat
@@ -81,6 +82,7 @@ class SchreibfehlerTest {
         boulderId = 1,
         routeRepository = routes,
         fehlerkanal = fehlerkanal,
+        texte = FakeTexte(),
         gradeRepository = grades,
         sessionRepository = sessions,
     )
@@ -153,6 +155,7 @@ class SchreibfehlerTest {
         gymRepository = gyms,
         hapticPlayer = FakeHapticPlayer(),
         fehlerkanal = fehlerkanal,
+        texte = FakeTexte(),
         wearConnection = FakeWearConnection(),
     )
 

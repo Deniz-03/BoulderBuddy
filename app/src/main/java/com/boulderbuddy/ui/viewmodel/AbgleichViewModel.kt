@@ -2,6 +2,9 @@ package com.boulderbuddy.ui.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import androidx.annotation.StringRes
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.sync.Abgleicher
@@ -61,6 +64,8 @@ class AbgleichViewModel @Inject constructor(
     private val medienUmzug: MedienUmzug,
     private val identitaet: GeraeteIdentitaet,
     private val sitzung: AbgleichSitzung,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt).
+    private val texte: Texte,
 ) : AndroidViewModel(application) {
 
     /**
@@ -123,18 +128,18 @@ class AbgleichViewModel @Inject constructor(
      * dem anderen Gerät tote Links.
      */
     fun gibAb(ziel: Uri) {
-        starte("Stand wird vorbereitet …") {
+        starte(R.string.abgleich_schritt_vorbereiten) {
             medienUmzug.stelleSicher()
             val bytes = standDatei.exportiere(ziel)
             _uiState.update {
-                it.copy(meldung = "Stand abgegeben (${bytes / 1024} KB).")
+                it.copy(meldung = texte.hole(R.string.abgleich_meldung_abgegeben, bytes / 1024))
             }
         }
     }
 
     /** Liest einen abgegebenen Stand ein und schlägt vor, was damit zu tun ist. */
     fun lieseEin(quelle: Uri) {
-        starte("Stand wird geprüft …") {
+        starte(R.string.abgleich_schritt_pruefen) {
             medienUmzug.stelleSicher()
             val datei = standDatei.importiere(quelle)
             when (val vorschlag = abgleicher.pruefe(datei)) {
@@ -143,7 +148,7 @@ class AbgleichViewModel @Inject constructor(
 
                 is Abgleichvorschlag.NichtsZuTun ->
                     _uiState.update {
-                        it.copy(meldung = "Beide Geräte sind bereits auf demselben Stand.")
+                        it.copy(meldung = texte.hole(R.string.abgleich_meldung_gleichstand))
                     }
 
                 // Ohne Konflikte gibt es nichts zu fragen — dann einfach zusammenführen.
@@ -163,20 +168,20 @@ class AbgleichViewModel @Inject constructor(
     /** Antwort auf die Konfliktfrage — gilt **nur** den Konflikten (E12, Ablauf 23). */
     fun entscheideKonflikt(wahl: Seite) {
         val offen = _uiState.value.vorschlag as? Abgleichvorschlag.Zusammenfuehren ?: return
-        starte("Wird zusammengeführt …") { fuehreZusammen(offen, wahl) }
+        starte(R.string.abgleich_schritt_zusammenfuehren) { fuehreZusammen(offen, wahl) }
     }
 
     /** Antwort auf die Erstbegegnungs-Frage: den fremden Stand ganz übernehmen (E10). */
     fun uebernimmFremdenStand() {
         val offen = _uiState.value.vorschlag as? Abgleichvorschlag.Erstbegegnung ?: return
-        starte("Stand wird übernommen …") {
+        starte(R.string.abgleich_schritt_uebernehmen) {
             abgleicher.uebernimmGanz(offen)
             _uiState.update {
                 it.copy(
                     vorschlag = null,
                     neustartNoetig = true,
                     kannRueckgaengig = true,
-                    meldung = "Der Stand des anderen Geräts ist übernommen.",
+                    meldung = texte.hole(R.string.abgleich_meldung_uebernommen),
                 )
             }
         }
@@ -187,7 +192,7 @@ class AbgleichViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 vorschlag = null,
-                meldung = "Nichts geändert — der Stand dieses Geräts bleibt.",
+                meldung = texte.hole(R.string.abgleich_meldung_nichts_geaendert),
             )
         }
         dateien.raeumeEmpfangenesAuf()
@@ -205,18 +210,20 @@ class AbgleichViewModel @Inject constructor(
      * in `vorher.db` nicht mehr drin.
      */
     fun machRueckgaengig() {
-        starte("Wird zurückgenommen …") {
+        starte(R.string.abgleich_schritt_zuruecknehmen) {
             val ging = abgleicher.machRueckgaengig()
             refreshBoulderWidget(getApplication())
             _uiState.update {
                 it.copy(
                     bilanz = null,
                     kannRueckgaengig = false,
-                    meldung = if (ging) {
-                        "Der letzte Abgleich ist zurückgenommen."
-                    } else {
-                        "Es gibt nichts zurückzunehmen."
-                    },
+                    meldung = texte.hole(
+                        if (ging) {
+                            R.string.abgleich_meldung_zurueckgenommen
+                        } else {
+                            R.string.abgleich_meldung_nichts_zurueckzunehmen
+                        },
+                    ),
                 )
             }
         }
@@ -242,10 +249,12 @@ class AbgleichViewModel @Inject constructor(
      * Ein Abbruch darf folgenlos bleiben (Ablauf 5) — deshalb wird der Empfangsordner in
      * jedem Fall aufgeräumt, auch wenn etwas schiefgeht (Ablauf 27).
      */
-    private fun starte(schritt: String, block: suspend () -> Unit) {
+    private fun starte(@StringRes schritt: Int, block: suspend () -> Unit) {
         if (_uiState.value.laeuft) return
         viewModelScope.launch {
-            _uiState.update { it.copy(laeuft = true, schritt = schritt, meldung = null) }
+            _uiState.update {
+                it.copy(laeuft = true, schritt = texte.hole(schritt), meldung = null)
+            }
             try {
                 block()
             } catch (e: Exception) {
@@ -253,7 +262,7 @@ class AbgleichViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         vorschlag = null,
-                        meldung = e.message ?: "Der Abgleich ist fehlgeschlagen.",
+                        meldung = e.message ?: texte.hole(R.string.abgleich_meldung_fehlgeschlagen),
                     )
                 }
             } finally {

@@ -28,6 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import com.boulderbuddy.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -44,12 +47,16 @@ import com.boulderbuddy.ui.theme.Dimens
 enum class BottomNavTab(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
-    val contentDescription: String,
+    /**
+     * Vorlesetext des Ziels — als Ressourcen-ID und nicht als fertiger Text: ein `enum`
+     * entsteht beim Laden der Klasse, und dort gibt es noch keine Resources.
+     */
+    @param:StringRes val contentDescription: Int,
 ) {
-    Home(Icons.Filled.Home, Icons.Outlined.Home, "Home"),
-    Sessions(Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth, "Sessions"),
-    Stats(Icons.Filled.BarChart, Icons.Outlined.BarChart, "Statistik"),
-    Timer(Icons.Filled.Timer, Icons.Outlined.Timer, "Hangboard-Timer"),
+    Home(Icons.Filled.Home, Icons.Outlined.Home, R.string.nav_home),
+    Sessions(Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth, R.string.nav_sessions),
+    Stats(Icons.Filled.BarChart, Icons.Outlined.BarChart, R.string.nav_statistik),
+    Timer(Icons.Filled.Timer, Icons.Outlined.Timer, R.string.nav_timer),
 }
 
 
@@ -128,7 +135,7 @@ private fun BottomNavItem(
     ) {
         Icon(
             imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-            contentDescription = tab.contentDescription,
+            contentDescription = stringResource(tab.contentDescription),
             tint = iconColor,
             modifier = Modifier.size(24.dp),
         )

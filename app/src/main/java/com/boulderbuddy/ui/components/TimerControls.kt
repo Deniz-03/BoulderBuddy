@@ -57,7 +57,9 @@ fun TimerControls(
         )
         CircleControl(
             icon = if (isRunning) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-            contentDescription = if (isRunning) "Pause" else "Start",
+            contentDescription = stringResource(
+                if (isRunning) R.string.timer_pause else R.string.timer_start,
+            ),
             onClick = onPlayPause,
             primary = true,
         )

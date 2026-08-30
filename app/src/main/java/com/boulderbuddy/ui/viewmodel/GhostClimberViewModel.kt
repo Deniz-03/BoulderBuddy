@@ -4,12 +4,14 @@ import android.app.Application
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.boulderbuddy.data.camera.EigeneAufnahmen
 import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
+import com.boulderbuddy.R
 import com.boulderbuddy.data.repository.GhostAnalysisRepository
 import com.boulderbuddy.ghost.Fortschritt
 import com.boulderbuddy.ghost.GhostAnalyseRunner
@@ -178,6 +180,8 @@ class GhostClimberViewModel @Inject constructor(
     private val frameDecoder: GhostFrameDecoder,
     private val analysisRepository: GhostAnalysisRepository,
     private val eigeneAufnahmen: EigeneAufnahmen,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt).
+    private val texte: Texte,
     savedStateHandle: SavedStateHandle,
 ) : AndroidViewModel(application) {
 
@@ -241,9 +245,9 @@ class GhostClimberViewModel @Inject constructor(
                                 id = it.id,
                                 createdAtText = dateFormat.format(Date(it.createdAt)),
                                 modeLabel = if (it.suggestedMode == GhostViewMode.SIDE_BY_SIDE.name) {
-                                    "Side-by-Side"
+                                    texte.hole(R.string.ghost_modus_side_by_side)
                                 } else {
-                                    "Overlay"
+                                    texte.hole(R.string.ghost_modus_overlay)
                                 },
                             )
                         },
@@ -446,7 +450,7 @@ class GhostClimberViewModel @Inject constructor(
                     )
                     val trajectory = refTrack.smoothedHipTrajectory()
                         ?: throw IllegalStateException(
-                            "Im Referenz-Video wurde keine Person sicher erkannt",
+                            texte.hole(R.string.ghost_fehler_keine_person),
                         )
                     val ghost = cmpTrack.transformedBy(homography, refTrack)
                     // Die Homographie ist die einzige Pipeline-Stufe ohne eigene
@@ -477,7 +481,7 @@ class GhostClimberViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(error = e.message ?: "Homographie fehlgeschlagen — Anker prüfen")
+                    it.copy(error = e.message ?: texte.hole(R.string.ghost_fehler_homographie))
                 }
             }
         }
@@ -518,7 +522,7 @@ class GhostClimberViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(error = e.message ?: "Synchronisation fehlgeschlagen")
+                    it.copy(error = e.message ?: texte.hole(R.string.ghost_fehler_synchronisation))
                 }
             }
         }
@@ -581,9 +585,9 @@ class GhostClimberViewModel @Inject constructor(
     ): SyncResult {
         val path = RoutePolyline(routePath)
         val refSignal = progressSignal(refTrack, path)
-            ?: throw IllegalStateException("Referenz: keine verwertbare Pose-Spur")
+            ?: throw IllegalStateException(texte.hole(R.string.ghost_fehler_spur_referenz))
         val cmpSignal = progressSignal(ghostTrack, path)
-            ?: throw IllegalStateException("Vergleich: keine verwertbare Pose-Spur")
+            ?: throw IllegalStateException(texte.hole(R.string.ghost_fehler_spur_vergleich))
         val alignment = dtw(refSignal, cmpSignal, GhostTuning.DTW_BAND_FRACTION)
         val refTrajectory = refTrack.smoothedHipTrajectory().orEmpty()
         val cmpTrajectory = ghostTrack.smoothedHipTrajectory().orEmpty()
@@ -668,7 +672,7 @@ class GhostClimberViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Speichern fehlgeschlagen") }
+                _uiState.update { it.copy(error = e.message ?: texte.hole(R.string.ghost_fehler_speichern)) }
             }
         }
     }
@@ -688,11 +692,11 @@ class GhostClimberViewModel @Inject constructor(
             _uiState.update { it.copy(error = null) }
             try {
                 val entity = analysisRepository.getById(id)
-                    ?: throw IllegalStateException("Analyse nicht gefunden")
+                    ?: throw IllegalStateException(texte.hole(R.string.ghost_fehler_nicht_gefunden))
                 val refTrack = artifactStore.loadPoseTrackFromPath(entity.refKeypointsPath)
-                    ?: throw IllegalStateException("Analyse-Daten wurden gelöscht — bitte neu analysieren")
+                    ?: throw IllegalStateException(texte.hole(R.string.ghost_fehler_daten_geloescht))
                 val cmpTrack = artifactStore.loadPoseTrackFromPath(entity.cmpKeypointsPath)
-                    ?: throw IllegalStateException("Analyse-Daten wurden gelöscht — bitte neu analysieren")
+                    ?: throw IllegalStateException(texte.hole(R.string.ghost_fehler_daten_geloescht))
                 val homography = Homography(json.decodeFromString<DoubleArray>(entity.homographyCmpJson))
                 val routePath = json.decodeFromString<List<GhostPoint>>(entity.routePathJson)
 
@@ -730,7 +734,7 @@ class GhostClimberViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
-                    it.copy(error = e.message ?: "Analyse konnte nicht geladen werden")
+                    it.copy(error = e.message ?: texte.hole(R.string.ghost_fehler_laden))
                 }
             } finally {
                 // Auch nach einem Fehlschlag: sonst bliebe der Bildschirm für den Rest seines

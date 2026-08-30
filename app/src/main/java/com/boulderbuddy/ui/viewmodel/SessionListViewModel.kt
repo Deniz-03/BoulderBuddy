@@ -1,7 +1,10 @@
 package com.boulderbuddy.ui.viewmodel
 
 import androidx.compose.ui.graphics.Color
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
+import androidx.annotation.StringRes
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.hallenName
 import com.boulderbuddy.data.repository.GradeRepository
@@ -31,10 +34,10 @@ data class SessionListItemUi(
 )
 
 /** Sortier-Kriterium der Session-Übersicht. */
-enum class SessionSortMode(val label: String) {
-    DATUM("Datum"),
-    HALLE("Halle"),
-    BOULDER("Boulder"),
+enum class SessionSortMode(@param:StringRes val label: Int) {
+    DATUM(R.string.sortierung_datum),
+    HALLE(R.string.sortierung_halle),
+    BOULDER(R.string.sortierung_boulder),
 }
 
 data class SessionListUiState(
@@ -50,6 +53,9 @@ class SessionListViewModel @Inject constructor(
     routeRepository: RouteRepository,
     gymRepository: GymRepository,
     gradeRepository: GradeRepository,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt: als Schnittstelle,
+    // damit dieses ViewModel ohne Android testbar bleibt).
+    private val texte: Texte,
 ) : ViewModel() {
 
     // Sortierung ist reiner Anzeige-Zustand (nicht persistiert) und lebt daher im ViewModel,
@@ -97,12 +103,23 @@ class SessionListViewModel @Inject constructor(
             val isActive = session.endedAt == null
             val topCount = sessionRoutes.count { it.status.istGetoppt }
             val badges = buildList {
-                add("${sessionRoutes.size} Boulder")
-                if (!isActive && topCount > 0) add("$topCount Tops")
+                add(
+                    texte.mehrzahl(
+                        R.plurals.anzahl_boulder, sessionRoutes.size, sessionRoutes.size,
+                    )
+                )
+                if (!isActive && topCount > 0) {
+                    add(
+                        texte.mehrzahl(
+                            R.plurals.anzahl_tops, topCount, topCount,
+                        )
+                    )
+                }
             }
             SessionListItemUi(
                 id = session.id,
-                gym = session.hallenName { gymsById[it]?.name } ?: "Unbekannte Halle",
+                gym = session.hallenName { gymsById[it]?.name }
+                    ?: texte.hole(R.string.session_halle_unbekannt),
                 date = formatSessionTag(session.date, laeuftNoch = isActive),
                 accentColor = accentColorFor(sessionRoutes),
                 badges = badges,

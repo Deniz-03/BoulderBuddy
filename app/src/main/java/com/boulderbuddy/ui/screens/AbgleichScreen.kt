@@ -65,7 +65,7 @@ import com.boulderbuddy.ui.viewmodel.AbgleichUiState
 fun AbgleichScreen(
     state: AbgleichUiState = AbgleichUiState(),
     // Dateiname, den der Speichern-Dialog vorschlägt.
-    abgabeName: String = "BoulderBuddy-Stand.db",
+    abgabeName: String = stringResource(R.string.abgleich_dateiname),
     // Zustand des Funkwegs; kommt aus der Sitzung, nicht aus dem ViewModel — die Uebertragung
     // laeuft im Foreground Service weiter, auch wenn dieser Screen verschwindet.
     funkStand: Sitzungsstand = Sitzungsstand.Untaetig,

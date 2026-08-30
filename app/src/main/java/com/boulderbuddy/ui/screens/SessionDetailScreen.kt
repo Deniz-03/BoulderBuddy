@@ -29,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.R
@@ -214,7 +215,11 @@ fun SessionDetailScreen(
                                                 RouteCard(
                                                     grade = cell.grade,
                                                     name = cell.name,
-                                                    meta = "${cell.versuche} Vers.",
+                                                    meta = pluralStringResource(
+                                                        R.plurals.boulder_versuche_kurz,
+                                                        cell.versuche,
+                                                        cell.versuche,
+                                                    ),
                                                     accentColor = cell.accentColor,
                                                     statusIcon = {
                                                         Text(

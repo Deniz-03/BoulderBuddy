@@ -8,6 +8,7 @@ import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.R
 import com.boulderbuddy.ui.Fehlerkanal
+import com.boulderbuddy.ui.Texte
 import com.boulderbuddy.ui.schreibe
 import com.boulderbuddy.ui.model.toBoulderStatus
 import com.boulderbuddy.ui.theme.routeColorForKey
@@ -59,6 +60,8 @@ class BoulderDetailViewModel @AssistedInject constructor(
     @Assisted private val boulderId: Int,
     private val routeRepository: RouteRepository,
     private val fehlerkanal: Fehlerkanal,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt).
+    private val texte: Texte,
     gradeRepository: GradeRepository,
     sessionRepository: SessionRepository,
 ) : ViewModel() {
@@ -80,7 +83,9 @@ class BoulderDetailViewModel @AssistedInject constructor(
         BoulderDetailUiState(
             loading = false,
             exists = true,
-            name = route.name.ifBlank { grade?.label ?: "Boulder" },
+            name = route.name.ifBlank {
+                grade?.label ?: texte.hole(R.string.boulder_ohne_namen)
+            },
             sektor = route.sektor.orEmpty(),
             grade = grade?.label ?: "—",
             accentColor = routeColorForKey(route.color),

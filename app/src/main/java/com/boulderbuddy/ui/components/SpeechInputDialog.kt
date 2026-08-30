@@ -75,7 +75,13 @@ fun SpeechInputDialog(
 
     AlertDialog(
         onDismissRequest = onAbbrechen,
-        title = { Text(if (fehler != null) "Spracheingabe" else "Notiz einsprechen") },
+        title = {
+            Text(
+                stringResource(
+                    if (fehler != null) R.string.sprache_titel_fehler else R.string.sprache_titel,
+                )
+            )
+        },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),

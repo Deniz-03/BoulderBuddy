@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
@@ -55,6 +56,9 @@ class HangboardTimerViewModel @Inject constructor(
     private val hapticPlayer: HapticPlayer,
     private val fehlerkanal: Fehlerkanal,
     wearConnection: WearConnection,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt: als Schnittstelle,
+    // damit dieses ViewModel ohne Android testbar bleibt).
+    private val texte: Texte,
 ) : ViewModel() {
 
     // Konfiguration (var, da über updateConfig änderbar). Defaults bis DataStore geladen ist.
@@ -330,10 +334,13 @@ class HangboardTimerViewModel @Inject constructor(
                     // Auflösungsregel soll aber auch hier nicht ein zweites Mal dastehen.
                     val halle = session.gymId?.let { gymRepository.getById(it) }
                     val gymName = session.hallenName { halle?.name }
-                    if (gymName != null) "In Session „$gymName“ gespeichert"
-                    else "In aktiver Session gespeichert"
+                    if (gymName != null) {
+                        texte.hole(R.string.timer_gespeichert_in_halle, gymName)
+                    } else {
+                        texte.hole(R.string.timer_gespeichert_aktive_session)
+                    }
                 } else {
-                    "Als eigenständiges Hangboard-Training gespeichert"
+                    texte.hole(R.string.timer_gespeichert_eigenstaendig)
                 }
                 _uiState.value = snapshot()
             }
@@ -357,7 +364,11 @@ class HangboardTimerViewModel @Inject constructor(
             restSec = restSec,
             isRunning = running,
             doneSummary = if (phase == TimerPhase.DONE) {
-                "$totalSets Sätze · ${format(totalSets * hangSec)} Hängezeit"
+                texte.hole(
+                    R.string.timer_zusammenfassung,
+                    texte.mehrzahl(R.plurals.historie_saetze, totalSets, totalSets),
+                    format(totalSets * hangSec),
+                )
             } else null,
             savedTo = if (phase == TimerPhase.DONE) savedTo else null,
             watchConnected = watchConnected,
