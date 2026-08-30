@@ -105,6 +105,11 @@ Migration tatsächlich startet.
 Instrumented-Tests, brauchen Gerät oder Emulator. Nur das, was ohne Android nicht geht: Rooms
 eigene Migrations-Validierung und die Compose-Layout-Tests.
 
+## Dokumentation
+
+Der Projektbericht für die Abgabe liegt in [`doku/`](doku/) — dort auch die Prüfung seiner
+Aussagen gegen den Quelltext.
+
 ## Planungsdokumente
 
 Die Dokumente im Wurzelverzeichnis sind Arbeitsgrundlage, nicht Nachdokumentation — sie wurden
