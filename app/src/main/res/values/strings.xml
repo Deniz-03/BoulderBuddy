@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">BoulderBuddy</string>
     <string name="widget_description">Aktive Session, Tops und Schnellstart für Timer/Session.</string>
 
@@ -14,7 +14,10 @@
     <string name="ghost_analyse_kanal">Ghost-Analyse</string>
     <string name="ghost_analyse_startet">Analyse startet …</string>
     <!-- Beispiel: „Referenz · 120 von 289 Frames" -->
-    <string name="ghost_analyse_fortschritt">%1$s · %2$d von %3$d Frames</string>
+    <!-- Lint sieht "%2$d von" und schlaegt plurals vor. Das Wort hinter der ersten Zahl ist
+         aber "von" und kein Hauptwort; die Mehrzahl richtet sich nach %3$d, und ein Video mit
+         genau einem Frame gibt es nicht. -->
+    <string name="ghost_analyse_fortschritt" tools:ignore="PluralsCandidate">%1$s · %2$d von %3$d Frames</string>
     <string name="ghost_analyse_fertig">Posen erkannt — tippen, um weiterzumachen</string>
     <string name="ghost_analyse_abbrechen">Abbrechen</string>
     <string name="ghost_video_referenz">Referenz</string>
@@ -241,7 +244,10 @@
     <string name="ghost_gespeicherte">Gespeicherte Analysen</string>
     <string name="ghost_vorschlag">Vorschlag: %1$s</string>
     <!-- Beispiel: „Referenz: fertig (289 Frames)" -->
-    <string name="ghost_fortschritt_fertig">%1$s: fertig (%2$d Frames)</string>
+    <plurals name="ghost_fortschritt_fertig">
+        <item quantity="one">%1$s: fertig (%2$d Frame)</item>
+        <item quantity="other">%1$s: fertig (%2$d Frames)</item>
+    </plurals>
     <string name="ghost_fortschritt_frame">%1$s: Frame %2$d / %3$d</string>
     <string name="ghost_fortschritt_vorbereitung">%1$s: wird vorbereitet…</string>
     <string name="ghost_eigene_titel">Aufnahmen in der App</string>
@@ -253,7 +259,14 @@
     <string name="ghost_anker_hinweis">Tippe in beiden Videos DIESELBEN %1$d+ markanten Wandpunkte (Griffe/Volumes) in derselben Reihenfolge an — gleiche Farbe = gleicher Punkt. Mit dem Regler findest du ein Standbild mit freier Wand.</string>
     <string name="ghost_uebereinanderlegen">Übereinanderlegen</string>
     <string name="ghost_anker_ungleich">Beide Videos brauchen GLEICH VIELE Anker (aktuell %1$d vs. %2$d).</string>
-    <string name="ghost_anker_zu_wenige">Noch mindestens %1$d Anker pro Video setzen.</string>
+    <!-- "Anker" heisst in Ein- und Mehrzahl gleich; die beiden Formen unterscheiden sich
+         nur im Zahlwort. Trotzdem als plurals, weil die Zahl aus GhostTuning.MIN_ANCHORS
+         kommt und dort auch 1 stehen darf - dann waere "mindestens 1 Anker" richtig und
+         "mindestens 1 Anker pro Video" mit Mehrzahl-Satzbau schief. -->
+    <plurals name="ghost_anker_zu_wenige">
+        <item quantity="one">Noch mindestens %1$d Anker pro Video setzen.</item>
+        <item quantity="other">Noch mindestens %1$d Anker pro Video setzen.</item>
+    </plurals>
     <string name="ghost_zurueck_auswahl">Zurück zur Video-Auswahl</string>
 
     <!-- Ghost, Schritt 3: Routenpfad -->
@@ -404,7 +417,11 @@
     <!-- Session anlegen: der Hinweis auf eine schon laufende Session. Bewusst ein Hinweis
          und keine Rueckfrage - mehrere gleichzeitig sind erlaubt, und ein Dialog, den man
          jedes Mal wegtippt, informiert nach dem zweiten Mal niemanden mehr. -->
-    <string name="session_laeuft_mehrere">Es laufen bereits %1$d Sessions. Die letzte: %2$s, %3$s.</string>
+    <!-- Kein plurals: dieser Satz erscheint ausschliesslich bei anzahl > 1 (siehe
+         SessionErstellenScreen.LaufendeSessionHinweis). Fuer genau eine Session gibt es
+         session_laeuft_in_halle bzw. session_laeuft_ohne_halle - mit "Es laeuft" statt
+         "Es laufen", was eine Mehrzahlform gar nicht abbilden koennte. -->
+    <string name="session_laeuft_mehrere" tools:ignore="PluralsCandidate">Es laufen bereits %1$d Sessions. Die letzte: %2$s, %3$s.</string>
     <string name="session_laeuft_ohne_halle">Es läuft bereits eine Session, %1$s.</string>
     <string name="session_laeuft_in_halle">In „%1$s“ läuft bereits eine Session, %2$s.</string>
     <string name="session_halle_unbekannt">unbekannte Halle</string>

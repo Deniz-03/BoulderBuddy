@@ -1,6 +1,7 @@
 package com.boulderbuddy.ghost.video
 
 import android.graphics.Bitmap
+import androidx.core.graphics.scale
 import android.graphics.Matrix
 import android.media.MediaMetadataRetriever
 import android.os.Build
@@ -41,11 +42,9 @@ internal fun MediaMetadataRetriever.scaledFrameAt(timeMs: Long, longSide: Int): 
     val full = getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST) ?: return null
     val scale = longSide.toFloat() / maxOf(full.width, full.height)
     if (scale >= 1f) return full
-    val scaled = Bitmap.createScaledBitmap(
-        full,
+    val scaled = full.scale(
         (full.width * scale).roundToInt(),
         (full.height * scale).roundToInt(),
-        true,
     )
     if (scaled !== full) full.recycle()
     return scaled

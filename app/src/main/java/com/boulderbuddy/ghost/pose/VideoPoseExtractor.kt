@@ -2,6 +2,7 @@ package com.boulderbuddy.ghost.pose
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.core.graphics.scale
 import android.media.MediaMetadataRetriever
 import android.util.Log
 import androidx.core.net.toUri
@@ -323,7 +324,7 @@ class VideoPoseExtractor @Inject constructor(
                 return landmarks
             }
         }
-        val scaled = Bitmap.createScaledBitmap(full, analysisWidth, analysisHeight, true)
+        val scaled = full.scale(analysisWidth, analysisHeight)
             .asArgb8888()
         val landmarks = runDetection(scaled, detect) { x, y ->
             x * analysisWidth to y * analysisHeight

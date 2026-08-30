@@ -28,7 +28,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class EigeneAufnahmen @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
 
     private val ordner = File(context.filesDir, AUFNAHME_ORDNER)

@@ -470,8 +470,8 @@ private fun GradeDistributionSection(
 @Composable
 private fun HangboardSection(
     state: StatistikUiState,
-    onOpen: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onOpen: () -> Unit = {},
 ) {
     Column(
         modifier = modifier.clickable(onClick = onOpen),

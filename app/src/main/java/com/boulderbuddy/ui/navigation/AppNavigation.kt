@@ -23,7 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -136,16 +136,22 @@ fun AppNavigation(
      * Fehlgeschlagene Schreibvorgänge — an genau dieser Stelle, weil sie von überall kommen
      * können und über allem liegen sollen (siehe `ui/Fehlerkanal.kt`).
      *
-     * Der Sammler hängt an `Unit` und damit an der Lebensdauer der Composition, nicht am
-     * aktuellen Ziel: eine Meldung darf einen Screenwechsel überleben, sonst verschwände
-     * ausgerechnet die Meldung zum abgebrochenen Speichern zusammen mit dem Formular.
+     * Der Sammler hängt an der Lebensdauer der Composition und nicht am aktuellen Ziel:
+     * eine Meldung darf einen Screenwechsel überleben, sonst verschwände ausgerechnet die
+     * Meldung zum abgebrochenen Speichern zusammen mit dem Formular.
      */
     val fehlerkanalViewModel: FehlerkanalViewModel = hiltViewModel()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
-    LaunchedEffect(Unit) {
+    /*
+     * `LocalResources` und nicht `LocalContext.current.getString`: ein Lesen über den Context
+     * wird bei einem Konfigurationswechsel nicht ungültig, die Meldung käme nach einem
+     * Sprachwechsel also in der alten Sprache. Der Effekt hängt am Ressourcen-Objekt und
+     * startet mit ihm neu.
+     */
+    val resources = LocalResources.current
+    LaunchedEffect(resources) {
         fehlerkanalViewModel.meldungen.collect { textId ->
-            snackbarHostState.showSnackbar(context.getString(textId))
+            snackbarHostState.showSnackbar(resources.getString(textId))
         }
     }
 

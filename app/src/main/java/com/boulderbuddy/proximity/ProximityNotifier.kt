@@ -33,7 +33,7 @@ object ProximityIntent {
  */
 @Singleton
 class ProximityNotifier @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
     fun showSessionReminder(gymId: Int, gymName: String) {
         // POST_NOTIFICATIONS ist ab API 33 Runtime-Permission (wird beim Feature-Opt-in
