@@ -23,6 +23,29 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        /*
+         * Nur 64-Bit-Bibliotheken einpacken.
+         *
+         * MediaPipe bringt seine native Bibliothek für vier Architekturen mit; im Release
+         * waren das 46 von 93 MB, und die Hälfte davon lag für Geräte da, die es hier nicht
+         * gibt. Gemessen an der Release-APK:
+         *
+         *     x86          15,0 MB   32-Bit-Emulator, seit Jahren nicht mehr die Vorgabe
+         *     armeabi-v7a   7,4 MB   32-Bit-Telefone; ab Android 8 die Ausnahme
+         *     x86_64       13,1 MB   Standard-Emulator  → bleibt
+         *     arm64-v8a    10,6 MB   jedes aktuelle Telefon → bleibt
+         *
+         * `x86_64` bleibt ausdrücklich drin: es ist die Architektur des Standard-Emulators.
+         * Ohne sie liesse sich die App dort nicht mehr installieren — das wäre der teuerste
+         * Weg, 13 MB zu sparen.
+         *
+         * Als `abiFilters` und nicht als `splits`: eine einzige APK, die überall läuft, statt
+         * vier, aus denen jemand die richtige heraussuchen müsste.
+         */
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     // MigrationTestHelper liest die exportierten Schemas aus den Test-Assets (Sync-Plan S0).
