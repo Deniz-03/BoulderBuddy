@@ -670,7 +670,22 @@ fun AppNavigation(
 
             // Telefon: Leiste unten.
             if (untereLeiste != null) {
-                Box(modifier = Modifier.navigationBarsPadding()) {
+                /*
+                 * Die Chrome-Farbe wird VOR dem Abstand aufgetragen und läuft dadurch hinter
+                 * der Navigationsleiste des Geräts weiter.
+                 *
+                 * Seit der Kontrast-Schleier aus ist (MainActivity), zeichnet die App bis zur
+                 * Bildschirmkante durch. In der Reihenfolge `navigationBarsPadding()` zuerst
+                 * endete die Leiste am Abstand, und darunter erschien die creme Grundfläche
+                 * mit dem Punktmuster — zwei verschieden helle Bänder übereinander, mit einer
+                 * Kante quer über den Bildschirm. So ist es eine durchgehende Fläche, auf der
+                 * die drei Systemsymbole stehen.
+                 */
+                Box(
+                    modifier = Modifier
+                        .background(BoulderBuddy.colors.surfaceChrome)
+                        .navigationBarsPadding(),
+                ) {
                     BottomNav(
                         selectedTab = untereLeiste,
                         onTabSelect = { tab -> navController.navigateToTab(tab) },

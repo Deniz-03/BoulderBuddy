@@ -2,6 +2,7 @@ package com.boulderbuddy
 
 import android.content.Intent
 import android.graphics.Color.TRANSPARENT
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -56,6 +57,27 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         /*
+         * Den Kontrast-Schleier des Systems abschalten.
+         *
+         * „Randlos" hieß bisher überall — außer unter der Navigationsleiste. Dort lag ein
+         * deckendes Weiß, das nicht aus der App kam: bei der 3-Tasten-Navigation legt Android
+         * von sich aus eine Fläche unter die Leiste, damit ihre Symbole auf beliebigem
+         * App-Inhalt lesbar bleiben. Das ist eine sinnvolle Vorgabe für Apps, die bis unter die
+         * Leiste zeichnen (Bilder, Karten, Listen) — hier aber nicht: unter der Leiste liegt
+         * die ruhige Grundfläche der App, die Symbole stehen darauf ohne Weiteres lesbar, und
+         * ihre Helligkeit folgt ohnehin dem App-Theme (siehe `SystemBarStyle.auto` unten).
+         *
+         * Ohne die Zeile bliebe das Weiß trotz `TRANSPARENT`: `enableEdgeToEdge` setzt die
+         * Farbe der Leiste, nicht den Schleier darüber.
+         *
+         * Ab API 29 — darunter (26–28) gibt es die Eigenschaft nicht, dort zeichnet Android
+         * ohnehin keinen solchen Schleier.
+         */
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+
+        /*
          * Ein Sprungziel wird genau einmal angesteuert — danach ist der Intent verbraucht.
          *
          * `getIntent()` liefert nach einem Neuaufbau dieser Activity (Drehen, Theme-Wechsel)
@@ -103,6 +125,13 @@ class MainActivity : ComponentActivity() {
                         TRANSPARENT, TRANSPARENT,
                     ) { darkTheme },
                 )
+                // Muss NACH jedem `enableEdgeToEdge` stehen: der Aufruf setzt den
+                // Kontrast-Schleier selbst wieder, die Zeile in `onCreate` allein wurde
+                // von diesem Effekt also jedes Mal überschrieben (am Gerät: die Leiste
+                // blieb weiß). Begründung zur Sache steht dort.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    window.isNavigationBarContrastEnforced = false
+                }
                 onDispose {}
             }
 
