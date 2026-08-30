@@ -22,10 +22,7 @@ import androidx.window.core.layout.WindowSizeClass
 enum class Breite {
     Kompakt,
     Mittel,
-    Weit;
-
-    /** Alles außer Telefon-hochkant. Für Fälle, die nur „schmal oder nicht" wissen müssen. */
-    val istBreit: Boolean get() = this != Kompakt
+    Weit,
 }
 
 /**

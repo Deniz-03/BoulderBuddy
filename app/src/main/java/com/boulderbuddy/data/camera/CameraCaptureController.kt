@@ -49,12 +49,6 @@ class CameraCaptureController(private val context: Context) {
 
     private val executor = ContextCompat.getMainExecutor(context)
 
-    /** Ob überhaupt eine Kamera vorhanden ist. Erst nach [bind] aussagekräftig. */
-    fun hatKamera(vorderkamera: Boolean): Boolean {
-        val provider = cameraProvider ?: return false
-        return runCatching { provider.hasCamera(selektor(vorderkamera)) }.getOrDefault(false)
-    }
-
     /**
      * Bindet Vorschau und den zum [modus] passenden Anwendungsfall an den Lifecycle.
      *

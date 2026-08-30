@@ -30,12 +30,13 @@ di/         Hilt-Module
 ghost/      Ghost Climber: Pose-Erkennung (MediaPipe), Geometrie, Analyse
 proximity/  Geofences, Näherungs-Benachrichtigung, Besuchsstatistik
 sync/       Geräte-Abgleich (Nearby Connections + Datei-Weg)
-ui/         Screens, ViewModels, Navigation, Theme
+ui/         Screens, ViewModels, Navigation, Theme, Fehlerkanal + Texte
+util/       Kleinkram ohne eigene Heimat (MediaType)
 wearsync/   Gegenstelle zur Uhr (Data Layer)
 widget/     Homescreen-Widget (Glance)
 ```
 
-Die Datenbank ist bei **v11**; die Wahrheit über das Schema sind die exportierten JSONs in
+Die Datenbank ist bei **v12**; die Wahrheit über das Schema sind die exportierten JSONs in
 `app/schemas/`, nicht die Entities.
 
 ## Tech-Stack
@@ -114,7 +115,6 @@ vor dem jeweiligen Bauabschnitt geschrieben.
 - [`IMPLEMENTIERUNGSPLAN.md`](IMPLEMENTIERUNGSPLAN.md) — Gesamtplan vom UI-Prototyp zur MVP.
 - [`PHASE7_PLAN.md`](PHASE7_PLAN.md) — Phase 7 (lose Enden, Post-MVP) im Detail, inklusive der
   Anhänge A–C, die als Auftrag an ein zweites Modell dienten.
-- [`NAECHSTE_SESSION_PLAN.md`](NAECHSTE_SESSION_PLAN.md) — was ohne Uhr und Tablet noch geht.
 
 **Pläne einzelner Bauabschnitte**
 
@@ -122,6 +122,12 @@ vor dem jeweiligen Bauabschnitt geschrieben.
 - [`SYNC_PLAN.md`](SYNC_PLAN.md) — Geräte-Abgleich, achte Fassung; Anschluss an den Tablet-Plan.
 - [`PUSHNOT_TESTEN.md`](PUSHNOT_TESTEN.md) — wie sich der Näherungs-Push ohne Fahrt zur Halle
   prüfen lässt.
+
+**Durchsichten**
+
+- [`KOMMENTARPFLEGE.md`](KOMMENTARPFLEGE.md) — ein Durchgang durch jede Code-Datei mit einer
+  einzigen Frage: stimmt noch, was dort behauptet wird? Mit den drei Befunden, die dabei
+  herauskamen — und einem in eigener Sache.
 
 **Testpläne und ihre Ergebnisse** (jeweils Paare — Plan nennt Vorbedingung und Erwartung,
 das Ergebnis hält fest, was wirklich passierte)

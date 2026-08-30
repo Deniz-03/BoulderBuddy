@@ -278,7 +278,7 @@ class Abgleicher @Inject constructor(
                 db.execSQL(
                     "INSERT OR REPLACE INTO stand_meta (id, generation, erzeugtVon, basiertAuf) " +
                         "VALUES (?, ?, ?, ?)",
-                    arrayOf(
+                    arrayOf<Any?>(
                         StandMetaEntity.EINZIGE_ZEILE,
                         meta.generation,
                         meta.erzeugtVon,
@@ -333,9 +333,6 @@ class Abgleicher @Inject constructor(
         dateien.verwirfVorher()
         true
     }
-
-    /** Der eigene Stand als Datei, fertig zum Abgeben. */
-    suspend fun gibStandAb(nach: File): File = dateien.kopiereStand(nach)
 
     /**
      * Alles, was die Gegenseite über dieses Gerät wissen muss, um den Handschlag zu prüfen

@@ -81,12 +81,6 @@ class MedienSpeicher @Inject constructor(
         uriFuer(ziel.name).toString()
     }
 
-    /** SHA-256 einer bereits abgelegten Datei — nur für Prüfungen, im Alltag ist der Name der Hash. */
-    suspend fun hashVon(datei: File): String? = withContext(Dispatchers.IO) {
-        if (!datei.exists()) return@withContext null
-        runCatching { datei.inputStream().use { hashe(it) } }.getOrNull()
-    }
-
     private fun istSchonUebernommen(uri: Uri): Boolean {
         val name = uri.lastPathSegment ?: return false
         return istInhaltsadressiert(name) && datei(name).exists()
@@ -113,17 +107,6 @@ class MedienSpeicher @Inject constructor(
                 digest.update(puffer, 0, gelesen)
                 aus.write(puffer, 0, gelesen)
             }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
-
-    private fun hashe(ein: InputStream): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val puffer = ByteArray(64 * 1024)
-        while (true) {
-            val gelesen = ein.read(puffer)
-            if (gelesen <= 0) break
-            digest.update(puffer, 0, gelesen)
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
     }

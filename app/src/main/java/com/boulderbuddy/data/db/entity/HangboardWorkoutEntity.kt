@@ -79,12 +79,13 @@ data class HangboardSegmentEntity(
 /** Ein Workout mitsamt seinen Sätzen — Lese-Modell aller Hangboard-Abfragen. */
 data class HangboardWorkoutWithSegments(
     @Embedded val workout: HangboardWorkoutEntity,
+    /**
+     * Die Sätze — **in unbestimmter Reihenfolge**: Room sagt über die Ordnung einer
+     * `@Relation` nichts zu. Heute liest sie niemand der Reihe nach (es wird gezählt und
+     * summiert), wer das ändert, sortiert vorher nach [HangboardSegmentEntity.setIndex].
+     */
     @Relation(parentColumn = "id", entityColumn = "workoutId")
     val segments: List<HangboardSegmentEntity>,
 ) {
-    /** Sätze sortiert nach [HangboardSegmentEntity.setIndex] (Room garantiert keine Ordnung). */
-    val orderedSegments: List<HangboardSegmentEntity>
-        get() = segments.sortedBy { it.setIndex }
-
     val totalHangMs: Long get() = segments.sumOf { it.hangMs }
 }

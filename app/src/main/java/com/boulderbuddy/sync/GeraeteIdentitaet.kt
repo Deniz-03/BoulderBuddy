@@ -90,9 +90,7 @@ data class Identitaet(
      * stehen. Was wirklich geändert wurde, sagt allein der Vergleich mit `basis.db`.
      */
     val geaendertSeitAbgleich: Boolean,
-) {
-    val hatAbgeglichen: Boolean get() = partnerId != null
-}
+)
 
 /**
  * Geräte-ID und Nummernband, in einem **eigenen** DataStore.
@@ -146,6 +144,12 @@ class GeraeteIdentitaet @Inject constructor(
     /**
      * Verwirft die Kopplung: das Gerät gilt wieder als „noch nie abgeglichen" (Ablauf 36).
      * Die Geräte-ID bleibt — sie ist die Identität, nicht die Beziehung.
+     *
+     * **Diese Funktion wird zurzeit von niemandem gerufen — sie ist keine Leiche, sondern
+     * unverdrahtet.** `Abgleicher.machRueckgaengig()` setzt heute nur die Datentabellen
+     * zurueck und laesst Herkunft und Kopplung stehen; die Ausnahme fuer die Erstbegegnung,
+     * die der SYNC_PLAN unter Ablauf 36 verlangt, fehlt dort noch. Wer sie einbaut, ruft
+     * diese Funktion und `AbgleichDateien.verwirfKopplung()` von dort aus auf.
      */
     suspend fun loeseKopplung() {
         dataStore.edit { prefs ->

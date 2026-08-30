@@ -15,7 +15,6 @@ import com.boulderbuddy.data.db.dao.HangboardWorkoutDao
 import com.boulderbuddy.data.db.dao.MedienDao
 import com.boulderbuddy.data.db.dao.RouteDao
 import com.boulderbuddy.data.db.dao.SessionDao
-import com.boulderbuddy.data.db.dao.StandMetaDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -74,9 +73,6 @@ object DatabaseModule {
     @Provides
     fun provideGhostAnalysisDao(db: BoulderBuddyDatabase): GhostAnalysisDao =
         db.ghostAnalysisDao()
-
-    @Provides
-    fun provideStandMetaDao(db: BoulderBuddyDatabase): StandMetaDao = db.standMetaDao()
 
     @Provides
     fun provideMedienDao(db: BoulderBuddyDatabase): MedienDao = db.medienDao()

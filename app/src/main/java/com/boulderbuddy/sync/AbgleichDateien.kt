@@ -174,6 +174,12 @@ class AbgleichDateien @Inject constructor(
      * würde sein alter Stand beim nächsten Mal mit dem des anderen Geräts verschmolzen, und
      * es entstünden doppelte Hallen und doppelte Sessions aus zwei Datensätzen, die nie
      * zusammengehörten.
+     *
+     * **Diese Funktion wird zurzeit von niemandem gerufen — sie ist keine Leiche, sondern
+     * unverdrahtet.** `Abgleicher.machRueckgaengig()` setzt heute nur die Datentabellen
+     * zurueck und laesst Herkunft und Kopplung stehen; die Ausnahme fuer die Erstbegegnung,
+     * die der SYNC_PLAN unter Ablauf 36 verlangt, fehlt dort noch. Wer sie einbaut, ruft
+     * diese Funktion und `GeraeteIdentitaet.loeseKopplung()` von dort aus auf.
      */
     fun verwirfKopplung() {
         loescheMitBegleitern(basisDatei)

@@ -42,8 +42,6 @@ class Homography(private val h: DoubleArray) {
 
     companion object {
 
-        val IDENTITY = Homography(doubleArrayOf(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0))
-
         /**
          * Schätzt die Homographie src→dst aus ≥4 Korrespondenzen.
          *

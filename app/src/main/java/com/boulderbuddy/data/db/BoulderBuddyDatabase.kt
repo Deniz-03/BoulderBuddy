@@ -13,7 +13,6 @@ import com.boulderbuddy.data.db.dao.HangboardWorkoutDao
 import com.boulderbuddy.data.db.dao.MedienDao
 import com.boulderbuddy.data.db.dao.RouteDao
 import com.boulderbuddy.data.db.dao.SessionDao
-import com.boulderbuddy.data.db.dao.StandMetaDao
 import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
 import com.boulderbuddy.data.db.entity.GradeEntity
 import com.boulderbuddy.data.db.entity.GradeSystemEntity
@@ -101,7 +100,6 @@ abstract class BoulderBuddyDatabase : RoomDatabase() {
     abstract fun hangboardTemplateDao(): HangboardTemplateDao
     abstract fun hangboardWorkoutDao(): HangboardWorkoutDao
     abstract fun ghostAnalysisDao(): GhostAnalysisDao
-    abstract fun standMetaDao(): StandMetaDao
     abstract fun medienDao(): MedienDao
     abstract fun gymVisitDao(): GymVisitDao
 

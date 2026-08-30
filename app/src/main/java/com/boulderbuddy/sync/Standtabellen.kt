@@ -163,9 +163,6 @@ val STAND_TABELLEN: List<Tabelle> = listOf(
 /** Tabellen, die zwar in der Datei mitreisen, aber nie zeilenweise abgeglichen werden. */
 val META_TABELLEN: Set<String> = setOf("stand_meta", "sqlite_sequence", "room_master_table")
 
-/** Nachschlagen nach Namen — die Baumlogik braucht das ständig. */
-val STAND_TABELLEN_NACH_NAME: Map<String, Tabelle> = STAND_TABELLEN.associateBy { it.name }
-
 /** Die Kinder einer Tabelle, in derselben Reihenfolge wie [STAND_TABELLEN]. */
 fun kinderVon(tabelle: String): List<Tabelle> =
     STAND_TABELLEN.filter { kind -> kind.eltern.any { it.elternTabelle == tabelle } }

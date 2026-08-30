@@ -183,12 +183,12 @@ fun setzeSequenzenZurueck(db: SupportSQLiteDatabase, band: Int) {
         if (vorhanden) {
             db.execSQL(
                 "UPDATE sqlite_sequence SET seq = ? WHERE name = ?",
-                arrayOf(seq, tabelle.name),
+                arrayOf<Any?>(seq, tabelle.name),
             )
         } else {
             db.execSQL(
                 "INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)",
-                arrayOf(tabelle.name, seq),
+                arrayOf<Any?>(tabelle.name, seq),
             )
         }
     }
