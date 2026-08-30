@@ -14,6 +14,7 @@ import com.boulderbuddy.fake.FakeHapticPlayer
 import com.boulderbuddy.fake.FakeSessionRepository
 import com.boulderbuddy.fake.FakeSettingsRepository
 import com.boulderbuddy.fake.FakeWearConnection
+import com.boulderbuddy.ui.Fehlerkanal
 import com.boulderbuddy.ui.screens.TimerPhase
 import com.boulderbuddy.util.MainDispatcherRule
 import com.google.common.truth.Truth.assertThat
@@ -45,6 +46,7 @@ class HangboardTimerViewModelTest {
     private val gyms = FakeGymRepository()
     private val haptics = FakeHapticPlayer()
     private val wear = FakeWearConnection()
+    private val fehlerkanal = Fehlerkanal()
 
     private fun createViewModel() = HangboardTimerViewModel(
         settingsRepository = settings,
@@ -53,6 +55,7 @@ class HangboardTimerViewModelTest {
         hangboardRepository = hangboard,
         gymRepository = gyms,
         hapticPlayer = haptics,
+        fehlerkanal = fehlerkanal,
         wearConnection = wear,
     )
 

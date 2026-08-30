@@ -585,6 +585,24 @@
     <string name="push_text">Bist du da? Session starten.</string>
     <string name="push_kanal_beschreibung">Erinnert dich, eine Session zu starten, wenn du an einer Halle ankommst.</string>
 
+    <!--
+      Fehlgeschlagene Schreibvorgaenge. Sie laufen alle ueber denselben Kanal
+      (ui/Fehlerkanal.kt) und erscheinen als Snackbar ueber dem, was gerade zu sehen ist.
+
+      Jeder Text sagt zwei Dinge: was NICHT passiert ist, und in welchem Zustand die Sache
+      jetzt ist. "Fehler beim Speichern" allein laesst offen, ob die Eingabe noch da ist -
+      und genau das will man in dem Moment wissen.
+    -->
+    <string name="fehler_boulder_speichern">Der Boulder wurde nicht gespeichert. Die Eingaben stehen noch da — bitte noch einmal versuchen.</string>
+    <string name="fehler_session_anlegen">Die Session wurde nicht angelegt. Bitte noch einmal versuchen.</string>
+    <string name="fehler_session_beenden">Die Session wurde nicht beendet — sie läuft weiter.</string>
+    <string name="fehler_notiz_speichern">Die Notiz wurde nicht gespeichert.</string>
+    <string name="fehler_versuche_speichern">Die Versuche wurden nicht geändert.</string>
+    <string name="fehler_workout_speichern">Der Durchlauf wurde nicht gespeichert.</string>
+    <string name="fehler_preset_speichern">Das Preset wurde nicht gespeichert.</string>
+    <string name="fehler_preset_loeschen">Das Preset wurde nicht gelöscht.</string>
+    <string name="fehler_timer_einstellung">Die Timer-Einstellung wurde nicht gemerkt — dieser Durchlauf läuft trotzdem damit.</string>
+
     <!-- Widget -->
     <string name="widget_titel">BoulderBuddy</string>
     <string name="widget_aktualisieren">↻</string>

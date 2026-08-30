@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Fehlerkanal
+import com.boulderbuddy.ui.schreibe
 import com.boulderbuddy.ui.model.toBoulderStatus
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.screens.BoulderStatus
@@ -55,6 +58,7 @@ data class BoulderDetailUiState(
 class BoulderDetailViewModel @AssistedInject constructor(
     @Assisted private val boulderId: Int,
     private val routeRepository: RouteRepository,
+    private val fehlerkanal: Fehlerkanal,
     gradeRepository: GradeRepository,
     sessionRepository: SessionRepository,
 ) : ViewModel() {
@@ -100,10 +104,15 @@ class BoulderDetailViewModel @AssistedInject constructor(
 
     private fun changeAttempts(delta: Int) {
         viewModelScope.launch {
-            val route = routeRepository.getById(boulderId) ?: return@launch
-            val newAttempts = (route.attempts + delta).coerceAtLeast(0)
-            if (newAttempts != route.attempts) {
-                routeRepository.update(route.copy(attempts = newAttempts))
+            fehlerkanal.schreibe(
+                R.string.fehler_versuche_speichern,
+                protokollMarke = "Versuche ändern",
+            ) {
+                val route = routeRepository.getById(boulderId) ?: return@schreibe
+                val newAttempts = (route.attempts + delta).coerceAtLeast(0)
+                if (newAttempts != route.attempts) {
+                    routeRepository.update(route.copy(attempts = newAttempts))
+                }
             }
         }
     }

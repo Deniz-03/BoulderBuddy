@@ -28,7 +28,15 @@ import kotlinx.coroutines.flow.map
  * In-Memory-Fakes der Repository-/Settings-Interfaces für JVM-ViewModel-Tests (Phase 7.6.4).
  * Bewusst schlank: nur so viel Verhalten, wie die Tests brauchen; Schreibpfade sammeln, was
  * das ViewModel erzeugt (z.B. [FakeHangboardWorkoutRepository.created]).
+ *
+ * Mehrere Fakes tragen ein `schreibfehler`-Flag. Es stellt den Fall nach, für den es den
+ * [com.boulderbuddy.ui.Fehlerkanal] gibt: Room wirft beim Schreiben — volle Platte, verletzte
+ * Bedingung, geschlossene Datenbank. Ohne dieses Flag lässt sich die einzige interessante
+ * Frage nicht prüfen, nämlich was die App dann tut.
  */
+
+/** Was ein Fake wirft, wenn `schreibfehler` gesetzt ist. */
+class SchreibfehlerZumTesten : RuntimeException("Schreiben fehlgeschlagen (Test)")
 class FakeSettingsRepository(
     initialTimerConfig: TimerConfig = TimerConfig(),
 ) : SettingsRepository {
@@ -91,11 +99,15 @@ class FakeSessionRepository : SessionRepository {
     val all = MutableStateFlow<List<SessionEntity>>(emptyList())
     private var nextId = 1
 
+    /** `true` = jeder Schreibweg wirft. Lesen bleibt heil. */
+    var schreibfehler = false
+
     override fun observeActive(): Flow<SessionEntity?> = active
     override fun observeAll(): Flow<List<SessionEntity>> = all
     override suspend fun getById(sessionId: Int): SessionEntity? = all.value.find { it.id == sessionId }
 
     override suspend fun create(session: SessionEntity): Int {
+        if (schreibfehler) throw SchreibfehlerZumTesten()
         val id = nextId++
         all.value = all.value + session.copy(id = id)
         return id
@@ -106,10 +118,12 @@ class FakeSessionRepository : SessionRepository {
     }
 
     override suspend fun updateNotes(sessionId: Int, notes: String?) {
+        if (schreibfehler) throw SchreibfehlerZumTesten()
         all.value = all.value.map { if (it.id == sessionId) it.copy(notes = notes) else it }
     }
 
     override suspend fun endSession(sessionId: Int, endedAt: Long) {
+        if (schreibfehler) throw SchreibfehlerZumTesten()
         all.value = all.value.map { if (it.id == sessionId) it.copy(endedAt = endedAt) else it }
         if (active.value?.id == sessionId) active.value = null
     }
@@ -118,13 +132,28 @@ class FakeSessionRepository : SessionRepository {
 class FakeRouteRepository : RouteRepository {
     val all = MutableStateFlow<List<RouteEntity>>(emptyList())
 
+    /** `true` = [create] und [update] werfen. */
+    var schreibfehler = false
+
+    /** Was über [update] geschrieben wurde (Assertion-Ziel). */
+    val updated = mutableListOf<RouteEntity>()
+
     override fun observeBySession(sessionId: Int): Flow<List<RouteEntity>> =
         all.map { list -> list.filter { it.sessionId == sessionId } }
 
     override fun observeAll(): Flow<List<RouteEntity>> = all
     override suspend fun getById(routeId: Int): RouteEntity? = all.value.find { it.id == routeId }
-    override suspend fun create(route: RouteEntity): Int = 0
-    override suspend fun update(route: RouteEntity) {}
+
+    override suspend fun create(route: RouteEntity): Int {
+        if (schreibfehler) throw SchreibfehlerZumTesten()
+        return 0
+    }
+
+    override suspend fun update(route: RouteEntity) {
+        if (schreibfehler) throw SchreibfehlerZumTesten()
+        updated += route
+        all.value = all.value.map { if (it.id == route.id) route else it }
+    }
 }
 
 class FakeGymRepository : GymRepository {
@@ -191,10 +220,19 @@ class FakeHangboardWorkoutRepository : HangboardWorkoutRepository {
 
     override fun observeAll(): Flow<List<HangboardWorkoutWithSegments>> = all
 
+    /** `true` = [create] wirft. */
+    var schreibfehler = false
+
+    /** Wie oft [create] gerufen wurde - auch die Versuche, die geworfen haben. */
+    var versuche = 0
+        private set
+
     override suspend fun create(
         workout: HangboardWorkoutEntity,
         segments: List<HangboardSegmentEntity>,
     ): Int {
+        versuche++
+        if (schreibfehler) throw SchreibfehlerZumTesten()
         val id = created.size + 1
         val withSegments = HangboardWorkoutWithSegments(
             workout = workout.copy(id = id),
@@ -211,9 +249,13 @@ class FakeHangboardRepository : HangboardRepository {
     val created = mutableListOf<HangboardTemplateEntity>()
     val deleted = mutableListOf<HangboardTemplateEntity>()
 
+    /** `true` = [create] und [delete] werfen. */
+    var schreibfehler = false
+
     override fun observeAll(): Flow<List<HangboardTemplateEntity>> = all
 
     override suspend fun create(template: HangboardTemplateEntity): Int {
+        if (schreibfehler) throw SchreibfehlerZumTesten()
         created += template
         all.value = all.value + template
         return created.size
@@ -222,6 +264,7 @@ class FakeHangboardRepository : HangboardRepository {
     override suspend fun update(template: HangboardTemplateEntity) {}
 
     override suspend fun delete(template: HangboardTemplateEntity) {
+        if (schreibfehler) throw SchreibfehlerZumTesten()
         deleted += template
         all.value = all.value - template
     }

@@ -11,6 +11,9 @@ import com.boulderbuddy.data.repository.GradeRepository
 import com.boulderbuddy.data.repository.RouteRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Fehlerkanal
+import com.boulderbuddy.ui.schreibe
 import com.boulderbuddy.ui.navigation.RouteHinzufuegen
 import com.boulderbuddy.ui.theme.DefaultRouteColorKey
 import com.boulderbuddy.widget.refreshBoulderWidget
@@ -75,6 +78,7 @@ class RouteHinzufuegenViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val sessionRepository: SessionRepository,
     private val routeRepository: RouteRepository,
+    private val fehlerkanal: Fehlerkanal,
     gradeRepository: GradeRepository,
     settingsRepository: SettingsRepository,
 ) : ViewModel() {
@@ -154,52 +158,63 @@ class RouteHinzufuegenViewModel @Inject constructor(
      * Edit-Modus (boulderId gesetzt): aktualisiert die bestehende Route.
      * Add-Modus: legt zur Ziel-Session (arg oder aktive) eine neue Route an; fehlt eine
      * Session, wird nichts gespeichert (kein FK-Ziel) und nur zurücknavigiert.
+     *
+     * Scheitert das Schreiben, bekommt der Nutzer eine Meldung über den [Fehlerkanal] und
+     * **bleibt auf dem Formular**: [onSaved] navigiert zurück, und mit ihm wäre die Eingabe
+     * verloren — bei einem Boulder mitten in der Session ist das das Ärgerlichste, was
+     * passieren kann. Deshalb ist der Rückgabewert von [schreibe] hier keine Formsache.
      */
     fun save(input: RouteFormInput, onSaved: () -> Unit) {
         viewModelScope.launch {
-            if (argBoulderId != null) {
-                val existing = routeRepository.getById(argBoulderId)
-                if (existing != null) {
-                    routeRepository.update(
-                        existing.copy(
-                            gradeId = input.gradeId,
-                            color = input.color,
-                            name = input.name.trim(),
-                            sektor = input.sektor.trim().ifBlank { null },
-                            attempts = input.attempts,
-                            status = input.status,
-                            mediaUri = input.mediaUri,
-                            notes = input.notiz.trim().ifBlank { null },
+            val geschrieben = fehlerkanal.schreibe(
+                R.string.fehler_boulder_speichern,
+                protokollMarke = "Boulder speichern",
+            ) {
+                if (argBoulderId != null) {
+                    val existing = routeRepository.getById(argBoulderId)
+                    if (existing != null) {
+                        routeRepository.update(
+                            existing.copy(
+                                gradeId = input.gradeId,
+                                color = input.color,
+                                name = input.name.trim(),
+                                sektor = input.sektor.trim().ifBlank { null },
+                                attempts = input.attempts,
+                                status = input.status,
+                                mediaUri = input.mediaUri,
+                                notes = input.notiz.trim().ifBlank { null },
+                            )
                         )
-                    )
+                    }
+                } else {
+                    // Keine Session = kein Ziel für den Fremdschlüssel. Das ist kein Fehler,
+                    // sondern ein leerer Vorgang: nichts speichern, nur zurücknavigieren.
+                    val sessionId = argSessionId ?: sessionRepository.observeActive().first()?.id
+                    if (sessionId != null) {
+                        routeRepository.create(
+                            RouteEntity(
+                                sessionId = sessionId,
+                                gradeId = input.gradeId,
+                                color = input.color,
+                                name = input.name.trim(),
+                                sektor = input.sektor.trim().ifBlank { null },
+                                attempts = input.attempts,
+                                status = input.status,
+                                mediaUri = input.mediaUri,
+                                notes = input.notiz.trim().ifBlank { null },
+                            )
+                        )
+                    }
                 }
-            } else {
-                val sessionId = argSessionId ?: sessionRepository.observeActive().first()?.id
-                if (sessionId == null) {
-                    onSaved()
-                    return@launch
-                }
-                routeRepository.create(
-                    RouteEntity(
-                        sessionId = sessionId,
-                        gradeId = input.gradeId,
-                        color = input.color,
-                        name = input.name.trim(),
-                        sektor = input.sektor.trim().ifBlank { null },
-                        attempts = input.attempts,
-                        status = input.status,
-                        mediaUri = input.mediaUri,
-                        notes = input.notiz.trim().ifBlank { null },
-                    )
-                )
+                // Nach BEIDEN Wegen: auch das Bearbeiten ändert, was das Widget zeigt — ein
+                // Boulder, der beim Bearbeiten auf „Top" gesetzt wird, verschiebt die
+                // Top-Zahl. Eine Glance-Composition-Session endet ~45 s nach der letzten
+                // Composition, danach bliebe der alte Stand bis zu 30 min stehen
+                // (`updatePeriodMillis`). Am Gerät gemessen am 09.08.2026: App 6 Boulder,
+                // Widget weiterhin 5.
+                refreshBoulderWidget(appContext)
             }
-            // Widget-Schnappschuss nachziehen: es zeigt Boulderzahl und Tops der laufenden
-            // Session. Eine Glance-Composition-Session endet ~45 s nach der letzten
-            // Composition, danach bliebe der alte Stand bis zu 30 min stehen
-            // (`updatePeriodMillis`). Am Gerät gemessen am 09.08.2026: App 6 Boulder,
-            // Widget weiterhin 5.
-            refreshBoulderWidget(appContext)
-            onSaved()
+            if (geschrieben) onSaved()
         }
     }
 }

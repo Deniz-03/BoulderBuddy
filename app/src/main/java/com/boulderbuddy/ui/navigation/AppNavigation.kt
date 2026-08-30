@@ -15,10 +15,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -30,6 +35,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.boulderbuddy.ui.FehlerkanalViewModel
 import com.boulderbuddy.ui.components.BottomNav
 import com.boulderbuddy.ui.components.BottomNavTab
 import com.boulderbuddy.ui.components.SideNav
@@ -125,6 +131,23 @@ fun AppNavigation(
     initialNavGymId: Int? = null,
 ) {
     val navController = rememberNavController()
+
+    /*
+     * Fehlgeschlagene Schreibvorgänge — an genau dieser Stelle, weil sie von überall kommen
+     * können und über allem liegen sollen (siehe `ui/Fehlerkanal.kt`).
+     *
+     * Der Sammler hängt an `Unit` und damit an der Lebensdauer der Composition, nicht am
+     * aktuellen Ziel: eine Meldung darf einen Screenwechsel überleben, sonst verschwände
+     * ausgerechnet die Meldung zum abgebrochenen Speichern zusammen mit dem Formular.
+     */
+    val fehlerkanalViewModel: FehlerkanalViewModel = hiltViewModel()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        fehlerkanalViewModel.meldungen.collect { textId ->
+            snackbarHostState.showSnackbar(context.getString(textId))
+        }
+    }
 
     // Einmaliger Sprung ins Widget-Ziel (7.4c). key = Zielwert → feuert nur beim Start-Intent,
     // nicht bei jeder Recomposition.
@@ -559,64 +582,79 @@ fun AppNavigation(
     val seitenLeiste = if (breite == Breite.Kompakt) null else currentTab
     val untereLeiste = if (breite == Breite.Kompakt) currentTab else null
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        /*
-         * Ab 600 dp: Leiste an die Seite — und die Statusleiste bekommt ein eigenes,
-         * durchgehendes Band darüber.
-         *
-         * Vorher reichten Rail und Inhalt jeweils bis ganz nach oben und trugen ihr eigenes
-         * `statusBarsPadding()`. Die senkrechte Trennlinie der Rail lief damit **bis in die
-         * Statusleiste hinein**, und die Systemsymbole des Geräts standen teils links davon,
-         * teils rechts — die Uhr im 80 dp schmalen Rail-Streifen, dicht an der Kante. Das
-         * sieht aus wie ein Zufall, weil es einer ist: die Statusleiste kennt unser Layout
-         * nicht und verteilt ihre Symbole über die volle Fensterbreite.
-         *
-         * Jetzt liegt über beiden Spalten ein Band in Chrome-Farbe, so hoch wie die
-         * Statusleiste. Darunter beginnen Rail und Inhalt gemeinsam; keine senkrechte Kante
-         * schneidet mehr durch die Systemsymbole.
-         */
-        if (seitenLeiste != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsTopHeight(WindowInsets.statusBars)
-                    .background(BoulderBuddy.colors.surfaceChrome),
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                // `consumeWindowInsets` sorgt dafür, dass das Band oben nicht doppelt gezahlt
-                // wird: TopBar und SideNav setzen selbst `statusBarsPadding()`, und das wird
-                // dadurch zu 0. Ohne Band (Telefon, Push-Screen) gibt es nichts zu verrechnen.
-                .then(
-                    if (seitenLeiste != null) {
-                        Modifier.consumeWindowInsets(WindowInsets.statusBars)
-                    } else {
-                        Modifier
-                    },
-                ),
-        ) {
+    /*
+     * Die Snackbar liegt UEBER dem Layout und nicht darin: als Geschwister in der Column
+     * bekaeme sie eigene Hoehe, und jede Meldung schoebe Inhalt und Navigationsleiste
+     * kurz nach oben. Der Box-Rahmen ist unbedingt - eine Verzweigung an dieser Stelle
+     * wuerde den NavHost darunter neu aufbauen (siehe die Begruendung weiter oben).
+     */
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            /*
+             * Ab 600 dp: Leiste an die Seite — und die Statusleiste bekommt ein eigenes,
+             * durchgehendes Band darüber.
+             *
+             * Vorher reichten Rail und Inhalt jeweils bis ganz nach oben und trugen ihr eigenes
+             * `statusBarsPadding()`. Die senkrechte Trennlinie der Rail lief damit **bis in die
+             * Statusleiste hinein**, und die Systemsymbole des Geräts standen teils links davon,
+             * teils rechts — die Uhr im 80 dp schmalen Rail-Streifen, dicht an der Kante. Das
+             * sieht aus wie ein Zufall, weil es einer ist: die Statusleiste kennt unser Layout
+             * nicht und verteilt ihre Symbole über die volle Fensterbreite.
+             *
+             * Jetzt liegt über beiden Spalten ein Band in Chrome-Farbe, so hoch wie die
+             * Statusleiste. Darunter beginnen Rail und Inhalt gemeinsam; keine senkrechte Kante
+             * schneidet mehr durch die Systemsymbole.
+             */
             if (seitenLeiste != null) {
-                SideNav(
-                    selectedTab = seitenLeiste,
-                    onTabSelect = { tab -> navController.navigateToTab(tab) },
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsTopHeight(WindowInsets.statusBars)
+                        .background(BoulderBuddy.colors.surfaceChrome),
                 )
             }
-            // Die einzige Aufrufstelle des NavHost — siehe oben.
-            inhalt(Modifier.weight(1f).fillMaxHeight())
+
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    // `consumeWindowInsets` sorgt dafür, dass das Band oben nicht doppelt gezahlt
+                    // wird: TopBar und SideNav setzen selbst `statusBarsPadding()`, und das wird
+                    // dadurch zu 0. Ohne Band (Telefon, Push-Screen) gibt es nichts zu verrechnen.
+                    .then(
+                        if (seitenLeiste != null) {
+                            Modifier.consumeWindowInsets(WindowInsets.statusBars)
+                        } else {
+                            Modifier
+                        },
+                    ),
+            ) {
+                if (seitenLeiste != null) {
+                    SideNav(
+                        selectedTab = seitenLeiste,
+                        onTabSelect = { tab -> navController.navigateToTab(tab) },
+                    )
+                }
+                // Die einzige Aufrufstelle des NavHost — siehe oben.
+                inhalt(Modifier.weight(1f).fillMaxHeight())
+            }
+
+            // Telefon: Leiste unten.
+            if (untereLeiste != null) {
+                Box(modifier = Modifier.navigationBarsPadding()) {
+                    BottomNav(
+                        selectedTab = untereLeiste,
+                        onTabSelect = { tab -> navController.navigateToTab(tab) },
+                    )
+                }
+            }
         }
 
-        // Telefon: Leiste unten.
-        if (untereLeiste != null) {
-            Box(modifier = Modifier.navigationBarsPadding()) {
-                BottomNav(
-                    selectedTab = untereLeiste,
-                    onTabSelect = { tab -> navController.navigateToTab(tab) },
-                )
-            }
-        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding(),
+        )
     }
 }
 

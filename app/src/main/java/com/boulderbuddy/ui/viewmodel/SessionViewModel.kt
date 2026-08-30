@@ -22,6 +22,9 @@ import com.boulderbuddy.ui.model.formatDayMonth
 import com.boulderbuddy.ui.model.formatDurationShort
 import com.boulderbuddy.ui.model.formatUhrzeit
 import com.boulderbuddy.ui.model.istGetoppt
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Fehlerkanal
+import com.boulderbuddy.ui.schreibe
 import com.boulderbuddy.ui.model.toBoulderStatus
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.screens.BoulderStatus
@@ -112,8 +115,9 @@ class SessionViewModel @AssistedInject constructor(
     gradeRepository: GradeRepository,
     hangboardWorkoutRepository: HangboardWorkoutRepository,
     ghostAnalysisRepository: GhostAnalysisRepository,
+    private val fehlerkanal: Fehlerkanal,
     // Nur fürs Homescreen-Widget: nach dem Beenden soll es keine aktive Session mehr anbieten.
-    @ApplicationContext private val appContext: Context,
+    @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -172,15 +176,28 @@ class SessionViewModel @AssistedInject constructor(
      */
     fun updateNotes(notes: String) {
         viewModelScope.launch {
-            sessionRepository.updateNotes(sessionId, notes.trim().takeIf { it.isNotEmpty() })
+            // Läuft bei jedem Tastendruck. Der Kanal verwirft überzählige Meldungen, während
+            // eine sichtbar ist — sonst stünde bei einer dauerhaft kaputten Datenbank für
+            // jeden getippten Buchstaben eine Snackbar in der Warteschlange.
+            fehlerkanal.schreibe(
+                R.string.fehler_notiz_speichern,
+                protokollMarke = "Session-Notiz speichern",
+            ) {
+                sessionRepository.updateNotes(sessionId, notes.trim().takeIf { it.isNotEmpty() })
+            }
         }
     }
 
     fun endSession() {
         viewModelScope.launch {
-            sessionRepository.endSession(sessionId)
-            // Widget-Snapshot nachziehen: es darf jetzt nicht mehr in diese Session springen.
-            refreshBoulderWidget(appContext)
+            fehlerkanal.schreibe(
+                R.string.fehler_session_beenden,
+                protokollMarke = "Session beenden",
+            ) {
+                sessionRepository.endSession(sessionId)
+                // Widget-Snapshot nachziehen: es darf jetzt nicht mehr in diese Session springen.
+                refreshBoulderWidget(appContext)
+            }
         }
     }
 
