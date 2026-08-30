@@ -4,9 +4,18 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * Befüllt eine frisch erstellte DB mit Beispieldaten (eine Halle + Gradsysteme + Grade +
- * eine aktive Session mit drei Bouldern + Timer-Presets), damit die App nach dem ersten
- * Start nicht leer wirkt.
+ * Befüllt eine frisch erstellte DB mit dem, was die App zum Loslegen braucht — und mit
+ * nichts darüber hinaus: die beiden Standard-Gradsysteme samt Graden und die Timer-Presets.
+ *
+ * **Bewusst ohne Halle, Session und Boulder.** Bis zur Abgabe legte dieses Seed eine Halle
+ * („Boulder World München") und darin eine *laufende* Session mit drei Bouldern an. Die App
+ * startete damit in einem Zustand, den niemand hergestellt hatte: eine Session, die man nicht
+ * begonnen hat, fremde Tops auf dem Home-Screen, eine Halle in einer Stadt, in der man
+ * vielleicht nie war. Was hier steht, muss für jeden Nutzer stimmen — auf erfundene Namen
+ * trifft das nie zu, auf die V-Scale schon.
+ *
+ * Ohne Halle beginnt der Einstieg beim Session-Anlegen mit „Erste Halle anlegen"
+ * (`SessionErstellenScreen`) — dieser Leerzustand ist vorgesehen und kein Sonderfall.
  *
  * Wird beim Aufbau der DB als [RoomDatabase.Callback] registriert (siehe `di/DatabaseModule`).
  * [onCreate] läuft nur einmal — beim allerersten Erstellen der Datei.
@@ -41,36 +50,13 @@ object SeedData : RoomDatabase.Callback() {
     }
 
     private fun seed(db: SupportSQLiteDatabase) {
-        // Gym.
+        // Die Standard-Gradsysteme (gymId = NULL → hallenübergreifend wählbar).
         //
-        // Die Spalten sind hier ausgeschrieben, auch die mit Entity-Default: `geofenceRadiusMeters`
-        // und `proximityAlertsEnabled` sind `NOT NULL` und haben ihren Standardwert **nur in
-        // Kotlin**, nicht im SQL-Schema (Begründung in MIGRATION_7_8). Ein `INSERT`, der sie
-        // ausließ, scheiterte deshalb mit `NOT NULL constraint failed` — und zwar erst bei einer
-        // Neuinstallation, wo dieses Seed als einziges läuft. Wer hier eine Spalte ergänzt,
-        // ergänzt sie mit.
-        db.execSQL(
-            "INSERT INTO gym " +
-                "(id, name, location, latitude, longitude, geofenceRadiusMeters, " +
-                "proximityAlertsEnabled, defaultGradeSystemId) " +
-                "VALUES (1, 'Boulder World München', 'München', NULL, NULL, 150, 1, 1)"
-        )
-
-        // Gradsystem des Gyms (V-Scale als Halle-Standard; Farbe hängt an der Route, nicht am Grad)
-        db.execSQL(
-            "INSERT INTO grade_system (id, gymId, name) VALUES (1, 1, 'Halle Nord')"
-        )
-
-        // Grade des Gradsystems (label, Sortierreihenfolge) — reine Schwierigkeit, keine Farbe.
-        val grades = listOf("V0", "V1", "V2", "V3", "V4")
-        grades.forEachIndexed { index, label ->
-            db.execSQL(
-                "INSERT INTO grade (id, systemId, label, sortOrder) " +
-                    "VALUES (${index + 1}, 1, '$label', $index)"
-            )
-        }
-
-        // Globale Standard-Gradsysteme (gymId = NULL → hallenübergreifend wählbar).
+        // Die IDs beginnen bei 2, nicht bei 1: die 1 gehörte dem halleneigenen System
+        // „Halle Nord" der Beispiel-Halle. Beide sind raus, die Lücke bleibt — `AUTOINCREMENT`
+        // zählt ab dem Höchstwert weiter, und eine Umnummerierung wäre eine Änderung an IDs,
+        // die der Geräte-Abgleich als Schlüssel führt.
+        //
         // `istStandard = 1` schützt sie vor dem Löschen — der Marker hängt seit v11 nicht mehr
         // an `gymId`, weil das inzwischen auch „Halle wurde gelöscht" bedeuten kann.
         db.execSQL(
@@ -82,8 +68,8 @@ object SeedData : RoomDatabase.Callback() {
                 "VALUES (3, NULL, 'Französisch', 1)"
         )
 
-        // Ab ID 6 weiter, da die Halle-Grade oben 1..5 belegen.
-        var nextGradeId = grades.size + 1
+        // Durchlaufende Grad-IDs über beide Systeme.
+        var nextGradeId = 1
         fun seedGrades(systemId: Int, labels: List<String>) {
             labels.forEachIndexed { order, label ->
                 db.execSQL(
@@ -103,40 +89,6 @@ object SeedData : RoomDatabase.Callback() {
                 "8a", "8a+", "8b", "8b+", "8c",
             ),
         )
-
-        // Eine aktive Beispiel-Session (endedAt = NULL → läuft noch), mit dem Halle-Gradsystem.
-        // `gymName` ist der Beleg, der eine gelöschte Halle überdauert (v10) — ebenfalls
-        // NOT NULL und deshalb hier gesetzt.
-        db.execSQL(
-            "INSERT INTO session " +
-                "(id, gymId, gymName, gradeSystemId, date, durationMin, notes, endedAt) " +
-                "VALUES (1, 1, 'Boulder World München', 1, " +
-                "${System.currentTimeMillis()}, NULL, NULL, NULL)"
-        )
-
-        // Ein paar Beispiel-Boulder in der aktiven Session, damit die App nach dem ersten
-        // Start nicht leer wirkt. status wird als Enum-Name gespeichert (siehe Converters).
-        // (name, sektor, gradeId, attempts, status, colorKey)
-        data class SeedRoute(
-            val name: String,
-            val sektor: String,
-            val gradeId: Int,
-            val attempts: Int,
-            val status: String,
-            val color: String,
-        )
-        val routes = listOf(
-            SeedRoute("Dachrinne", "A", 4, 1, "SENT", "red"),
-            SeedRoute("Slab Talk", "A", 3, 3, "PROJECT", "blue"),
-            SeedRoute("Warmup", "D", 2, 1, "SENT", "green"),
-        )
-        routes.forEachIndexed { index, r ->
-            db.execSQL(
-                "INSERT INTO route (id, sessionId, gradeId, name, sektor, attempts, status, color, mediaUri, notes) " +
-                    "VALUES (${index + 1}, 1, ${r.gradeId}, '${r.name}', '${r.sektor}', " +
-                    "${r.attempts}, '${r.status}', '${r.color}', NULL, NULL)"
-            )
-        }
 
         // Standard-Hangboard-Presets (7.3a). repRestSec wird vom Timer aktuell nicht genutzt = restSec.
         // (name, sets, hangSec, restSec, repRestSec)

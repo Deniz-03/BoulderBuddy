@@ -138,7 +138,12 @@ fun AlteSessionScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     // Nachtrag einer Session: überwiegend Notiztext, also Textspaltenbreite.
-                    .inhaltsBreite(),
+                    .inhaltsBreite()
+                    // Wie in SessionDetailScreen: als Push-Ziel liegt unter diesem Screen keine
+                    // BottomNav, der Ghost-Climber-Block am Listenende landete sonst unter der
+                    // Navigationsleiste. Hier mit Tastatur-Variante, weil die Notiz im Screen
+                    // bearbeitet wird.
+                    .inhaltsAbstandMitTastatur(),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,

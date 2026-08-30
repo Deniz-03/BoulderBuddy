@@ -87,6 +87,13 @@
     <string name="einstellungen_name_hinweis">Wird auf dem Home-Screen zur Begrüßung genutzt. Leer lassen für eine neutrale Begrüßung.</string>
     <string name="einstellungen_grading_systeme">Grading-Systeme</string>
     <string name="einstellungen_grading_leer">Noch keine Grading-Systeme vorhanden.</string>
+    <!-- Erklaert im Auswahl-Dialog, was die Wahl bewirkt. "Standard-Grading" allein sagt es
+         nicht - der Name klang nach einer Einstellung, die alle Grade umrechnet.
+         Der Text bleibt bewusst beim Belegten: der Top-Grad ist die einzige Stelle, an der
+         diese Wahl IMMER greift. Beim Boulder-Anlegen greift sie nur ohne laufende Session -
+         laeuft eine, gilt deren Grading (SessionErstellenScreen waehlt es aus der Halle vor,
+         den Standard fragt es nicht). Wer die Kette dort angleicht, darf hier nachschaerfen. -->
+    <string name="einstellungen_grading_hinweis">Die Skala, in der du normalerweise kletterst. In ihr wird der Top-Grad auf dem Start-Screen gezählt, und sie liefert die Grade, solange keine Session läuft. Innerhalb einer Session gilt deren eigenes Grading — das wählst du beim Anlegen, vorgeschlagen wird das der Halle. Bereits erfasste Boulder ändern sich nicht.</string>
     <string name="einstellungen_grading_standard">Standard</string>
     <string name="einstellungen_grading_loeschen">System löschen</string>
     <string name="einstellungen_grading_loeschen_titel">System löschen?</string>

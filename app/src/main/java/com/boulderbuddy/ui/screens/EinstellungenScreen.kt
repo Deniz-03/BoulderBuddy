@@ -707,32 +707,46 @@ private fun GradingAuswahlDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.einstellungen_standard_grading)) },
         text = {
-            if (systems.isEmpty()) {
+            // Der Hinweis steht ÜBER der Auswahl, nicht darunter: er beantwortet die Frage,
+            // die man vor dem Tippen hat ("wirkt das rückwirkend?"), und danach liest ihn
+            // niemand mehr. Der Dialog scrollt, weil Hinweis + eigene Systeme zusammen über
+            // die Höhe eines AlertDialogs hinauswachsen können — der schneidet sonst ab.
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(Dimens.paddingM),
+            ) {
                 Text(
-                    text = stringResource(R.string.einstellungen_grading_leer),
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = stringResource(R.string.einstellungen_grading_hinweis),
+                    style = MaterialTheme.typography.bodySmall,
                     color = BoulderBuddy.colors.textSecondary,
                 )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
-                    systems.forEach { system ->
-                        SelectableChip(
-                            label = stringResource(
-                                R.string.einstellungen_grading_chip,
-                                system.name,
-                                pluralStringResource(
-                                    R.plurals.grad_anzahl,
-                                    system.gradeCount,
-                                    system.gradeCount,
+                if (systems.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.einstellungen_grading_leer),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = BoulderBuddy.colors.textSecondary,
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(Dimens.paddingS)) {
+                        systems.forEach { system ->
+                            SelectableChip(
+                                label = stringResource(
+                                    R.string.einstellungen_grading_chip,
+                                    system.name,
+                                    pluralStringResource(
+                                        R.plurals.grad_anzahl,
+                                        system.gradeCount,
+                                        system.gradeCount,
+                                    ),
                                 ),
-                            ),
-                            selected = system.id == selectedId,
-                            onClick = {
-                                onSelect(system.id)
-                                onDismiss()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                                selected = system.id == selectedId,
+                                onClick = {
+                                    onSelect(system.id)
+                                    onDismiss()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
             }

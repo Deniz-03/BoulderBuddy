@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
@@ -629,6 +630,29 @@ fun AppNavigation(
                     .then(
                         if (seitenLeiste != null) {
                             Modifier.consumeWindowInsets(WindowInsets.statusBars)
+                        } else {
+                            Modifier
+                        },
+                    )
+                    /*
+                     * Dasselbe für unten: steht eine BottomNav darunter, ist die
+                     * Navigationsleiste des Geräts für den Inhalt bereits erledigt.
+                     *
+                     * Ohne diese Zeile meldet der Inhaltsbereich weiter die volle Höhe der
+                     * Navigationsleiste, obwohl zwischen ihm und ihr die BottomNav sitzt —
+                     * ein Screen, der `navigationBarsPadding()` setzt, ließ dann einen leeren
+                     * Streifen über der Leiste stehen (sichtbar im Timer-Tab). Umgekehrt
+                     * konnte ein Screen die Zeile nicht einfach weglassen: als Push-Ziel
+                     * ohne BottomNav (Session vom Home-Screen aus) lief sein letztes Element
+                     * dann unter die Navigationsleiste.
+                     *
+                     * Mit der Verrechnung gilt für jeden Screen dieselbe Regel: unteres Ende
+                     * mit `navigationBarsPadding()` bzw. `inhaltsAbstandMitTastatur()`
+                     * abschließen — das Gerüst zieht es ab, wo es schon bezahlt ist.
+                     */
+                    .then(
+                        if (untereLeiste != null) {
+                            Modifier.consumeWindowInsets(WindowInsets.navigationBars)
                         } else {
                             Modifier
                         },
