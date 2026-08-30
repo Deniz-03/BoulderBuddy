@@ -1,5 +1,8 @@
 package com.boulderbuddy.ui.model
 
+import androidx.annotation.StringRes
+import com.boulderbuddy.R
+
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -14,10 +17,16 @@ import java.util.Locale
  * ein Jahr, fünf Jahre die Spanne, über die sich beim Klettern überhaupt etwas ändert. Eine
  * einheitliche Zahl hätte entweder zu wenige Wochen oder unlesbar viele Jahre ergeben.
  */
-enum class Zeitraum(val label: String, val eimer: Int) {
-    Woche("Wochen", 8),
-    Monat("Monate", 12),
-    Jahr("Jahre", 5),
+enum class Zeitraum(
+    /** Mehrzahl, wie sie im Umschalter steht ("Wochen"). */
+    @param:StringRes val label: Int,
+    /** Einzahl, wie sie in Ueberschriften steht ("Routen pro Woche"). */
+    @param:StringRes val labelEinzahl: Int,
+    val eimer: Int,
+) {
+    Woche(R.string.zeitraum_woche, R.string.zeitraum_woche_einzahl, 8),
+    Monat(R.string.zeitraum_monat, R.string.zeitraum_monat_einzahl, 12),
+    Jahr(R.string.zeitraum_jahr, R.string.zeitraum_jahr_einzahl, 5),
 }
 
 /**

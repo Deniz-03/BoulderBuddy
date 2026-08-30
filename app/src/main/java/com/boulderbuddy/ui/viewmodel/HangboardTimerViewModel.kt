@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.HangboardSegmentEntity
@@ -15,6 +16,9 @@ import com.boulderbuddy.data.repository.HangboardRepository
 import com.boulderbuddy.data.repository.HangboardWorkoutRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.settings.SettingsRepository
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Fehlerkanal
+import com.boulderbuddy.ui.schreibe
 import com.boulderbuddy.data.settings.TimerConfig
 import com.boulderbuddy.ui.screens.HangboardTimerUiState
 import com.boulderbuddy.ui.screens.TimerPhase
@@ -50,7 +54,11 @@ class HangboardTimerViewModel @Inject constructor(
     private val hangboardRepository: HangboardRepository,
     private val gymRepository: GymRepository,
     private val hapticPlayer: HapticPlayer,
+    private val fehlerkanal: Fehlerkanal,
     wearConnection: WearConnection,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt: als Schnittstelle,
+    // damit dieses ViewModel ohne Android testbar bleibt).
+    private val texte: Texte,
 ) : ViewModel() {
 
     // Konfiguration (var, da über updateConfig änderbar). Defaults bis DataStore geladen ist.
@@ -133,7 +141,17 @@ class HangboardTimerViewModel @Inject constructor(
             hangSec = hangSec.coerceAtLeast(1),
             restSec = restSec.coerceAtLeast(0),
         )
-        viewModelScope.launch { settingsRepository.setTimerConfig(config) }
+        viewModelScope.launch {
+            // Scheitert nur das Merken, laeuft der Timer trotzdem mit den neuen Werten - das
+            // sagt die Meldung auch. Ein Abbruch waere hier die schlechtere Antwort: der
+            // Nutzer steht am Board und will loslegen, nicht die Einstellung retten.
+            fehlerkanal.schreibe(
+                R.string.fehler_timer_einstellung,
+                protokollMarke = "Timer-Konfiguration merken",
+            ) {
+                settingsRepository.setTimerConfig(config)
+            }
+        }
         /*
          * Unveränderte Werte lassen den Durchlauf in Ruhe.
          *
@@ -176,23 +194,35 @@ class HangboardTimerViewModel @Inject constructor(
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
-            hangboardRepository.create(
-                HangboardTemplateEntity(
-                    name = trimmed,
-                    sets = sets.coerceAtLeast(1),
-                    hangSec = hangSec.coerceAtLeast(1),
-                    restSec = restSec.coerceAtLeast(0),
-                    // repRestSec (Rep-Pause) wird vom Timer aktuell nicht genutzt → = Pause.
-                    repRestSec = restSec.coerceAtLeast(0),
+            fehlerkanal.schreibe(
+                R.string.fehler_preset_speichern,
+                protokollMarke = "Preset speichern",
+            ) {
+                hangboardRepository.create(
+                    HangboardTemplateEntity(
+                        name = trimmed,
+                        sets = sets.coerceAtLeast(1),
+                        hangSec = hangSec.coerceAtLeast(1),
+                        restSec = restSec.coerceAtLeast(0),
+                        // repRestSec (Rep-Pause) wird vom Timer aktuell nicht genutzt → = Pause.
+                        repRestSec = restSec.coerceAtLeast(0),
+                    )
                 )
-            )
+            }
         }
     }
 
     /** Löscht ein Preset anhand seiner ID. */
     fun deletePreset(presetId: Int) {
         val preset = presets.find { it.id == presetId } ?: return
-        viewModelScope.launch { hangboardRepository.delete(preset) }
+        viewModelScope.launch {
+            fehlerkanal.schreibe(
+                R.string.fehler_preset_loeschen,
+                protokollMarke = "Preset loeschen",
+            ) {
+                hangboardRepository.delete(preset)
+            }
+        }
     }
 
     private fun start() {
@@ -269,40 +299,51 @@ class HangboardTimerViewModel @Inject constructor(
      */
     private fun recordWorkout() {
         viewModelScope.launch {
-            val session = sessionRepository.observeActive().first()
-            val endedAt = System.currentTimeMillis()
-            val segments = List(totalSets) { i ->
-                HangboardSegmentEntity(
-                    workoutId = 0,
-                    setIndex = i,
-                    hangMs = hangSec * 1000L,
-                    restMs = if (i < totalSets - 1) restSec * 1000L else 0L,
+            fehlerkanal.schreibe(
+                R.string.fehler_workout_speichern,
+                protokollMarke = "Hangboard-Durchlauf speichern",
+            ) {
+                val session = sessionRepository.observeActive().first()
+                val endedAt = System.currentTimeMillis()
+                val segments = List(totalSets) { i ->
+                    HangboardSegmentEntity(
+                        workoutId = 0,
+                        setIndex = i,
+                        hangMs = hangSec * 1000L,
+                        restMs = if (i < totalSets - 1) restSec * 1000L else 0L,
+                    )
+                }
+                hangboardWorkoutRepository.create(
+                    HangboardWorkoutEntity(
+                        sessionId = session?.id,
+                        mode = HangboardWorkoutMode.MANUAL,
+                        origin = HangboardWorkoutOrigin.PHONE,
+                        startedAt = startedAtMillis ?: endedAt,
+                        endedAt = endedAt,
+                        plannedSets = totalSets,
+                        plannedHangSec = hangSec,
+                        plannedRestSec = restSec,
+                    ),
+                    segments,
                 )
+                // Erst NACH dem Schreiben. Der Satz „In Session gespeichert" ist eine
+                // Zusicherung; stünde er schon vor dem Insert, behauptete er im Fehlerfall
+                // genau das Gegenteil dessen, was passiert ist.
+                savedTo = if (session != null) {
+                    // Die Halle vorab laden: `hallenName` nimmt keine suspend-Funktion, die
+                    // Auflösungsregel soll aber auch hier nicht ein zweites Mal dastehen.
+                    val halle = session.gymId?.let { gymRepository.getById(it) }
+                    val gymName = session.hallenName { halle?.name }
+                    if (gymName != null) {
+                        texte.hole(R.string.timer_gespeichert_in_halle, gymName)
+                    } else {
+                        texte.hole(R.string.timer_gespeichert_aktive_session)
+                    }
+                } else {
+                    texte.hole(R.string.timer_gespeichert_eigenstaendig)
+                }
+                _uiState.value = snapshot()
             }
-            hangboardWorkoutRepository.create(
-                HangboardWorkoutEntity(
-                    sessionId = session?.id,
-                    mode = HangboardWorkoutMode.MANUAL,
-                    origin = HangboardWorkoutOrigin.PHONE,
-                    startedAt = startedAtMillis ?: endedAt,
-                    endedAt = endedAt,
-                    plannedSets = totalSets,
-                    plannedHangSec = hangSec,
-                    plannedRestSec = restSec,
-                ),
-                segments,
-            )
-            savedTo = if (session != null) {
-                // Die Halle vorab laden: `hallenName` nimmt keine suspend-Funktion, die
-                // Auflösungsregel soll aber auch hier nicht ein zweites Mal dastehen.
-                val halle = session.gymId?.let { gymRepository.getById(it) }
-                val gymName = session.hallenName { halle?.name }
-                if (gymName != null) "In Session „$gymName“ gespeichert"
-                else "In aktiver Session gespeichert"
-            } else {
-                "Als eigenständiges Hangboard-Training gespeichert"
-            }
-            _uiState.value = snapshot()
         }
     }
 
@@ -323,7 +364,11 @@ class HangboardTimerViewModel @Inject constructor(
             restSec = restSec,
             isRunning = running,
             doneSummary = if (phase == TimerPhase.DONE) {
-                "$totalSets Sätze · ${format(totalSets * hangSec)} Hängezeit"
+                texte.hole(
+                    R.string.timer_zusammenfassung,
+                    texte.mehrzahl(R.plurals.historie_saetze, totalSets, totalSets),
+                    format(totalSets * hangSec),
+                )
             } else null,
             savedTo = if (phase == TimerPhase.DONE) savedTo else null,
             watchConnected = watchConnected,

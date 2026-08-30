@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.boulderbuddy.data.camera.EigeneAufnahmen
+import com.boulderbuddy.ui.AndroidTexte
 import com.boulderbuddy.data.db.BoulderBuddyDatabase
 import com.boulderbuddy.data.db.createInMemoryDatabase
 import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
@@ -147,6 +148,9 @@ class GhostWiederherstellenTest {
                 frameDecoder = GhostFrameDecoder(context),
                 analysisRepository = repository,
                 eigeneAufnahmen = EigeneAufnahmen(context),
+                // Hier die echte Fassung: der Test laeuft auf dem Geraet, die Ressourcen
+                // sind also da - und die Meldungen sollen so lauten wie in der App.
+                texte = AndroidTexte(context),
                 savedStateHandle = SavedStateHandle(argumente),
             )
         }

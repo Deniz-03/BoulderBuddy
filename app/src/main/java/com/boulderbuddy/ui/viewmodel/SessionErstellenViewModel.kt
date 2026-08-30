@@ -13,6 +13,9 @@ import com.boulderbuddy.data.repository.GymRepository
 import com.boulderbuddy.data.repository.GymVisitRepository
 import com.boulderbuddy.data.repository.SessionRepository
 import com.boulderbuddy.data.db.entity.hallenName
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Fehlerkanal
+import com.boulderbuddy.ui.schreibe
 import com.boulderbuddy.ui.model.formatSeit
 import com.boulderbuddy.ui.navigation.SessionErstellen
 import com.boulderbuddy.widget.refreshBoulderWidget
@@ -118,9 +121,10 @@ class SessionErstellenViewModel @Inject constructor(
     private val sessionRepository: SessionRepository,
     private val gymRepository: GymRepository,
     private val gymVisitRepository: GymVisitRepository,
+    private val fehlerkanal: Fehlerkanal,
     gradeRepository: GradeRepository,
     // Nur fürs Homescreen-Widget: nach dem Anlegen soll es sofort die neue Session zeigen.
-    @ApplicationContext private val appContext: Context,
+    @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     // Halle aus dem Näherungs-Notification-Deep-Link (M4); null = normaler Aufruf.
@@ -203,30 +207,40 @@ class SessionErstellenViewModel @Inject constructor(
         legtAn = true
         viewModelScope.launch {
             try {
-                val startedAt = System.currentTimeMillis()
-                val newId = sessionRepository.create(
-                    SessionEntity(
-                        gymId = gymId,
-                        // Leer nur, wenn die Halle zwischen Auswahl und Tippen verschwunden ist —
-                        // dann greift ohnehin gleich der Fremdschlüssel.
-                        gymName = gymRepository.getById(gymId)?.name.orEmpty(),
-                        gradeSystemId = gradeSystemId,
-                        date = startedAt,
-                        notes = notiz.trim().ifBlank { null },
-                        endedAt = null,
+                var neueId: Int? = null
+                val geschrieben = fehlerkanal.schreibe(
+                    R.string.fehler_session_anlegen,
+                    protokollMarke = "Session anlegen",
+                ) {
+                    val startedAt = System.currentTimeMillis()
+                    neueId = sessionRepository.create(
+                        SessionEntity(
+                            gymId = gymId,
+                            // Leer nur, wenn die Halle zwischen Auswahl und Tippen verschwunden
+                            // ist — dann greift ohnehin gleich der Fremdschlüssel.
+                            gymName = gymRepository.getById(gymId)?.name.orEmpty(),
+                            gradeSystemId = gradeSystemId,
+                            date = startedAt,
+                            notes = notiz.trim().ifBlank { null },
+                            endedAt = null,
+                        )
                     )
-                )
-                // Gym-Näherungs-Push (M3): Session-Start zählt als Besuch fürs Besuchsmuster
-                // (Tages-Dedupe im Repository — war heute schon ein Geofence-Besuch da, passiert nichts).
-                gymVisitRepository.logVisit(
-                    gymId = gymId,
-                    timestamp = startedAt,
-                    source = GymVisitEntity.SOURCE_SESSION,
-                )
-                // Widget-Snapshot nachziehen, damit dort sofort „Session öffnen" statt
-                // „Session starten" steht (7.4c: sonst erst nach bis zu 30 min).
-                refreshBoulderWidget(appContext)
-                onCreated(newId)
+                    // Gym-Näherungs-Push (M3): Session-Start zählt als Besuch fürs Besuchsmuster
+                    // (Tages-Dedupe im Repository — war heute schon ein Geofence-Besuch da,
+                    // passiert nichts).
+                    gymVisitRepository.logVisit(
+                        gymId = gymId,
+                        timestamp = startedAt,
+                        source = GymVisitEntity.SOURCE_SESSION,
+                    )
+                    // Widget-Snapshot nachziehen, damit dort sofort „Session öffnen" statt
+                    // „Session starten" steht (7.4c: sonst erst nach bis zu 30 min).
+                    refreshBoulderWidget(appContext)
+                }
+                // Nur bei Erfolg weiter. Ohne diese Prüfung spränge die App in eine Session,
+                // die es nicht gibt — der Detail-Screen stünde dann auf „Session nicht
+                // gefunden", was den eigentlichen Fehler eher verdeckt als zeigt.
+                neueId?.takeIf { geschrieben }?.let(onCreated)
             } finally {
                 // Nach dem Erfolg ist der Screen ohnehin vom Stapel; wichtig ist der Fehlerfall:
                 // eine Sperre, die nie aufgeht, wäre schlimmer als der doppelte Tap.

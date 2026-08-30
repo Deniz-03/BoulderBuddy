@@ -1,6 +1,8 @@
 package com.boulderbuddy.ui.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
@@ -59,6 +61,9 @@ class GymBearbeitenViewModel @Inject constructor(
     gradeRepository: GradeRepository,
     private val locationClient: GymLocationClient,
     private val geofenceManager: GeofenceManager,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt: als Schnittstelle,
+    // damit dieses ViewModel ohne Android testbar bleibt).
+    private val texte: Texte,
 ) : ViewModel() {
 
     /** `null` = neue Halle. Die ID der frisch angelegten steht danach in [angelegteGymId]. */
@@ -110,14 +115,16 @@ class GymBearbeitenViewModel @Inject constructor(
                     null
                 } else {
                     val topDay = stats.visitsByDayOfWeek.maxByOrNull { it.value }?.key
-                    val besuche = if (stats.totalVisits == 1) "1 Besuch" else "${stats.totalVisits} Besuche"
+                    val besuche = texte.mehrzahl(
+                        R.plurals.halle_besuche, stats.totalVisits, stats.totalVisits,
+                    )
                     if (topDay == null) {
                         besuche
                     } else {
                         // "Dienstag" → "meist dienstags" (deutsche Wochentage + Suffix "s").
                         val dayLabel = topDay.getDisplayName(TextStyle.FULL, Locale.GERMAN)
                             .lowercase(Locale.GERMAN)
-                        "$besuche · meist ${dayLabel}s"
+                        texte.hole(R.string.halle_besuche_tag, besuche, dayLabel)
                     }
                 }
                 _uiState.update { it.copy(visitSummary = summary) }
@@ -169,7 +176,7 @@ class GymBearbeitenViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             capturingLocation = false,
-                            locationError = "Kein Standort verfügbar — sind die Standortdienste an?",
+                            locationError = texte.hole(R.string.halle_standort_nicht_ermittelbar),
                         )
                     }
                 }
@@ -177,7 +184,10 @@ class GymBearbeitenViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         capturingLocation = false,
-                        locationError = "Standort konnte nicht ermittelt werden: ${e.message}",
+                        locationError = texte.hole(
+                            R.string.halle_standort_fehler,
+                            e.message.orEmpty(),
+                        ),
                     )
                 }
             }

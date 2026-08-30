@@ -246,7 +246,7 @@ fun StatistikScreen(
                     VerlaufSection(
                         titel = stringResource(
                             R.string.statistik_routen_pro,
-                            zeitraum.label.dropLast(1),
+                            stringResource(zeitraum.labelEinzahl),
                         ),
                         // Kein kumulativer Zähler: jeder Balken ist das, was in genau diesem
                         // Abschnitt geklettert wurde. Abschnitte ohne Aktivität stehen als
@@ -263,7 +263,7 @@ fun StatistikScreen(
                         titel = stringResource(R.string.statistik_grad_verlauf),
                         hinweis = stringResource(
                             R.string.statistik_grad_hinweis,
-                            zeitraum.label.dropLast(1),
+                            stringResource(zeitraum.labelEinzahl),
                         ),
                         leerText = stringResource(R.string.statistik_keine_tops),
                         istLeer = gradVerlauf.none { it.wert != null },
@@ -360,7 +360,7 @@ private fun ZeitraumUmschalter(
     ) {
         Zeitraum.entries.forEach { z ->
             FilterChip(
-                label = z.label,
+                label = stringResource(z.label),
                 selected = z == aktuell,
                 onClick = { onSelect(z) },
             )
@@ -470,8 +470,8 @@ private fun GradeDistributionSection(
 @Composable
 private fun HangboardSection(
     state: StatistikUiState,
-    onOpen: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onOpen: () -> Unit = {},
 ) {
     Column(
         modifier = modifier.clickable(onClick = onOpen),
@@ -526,8 +526,8 @@ private fun ActivitySection(
         Text(
             // Konkrete Spanne aus dem ViewModel; fehlt sie, bleibt die allgemeine Angabe.
             text = range.takeIf { it.isNotBlank() }
-                ?.let { "Deine Kletteraktivität · $it" }
-                ?: "Deine Kletteraktivität der letzten 4 Wochen",
+                ?.let { stringResource(R.string.statistik_aktivitaet_spanne, it) }
+                ?: stringResource(R.string.statistik_aktivitaet_standard),
             style = MaterialTheme.typography.bodySmall,
             color = BoulderBuddy.colors.textSecondary,
         )

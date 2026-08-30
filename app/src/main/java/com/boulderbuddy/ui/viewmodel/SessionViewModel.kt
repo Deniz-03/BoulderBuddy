@@ -2,6 +2,7 @@ package com.boulderbuddy.ui.viewmodel
 
 import android.content.Context
 import androidx.compose.ui.graphics.Color
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GhostAnalysisEntity
@@ -22,6 +23,9 @@ import com.boulderbuddy.ui.model.formatDayMonth
 import com.boulderbuddy.ui.model.formatDurationShort
 import com.boulderbuddy.ui.model.formatUhrzeit
 import com.boulderbuddy.ui.model.istGetoppt
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Fehlerkanal
+import com.boulderbuddy.ui.schreibe
 import com.boulderbuddy.ui.model.toBoulderStatus
 import com.boulderbuddy.ui.theme.routeColorForKey
 import com.boulderbuddy.ui.screens.BoulderStatus
@@ -112,8 +116,10 @@ class SessionViewModel @AssistedInject constructor(
     gradeRepository: GradeRepository,
     hangboardWorkoutRepository: HangboardWorkoutRepository,
     ghostAnalysisRepository: GhostAnalysisRepository,
+    private val fehlerkanal: Fehlerkanal,
     // Nur fürs Homescreen-Widget: nach dem Beenden soll es keine aktive Session mehr anbieten.
-    @ApplicationContext private val appContext: Context,
+    private val texte: Texte,
+    @param:ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     @AssistedFactory
@@ -139,7 +145,7 @@ class SessionViewModel @AssistedInject constructor(
                 ?: return@combine SessionUiState(loading = false, exists = false)
             buildState(session, routes, grades.associateBy { it.id }, hangboardWorkouts,
                 gymName = session.hallenName { id -> gyms.firstOrNull { it.id == id }?.name }
-                    ?: "Unbekannte Halle")
+                    ?: texte.hole(R.string.session_halle_unbekannt))
         },
         ghostAnalysisRepository.observeBySession(sessionId),
         // Die Systemnamen kommen erst hier dazu: die Aggregation drinnen kennt nur
@@ -172,15 +178,28 @@ class SessionViewModel @AssistedInject constructor(
      */
     fun updateNotes(notes: String) {
         viewModelScope.launch {
-            sessionRepository.updateNotes(sessionId, notes.trim().takeIf { it.isNotEmpty() })
+            // Läuft bei jedem Tastendruck. Der Kanal verwirft überzählige Meldungen, während
+            // eine sichtbar ist — sonst stünde bei einer dauerhaft kaputten Datenbank für
+            // jeden getippten Buchstaben eine Snackbar in der Warteschlange.
+            fehlerkanal.schreibe(
+                R.string.fehler_notiz_speichern,
+                protokollMarke = "Session-Notiz speichern",
+            ) {
+                sessionRepository.updateNotes(sessionId, notes.trim().takeIf { it.isNotEmpty() })
+            }
         }
     }
 
     fun endSession() {
         viewModelScope.launch {
-            sessionRepository.endSession(sessionId)
-            // Widget-Snapshot nachziehen: es darf jetzt nicht mehr in diese Session springen.
-            refreshBoulderWidget(appContext)
+            fehlerkanal.schreibe(
+                R.string.fehler_session_beenden,
+                protokollMarke = "Session beenden",
+            ) {
+                sessionRepository.endSession(sessionId)
+                // Widget-Snapshot nachziehen: es darf jetzt nicht mehr in diese Session springen.
+                refreshBoulderWidget(appContext)
+            }
         }
     }
 
@@ -197,7 +216,9 @@ class SessionViewModel @AssistedInject constructor(
             SessionBoulderUi(
                 id = route.id,
                 grade = grade?.label ?: "—",
-                name = route.name.ifBlank { grade?.label ?: "Boulder" },
+                name = route.name.ifBlank {
+                grade?.label ?: texte.hole(R.string.boulder_ohne_namen)
+            },
                 accentColor = routeColorForKey(route.color),
                 status = route.status.toBoulderStatus(route.attempts),
                 versuche = route.attempts,
@@ -222,7 +243,11 @@ class SessionViewModel @AssistedInject constructor(
             exists = true,
             istAktiv = istAktiv,
             gym = gymName,
-            dateSubtitle = if (istAktiv) "" else "${formatDayMonth(session.date)} · abgeschlossen",
+            dateSubtitle = if (istAktiv) {
+                ""
+            } else {
+                texte.hole(R.string.session_abgeschlossen, formatDayMonth(session.date))
+            },
             startMillis = session.date,
             durationText = durationText,
             topGrade = topGrade,
@@ -241,9 +266,9 @@ class SessionViewModel @AssistedInject constructor(
         id = analyse.id,
         zeitText = formatUhrzeit(analyse.createdAt),
         modusLabel = if (analyse.suggestedMode == GhostViewMode.SIDE_BY_SIDE.name) {
-            "Side-by-Side"
+            texte.hole(R.string.ghost_modus_side_by_side)
         } else {
-            "Overlay"
+            texte.hole(R.string.ghost_modus_overlay)
         },
     )
 
@@ -252,11 +277,20 @@ class SessionViewModel @AssistedInject constructor(
     private fun workoutSummary(workout: HangboardWorkoutWithSegments): String {
         val w = workout.workout
         return if (w.mode == HangboardWorkoutMode.MANUAL && w.plannedHangSec != null) {
-            "${workout.segments.size} Sätze · ${w.plannedHangSec}s Hang / ${w.plannedRestSec ?: 0}s Pause"
+            texte.hole(
+                R.string.hangboard_zusammenfassung_manuell,
+                texte.mehrzahl(R.plurals.historie_saetze, workout.segments.size, workout.segments.size),
+                w.plannedHangSec,
+                w.plannedRestSec ?: 0,
+            )
         } else {
             val hangSeconds = workout.totalHangMs / 1000
             val hangTime = "%02d:%02d".format(hangSeconds / 60, hangSeconds % 60)
-            "${workout.segments.size} Sätze · $hangTime Hängezeit (Auto)"
+            texte.hole(
+                R.string.hangboard_zusammenfassung_auto,
+                texte.mehrzahl(R.plurals.historie_saetze, workout.segments.size, workout.segments.size),
+                hangTime,
+            )
         }
     }
 }

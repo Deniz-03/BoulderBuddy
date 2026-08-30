@@ -17,6 +17,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
@@ -72,7 +73,10 @@ fun ToggleSwitch(
     ) {
         Box(
             modifier = Modifier
-                .offset(x = thumbOffset)
+                // Lambda-Fassung, weil `thumbOffset` aus einer Animation kommt: so wird der
+                // Wert erst beim Layout gelesen und nicht bei jedem Frame die ganze
+                // Composition angefasst.
+                .offset { IntOffset(thumbOffset.roundToPx(), 0) }
                 .size(thumbSize)
                 .clip(CircleShape)
                 .background(BoulderBuddy.colors.onFillStrong),

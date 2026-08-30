@@ -73,12 +73,16 @@ fun BoulderDetailScreen(
 ) {
     val accentColor = state.accentColor
     val (statusText, statusColor) = statusBadgeStyle(state.status)
-    val subtitle = if (state.sektor.isBlank()) null else "Sektor ${state.sektor}"
+    val subtitle = if (state.sektor.isBlank()) {
+        null
+    } else {
+        stringResource(R.string.boulder_sektor_wert, state.sektor)
+    }
 
     BoulderBuddyScaffold(
         topBar = {
             TopBar(
-                title = state.name.ifBlank { "Boulder" },
+                title = state.name.ifBlank { stringResource(R.string.boulder_ohne_namen) },
                 subtitle = subtitle,
                 navIcon = onBack?.let { zurueck ->
                     {
@@ -290,9 +294,12 @@ private fun BoulderFoto(
 private fun statusBadgeStyle(status: BoulderStatus): Pair<String, Color> {
     val routes = BoulderBuddy.colors.routes
     return when (status) {
-        BoulderStatus.TOP -> "${status.symbol} Top" to routes.green
-        BoulderStatus.FLASH -> "${status.symbol} Flash" to routes.orange
-        BoulderStatus.PROJEKT -> "${status.symbol} Projekt" to routes.blue
+        BoulderStatus.TOP ->
+            stringResource(R.string.boulder_status_top, status.symbol) to routes.green
+        BoulderStatus.FLASH ->
+            stringResource(R.string.boulder_status_flash, status.symbol) to routes.orange
+        BoulderStatus.PROJEKT ->
+            stringResource(R.string.boulder_status_projekt, status.symbol) to routes.blue
     }
 }
 

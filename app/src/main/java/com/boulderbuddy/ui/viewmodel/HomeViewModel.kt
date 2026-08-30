@@ -1,6 +1,8 @@
 package com.boulderbuddy.ui.viewmodel
 
 import androidx.compose.ui.graphics.Color
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
@@ -58,6 +60,9 @@ class HomeViewModel @Inject constructor(
     gymRepository: GymRepository,
     gradeRepository: GradeRepository,
     settingsRepository: SettingsRepository,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt: als Schnittstelle,
+    // damit dieses ViewModel ohne Android testbar bleibt).
+    private val texte: Texte,
 ) : ViewModel() {
 
     // Innerer Kern-Zustand (5 Flows), damit die Systeme als 6. Flow außen kombiniert werden
@@ -138,7 +143,8 @@ class HomeViewModel @Inject constructor(
             val sessionRoutes = routes.filter { it.sessionId == session.id }
             LastSessionUi(
                 sessionId = session.id,
-                gym = session.hallenName { gymsById[it]?.name } ?: "Unbekannte Halle",
+                gym = session.hallenName { gymsById[it]?.name }
+                    ?: texte.hole(R.string.session_halle_unbekannt),
                 subtitle = buildSubtitle(session, sessionRoutes.size),
                 accentColor = accentColorFor(sessionRoutes),
                 isActive = session.endedAt == null,
@@ -159,7 +165,10 @@ class HomeViewModel @Inject constructor(
 
     private fun buildSubtitle(session: SessionEntity, boulderCount: Int): String {
         val prefix = formatSessionTag(session.date, laeuftNoch = session.endedAt == null)
-        return "$prefix · $boulderCount Boulder"
+        val boulder = texte.mehrzahl(
+            R.plurals.anzahl_boulder, boulderCount, boulderCount,
+        )
+        return texte.hole(R.string.session_untertitel, prefix, boulder)
     }
 }
 

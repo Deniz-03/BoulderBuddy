@@ -254,12 +254,12 @@ private fun WidgetContent(context: Context, data: WidgetData) {
                 text = context.getString(
                     R.string.widget_laeuft,
                     context.resources.getQuantityString(
-                        R.plurals.widget_boulder,
+                        R.plurals.anzahl_boulder,
                         data.routeCount,
                         data.routeCount,
                     ),
                     context.resources.getQuantityString(
-                        R.plurals.widget_tops,
+                        R.plurals.anzahl_tops,
                         data.sessionTops,
                         data.sessionTops,
                     ),

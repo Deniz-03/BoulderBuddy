@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
@@ -240,7 +241,9 @@ class StatistikViewModel @Inject constructor(
     // "letzte 4 Wochen" sieht man, welcher Zeitraum tatsächlich dargestellt ist.
     private fun activityRange(today: LocalDate): String {
         val startDay = today.minusDays((ACTIVITY_DAYS - 1).toLong())
-        return "${formatDayMonth(startDay)} – ${formatDayMonth(today)}"
+        // Bleibt bewusst im Code: hier stehen zwei Daten und ein Gedankenstrich, kein Wort.
+        // In strings.xml waere das eine Zeile, die nie jemand uebersetzt oder aendert.
+        return "${formatDayMonth(startDay)} \u2013 ${formatDayMonth(today)}"
     }
 }
 

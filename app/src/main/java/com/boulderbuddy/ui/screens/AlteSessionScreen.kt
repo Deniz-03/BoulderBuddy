@@ -99,6 +99,9 @@ fun AlteSessionScreen(
     // bestätigt die kurze Rückmeldung. Beim Tippen braucht es sie nicht — dort sieht man den
     // Text ja entstehen.
     val snackbarHostState = remember { SnackbarHostState() }
+    // Vorab aufgeloest: die Meldung wird in einer Coroutine gezeigt, und dort gibt es keine
+    // Composition mehr, aus der sich `stringResource` bedienen koennte.
+    val notizGespeichert = stringResource(R.string.session_notiz_gespeichert)
 
     // Gewähltes Gradsystem des Verlaufs — wie in der laufenden Ansicht.
     var gewaehltesSystem by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -197,7 +200,7 @@ fun AlteSessionScreen(
                                     notiz = ergaenzt
                                     onNotesChange(ergaenzt)
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("Notiz gespeichert")
+                                        snackbarHostState.showSnackbar(notizGespeichert)
                                     }
                                 },
                             )

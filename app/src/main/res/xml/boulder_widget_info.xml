@@ -4,7 +4,15 @@
   initialLayout nutzt das Standard-Ladelayout aus der Glance-Library.
   updatePeriodMillis = 30 min (Minimum, das das Framework respektiert).
 -->
+<!--
+  targetCellWidth/-Height gelten erst ab Android 12 und sind dort der vorgesehene Weg, eine
+  Widget-Groesse anzugeben. Aeltere Fassungen ignorieren sie stillschweigend und richten sich
+  nach minWidth/minHeight, die deshalb weiterhin danebenstehen. Beides gehoert zusammen; ein
+  eigener xml-v31-Ordner waere dieselbe Datei zweimal.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedAttribute"
     android:description="@string/widget_description"
     android:initialLayout="@layout/glance_default_loading_layout"
     android:minWidth="180dp"

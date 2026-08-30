@@ -2,6 +2,7 @@ package com.boulderbuddy.sync
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.net.toUri
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -21,7 +22,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class MedienSpeicher @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) {
 
     private val ordner = File(context.filesDir, MEDIEN_ORDNER)
@@ -44,7 +45,7 @@ class MedienSpeicher @Inject constructor(
      * Zeile dann in Ruhe, statt sie kaputtzuschreiben.
      */
     suspend fun uebernehme(quelle: String): String? = withContext(Dispatchers.IO) {
-        val uri = runCatching { Uri.parse(quelle) }.getOrNull() ?: return@withContext null
+        val uri = runCatching { quelle.toUri() }.getOrNull() ?: return@withContext null
         if (istSchonUebernommen(uri)) return@withContext quelle
 
         ordner.mkdirs()

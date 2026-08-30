@@ -1,6 +1,7 @@
 package com.boulderbuddy.sync.nearby
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
 
 /**
@@ -23,6 +24,19 @@ object NearbyBerechtigungen {
      * @param sdk `Build.VERSION.SDK_INT`; als Parameter, damit jede Version testbar ist,
      *   ohne auf ihr zu laufen.
      */
+    /*
+     * `InlinedApi` unterdrueckt, und zwar aus zwei Gruenden gemeinsam:
+     *
+     * 1. Die Namen sind reine Zeichenketten, die der Compiler an der Aufrufstelle einsetzt.
+     *    Auf Android 8 entsteht daraus kein Zugriff auf etwas Nichtvorhandenes, sondern der
+     *    Text "android.permission.BLUETOOTH_ADVERTISE" - unbenutzt, aber harmlos.
+     * 2. Die Verzweigung schuetzt ohnehin. Lint sieht das nur nicht, weil die Version als
+     *    Parameter hereinkommt und nicht als `Build.VERSION.SDK_INT` dasteht - und genau das
+     *    ist Absicht: nur so laesst sich jede Version im Test durchspielen, ohne auf ihr zu
+     *    laufen (siehe ProtokollTest, die drei
+     *    Versions-Tests am Ende).
+     */
+    @SuppressLint("InlinedApi")
     fun fuer(sdk: Int): List<String> = buildList {
         if (sdk >= Build.VERSION_CODES.S) {
             // Ab Android 12 sind die Bluetooth-Rechte aufgeteilt und laufzeitpflichtig.

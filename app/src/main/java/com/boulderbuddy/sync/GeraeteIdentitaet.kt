@@ -105,7 +105,7 @@ data class Identitaet(
  */
 @Singleton
 class GeraeteIdentitaet @Inject constructor(
-    @GeraeteStore private val dataStore: DataStore<Preferences>,
+    @param:GeraeteStore private val dataStore: DataStore<Preferences>,
 ) {
 
     val identitaet: Flow<Identitaet> = dataStore.data.map { prefs ->

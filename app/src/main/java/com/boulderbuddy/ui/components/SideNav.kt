@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -130,7 +131,7 @@ private fun SideNavItem(
         )
         Icon(
             imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-            contentDescription = tab.contentDescription,
+            contentDescription = stringResource(tab.contentDescription),
             tint = iconColor,
             modifier = Modifier.size(24.dp),
         )

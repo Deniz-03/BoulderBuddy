@@ -1,5 +1,7 @@
 package com.boulderbuddy.ui.viewmodel
 
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
@@ -46,6 +48,9 @@ class HangboardHistorieViewModel @Inject constructor(
     hangboardWorkoutRepository: HangboardWorkoutRepository,
     sessionRepository: SessionRepository,
     gymRepository: GymRepository,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt: als Schnittstelle,
+    // damit dieses ViewModel ohne Android testbar bleibt).
+    private val texte: Texte,
 ) : ViewModel() {
 
     val uiState: StateFlow<HangboardHistorieUiState> = combine(
@@ -64,14 +69,31 @@ class HangboardHistorieViewModel @Inject constructor(
                 val hangSeconds = workout.totalHangMs / 1000
                 HangboardHistorieEntryUi(
                     id = w.id,
-                    title = if (w.sessionId == null) "Eigenständig" else gymName ?: "Session",
+                    title = if (w.sessionId == null) {
+                        texte.hole(R.string.historie_eigenstaendig)
+                    } else {
+                        gymName ?: texte.hole(R.string.historie_session)
+                    },
                     subtitle = listOf(
                         formatRelativeDay(w.endedAt),
-                        if (w.mode == HangboardWorkoutMode.AUTO) "Auto" else "Manuell",
+                        texte.hole(
+                            if (w.mode == HangboardWorkoutMode.AUTO) {
+                                R.string.historie_auto
+                            } else {
+                                R.string.historie_manuell
+                            },
+                        ),
                     ).joinToString(" · "),
                     badges = listOf(
-                        "${workout.segments.size} Sätze",
-                        "%02d:%02d Hängezeit".format(hangSeconds / 60, hangSeconds % 60),
+                        texte.mehrzahl(
+                            R.plurals.historie_saetze,
+                            workout.segments.size,
+                            workout.segments.size,
+                        ),
+                        texte.hole(
+                            R.string.historie_haengezeit,
+                            "%02d:%02d".format(hangSeconds / 60, hangSeconds % 60),
+                        ),
                     ),
                     standalone = w.sessionId == null,
                     auto = w.mode == HangboardWorkoutMode.AUTO,

@@ -139,7 +139,7 @@ fun SessionUebersichtScreen(
                                 horizontalArrangement = Arrangement.spacedBy(Dimens.paddingXS),
                             ) {
                                 Text(
-                                    text = state.sortMode.label,
+                                    text = stringResource(state.sortMode.label),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = BoulderBuddy.colors.textSecondary,
                                 )
@@ -159,7 +159,7 @@ fun SessionUebersichtScreen(
                                 SessionSortMode.entries.forEach { mode ->
                                     val isActive = mode == state.sortMode
                                     DropdownMenuItem(
-                                        text = { Text(mode.label) },
+                                        text = { Text(stringResource(mode.label)) },
                                         onClick = {
                                             onSetSortMode(mode)
                                             showSortMenu = false
@@ -174,11 +174,13 @@ fun SessionUebersichtScreen(
                                                     } else {
                                                         Icons.Outlined.ArrowUpward
                                                     },
-                                                    contentDescription = if (state.sortDescending) {
-                                                        "Absteigend"
-                                                    } else {
-                                                        "Aufsteigend"
-                                                    },
+                                                    contentDescription = stringResource(
+                                                        if (state.sortDescending) {
+                                                            R.string.sortierung_absteigend
+                                                        } else {
+                                                            R.string.sortierung_aufsteigend
+                                                        },
+                                                    ),
                                                     modifier = Modifier.size(Dimens.iconS),
                                                 )
                                             }

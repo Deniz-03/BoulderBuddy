@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.boulderbuddy.R
@@ -627,8 +628,9 @@ private fun AnalysisProgress(
     ) {
         when {
             slot.track != null -> Text(
-                text = stringResource(
-                    R.string.ghost_fortschritt_fertig,
+                text = pluralStringResource(
+                    R.plurals.ghost_fortschritt_fertig,
+                    slot.track.frames.size,
                     label,
                     slot.track.frames.size,
                 ),
@@ -712,7 +714,11 @@ private fun AnchorsStep(
             text = if (ref >= GhostTuning.MIN_ANCHORS && ref != cmp) {
                 stringResource(R.string.ghost_anker_ungleich, ref, cmp)
             } else {
-                stringResource(R.string.ghost_anker_zu_wenige, GhostTuning.MIN_ANCHORS)
+                pluralStringResource(
+                    R.plurals.ghost_anker_zu_wenige,
+                    GhostTuning.MIN_ANCHORS,
+                    GhostTuning.MIN_ANCHORS,
+                )
             },
             style = MaterialTheme.typography.labelMedium,
             color = BoulderBuddy.colors.textTertiary,

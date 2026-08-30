@@ -41,7 +41,7 @@ data class UmzugsErgebnis(
 class MedienUmzug @Inject constructor(
     private val medienDao: MedienDao,
     private val speicher: MedienSpeicher,
-    @GeraeteStore private val dataStore: DataStore<Preferences>,
+    @param:GeraeteStore private val dataStore: DataStore<Preferences>,
 ) {
 
     /** Läuft nur beim ersten Mal durch; danach ist der Aufruf ein Flag-Lesen. */

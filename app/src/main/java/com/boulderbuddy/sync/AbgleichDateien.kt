@@ -1,5 +1,6 @@
 package com.boulderbuddy.sync
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.boulderbuddy.data.db.BoulderBuddyDatabase
@@ -57,7 +58,7 @@ internal fun loescheMitBegleitern(datei: File) {
  */
 @Singleton
 class AbgleichDateien @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val datenbank: BoulderBuddyDatabase,
 ) {
 
@@ -146,7 +147,18 @@ class AbgleichDateien @Inject constructor(
      */
     fun genugPlatz(bedarfBytes: Long): Boolean = freierPlatz() > bedarfBytes * 2
 
-    /** Freier Speicher dort, wo Stand und Medien liegen. */
+    /**
+     * Freier Speicher dort, wo Stand und Medien liegen.
+     *
+     * Lint schlaegt `StorageManager.getAllocatableBytes` vor, weil das zusaetzlich den
+     * Cache anderer Apps mitzaehlt, den das System notfalls raeumt. Genau das ist hier
+     * unerwuenscht: die Zahl waere groesser als der Platz, der wirklich frei ist, und der
+     * Abgleich wuerde in Faellen starten, in denen er auf halber Strecke stehenbleibt.
+     * Mitten in der Uebertragung abzubrechen ist das schlechteste Ergebnis (Ablauf 27) -
+     * lieber vorher absagen. `usableSpace` ist die vorsichtige Zahl, und Vorsicht ist hier
+     * die richtige Richtung.
+     */
+    @SuppressLint("UsableSpace")
     fun freierPlatz(): Long = context.filesDir.usableSpace
 
     /** Räumt liegengebliebene Empfangsdateien weg — auch nach einem Abbruch (Ablauf 27). */

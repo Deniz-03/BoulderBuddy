@@ -67,8 +67,8 @@ fun HomeScreen(
     // statt einen Platzhalter-Namen zu erfinden.
     val greeting = state.userName
         .takeIf { it.isNotBlank() }
-        ?.let { "Hallo, $it 👋" }
-        ?: "Hallo 👋"
+        ?.let { stringResource(R.string.home_gruss_mit_name, it) }
+        ?: stringResource(R.string.home_gruss_neutral)
     val hasActiveSession = state.hasActiveSession
 
     // Ermittlung des aktuellen Datums
@@ -165,8 +165,8 @@ fun HomeScreen(
                             // Label zeigt das System, aus dem der Top-Grade stammt (pro System).
                             label = state.topGradeSystemName
                                 .takeIf { it.isNotBlank() }
-                                ?.let { "Top · $it" }
-                                ?: "Top Grade",
+                                ?.let { stringResource(R.string.home_top_grade_system, it) }
+                                ?: stringResource(R.string.home_top_grade),
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),

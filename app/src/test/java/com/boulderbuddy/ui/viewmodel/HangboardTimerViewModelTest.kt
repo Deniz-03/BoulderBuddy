@@ -1,5 +1,6 @@
 package com.boulderbuddy.ui.viewmodel
 
+import com.boulderbuddy.R
 import com.boulderbuddy.data.db.entity.GymEntity
 import com.boulderbuddy.data.db.entity.HangboardTemplateEntity
 import com.boulderbuddy.data.db.entity.HangboardWorkoutMode
@@ -14,6 +15,8 @@ import com.boulderbuddy.fake.FakeHapticPlayer
 import com.boulderbuddy.fake.FakeSessionRepository
 import com.boulderbuddy.fake.FakeSettingsRepository
 import com.boulderbuddy.fake.FakeWearConnection
+import com.boulderbuddy.fake.FakeTexte
+import com.boulderbuddy.ui.Fehlerkanal
 import com.boulderbuddy.ui.screens.TimerPhase
 import com.boulderbuddy.util.MainDispatcherRule
 import com.google.common.truth.Truth.assertThat
@@ -45,6 +48,8 @@ class HangboardTimerViewModelTest {
     private val gyms = FakeGymRepository()
     private val haptics = FakeHapticPlayer()
     private val wear = FakeWearConnection()
+    private val fehlerkanal = Fehlerkanal()
+    private val texte = FakeTexte()
 
     private fun createViewModel() = HangboardTimerViewModel(
         settingsRepository = settings,
@@ -53,6 +58,8 @@ class HangboardTimerViewModelTest {
         hangboardRepository = hangboard,
         gymRepository = gyms,
         hapticPlayer = haptics,
+        fehlerkanal = fehlerkanal,
+        texte = texte,
         wearConnection = wear,
     )
 
@@ -117,8 +124,12 @@ class HangboardTimerViewModelTest {
             assertThat(created.segments).hasSize(2)
             assertThat(created.segments.map { it.hangMs }).containsExactly(3_000L, 3_000L)
             assertThat(created.segments.last().restMs).isEqualTo(0L)
-            // Speicherort-Feedback (§0 Säule 3) nennt die Session-Halle.
-            assertThat(state.savedTo).contains("Halle Nord")
+            // Speicherort-Feedback (§0 Säule 3) nennt die Session-Halle. Geprüft wird der
+            // gewählte Text und der eingesetzte Hallenname — nicht der Wortlaut selbst; der
+            // steht in strings.xml und darf sich ändern, ohne diesen Test rot zu machen.
+            assertThat(state.savedTo).isEqualTo(
+                FakeTexte.erwartet(R.string.timer_gespeichert_in_halle, "Halle Nord")
+            )
         }
 
     @Test
@@ -134,7 +145,9 @@ class HangboardTimerViewModelTest {
             assertThat(vm.uiState.value.phase).isEqualTo(TimerPhase.DONE)
             assertThat(hangboardWorkouts.created).hasSize(1)
             assertThat(hangboardWorkouts.created.first().workout.sessionId).isNull()
-            assertThat(vm.uiState.value.savedTo).contains("eigenständiges")
+            assertThat(vm.uiState.value.savedTo).isEqualTo(
+                FakeTexte.erwartet(R.string.timer_gespeichert_eigenstaendig)
+            )
         }
 
     @Test

@@ -1,6 +1,8 @@
 package com.boulderbuddy.ui.viewmodel
 
 import androidx.compose.ui.graphics.Color
+import com.boulderbuddy.R
+import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.repository.GradeRepository
@@ -44,6 +46,9 @@ data class BoulderUebersichtUiState(
 class BoulderUebersichtViewModel @Inject constructor(
     routeRepository: RouteRepository,
     gradeRepository: GradeRepository,
+    // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt: als Schnittstelle,
+    // damit dieses ViewModel ohne Android testbar bleibt).
+    private val texte: Texte,
 ) : ViewModel() {
 
     val uiState: StateFlow<BoulderUebersichtUiState> = combine(
@@ -58,8 +63,12 @@ class BoulderUebersichtViewModel @Inject constructor(
             BoulderOverviewItemUi(
                 id = route.id,
                 grade = grade?.label ?: "—",
-                name = route.name.ifBlank { grade?.label ?: "Boulder" },
-                meta = route.sektor?.let { "Sektor $it" }.orEmpty(),
+                name = route.name.ifBlank {
+                    grade?.label ?: texte.hole(R.string.boulder_ohne_namen)
+                },
+                meta = route.sektor
+                    ?.let { texte.hole(R.string.boulder_sektor_wert, it) }
+                    .orEmpty(),
                 accentColor = routeColorForKey(route.color),
                 systemId = grade?.systemId,
                 gradeId = grade?.id,

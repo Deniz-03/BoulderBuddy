@@ -7,6 +7,7 @@ import com.boulderbuddy.data.db.entity.SessionEntity
 import com.boulderbuddy.fake.FakeGradeRepository
 import com.boulderbuddy.fake.FakeGymRepository
 import com.boulderbuddy.fake.FakeRouteRepository
+import com.boulderbuddy.fake.FakeTexte
 import com.boulderbuddy.fake.FakeSessionRepository
 import com.boulderbuddy.util.MainDispatcherRule
 import com.google.common.truth.Truth.assertThat
@@ -56,6 +57,7 @@ class SessionListViewModelTest {
         routeRepository = routes,
         gymRepository = gyms,
         gradeRepository = grades,
+        texte = FakeTexte(),
     )
 
     @Test
