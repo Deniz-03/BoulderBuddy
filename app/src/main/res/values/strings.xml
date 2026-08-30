@@ -756,6 +756,7 @@
     <string name="ghost_fehler_nicht_gefunden">Analyse nicht gefunden</string>
     <string name="ghost_fehler_daten_geloescht">Analyse-Daten wurden gelöscht — bitte neu analysieren</string>
     <string name="ghost_fehler_laden">Analyse konnte nicht geladen werden</string>
+    <string name="ghost_fehler_loeschen">Die Analyse wurde nicht gelöscht.</string>
     <string name="ghost_fehler_spur_referenz">Referenz: keine verwertbare Pose-Spur</string>
     <string name="ghost_fehler_spur_vergleich">Vergleich: keine verwertbare Pose-Spur</string>
 
@@ -783,6 +784,11 @@
     <string name="fehler_workout_speichern">Der Durchlauf wurde nicht gespeichert.</string>
     <string name="fehler_preset_speichern">Das Preset wurde nicht gespeichert.</string>
     <string name="fehler_preset_loeschen">Das Preset wurde nicht gelöscht.</string>
+<string name="fehler_gradsystem_anlegen">Das Grading-System wurde nicht angelegt.</string>
+    <string name="fehler_gradsystem_loeschen">Das Grading-System wurde nicht gelöscht.</string>
+    <string name="fehler_einstellung_speichern">Die Einstellung wurde nicht gemerkt.</string>
+    <string name="fehler_halle_speichern">Die Halle wurde nicht gespeichert. Die Eingaben stehen noch da — bitte noch einmal versuchen.</string>
+    <string name="fehler_halle_loeschen">Die Halle wurde nicht gelöscht.</string>
     <string name="fehler_timer_einstellung">Die Timer-Einstellung wurde nicht gemerkt — dieser Durchlauf läuft trotzdem damit.</string>
 
     <!-- Widget -->

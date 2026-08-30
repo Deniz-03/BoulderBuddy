@@ -3,7 +3,9 @@ package com.boulderbuddy.ui.viewmodel
 import android.content.Context
 import android.net.Uri
 import com.boulderbuddy.R
+import com.boulderbuddy.ui.Fehlerkanal
 import com.boulderbuddy.ui.Texte
+import com.boulderbuddy.ui.schreibe
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.boulderbuddy.data.db.entity.GradeEntity
@@ -53,6 +55,7 @@ data class EinstellungenUiState(
 
 @HiltViewModel
 class EinstellungenViewModel @Inject constructor(
+    private val fehlerkanal: Fehlerkanal,
     private val texte: Texte,
     @param:ApplicationContext private val appContext: Context,
     private val gradeRepository: GradeRepository,
@@ -119,7 +122,9 @@ class EinstellungenViewModel @Inject constructor(
 
     /** Merkt das gewählte Standard-Grading-System (persistent via DataStore). */
     fun selectGradeSystem(systemId: Int) {
-        viewModelScope.launch { settingsRepository.setSelectedGradeSystem(systemId) }
+        merkeEinstellung("Gradsystem waehlen") {
+            settingsRepository.setSelectedGradeSystem(systemId)
+        }
     }
 
     /**
@@ -133,7 +138,7 @@ class EinstellungenViewModel @Inject constructor(
      * „Aktualisieren" räumte es sofort auf.
      */
     fun setDarkMode(enabled: Boolean) {
-        viewModelScope.launch {
+        merkeEinstellung("Dark Mode") {
             settingsRepository.setDarkMode(enabled)
             refreshBoulderWidget(appContext)
         }
@@ -141,12 +146,12 @@ class EinstellungenViewModel @Inject constructor(
 
     /** Schaltet die Vibration bei Timer-Phasenwechseln ein/aus (persistent via DataStore). */
     fun setHapticFeedback(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setHapticFeedback(enabled) }
+        merkeEinstellung("Haptik") { settingsRepository.setHapticFeedback(enabled) }
     }
 
     /** Speichert den Anzeigenamen für die Home-Begrüßung. Leer = neutrale Begrüßung. */
     fun setUserName(name: String) {
-        viewModelScope.launch { settingsRepository.setUserName(name) }
+        merkeEinstellung("Name") { settingsRepository.setUserName(name) }
     }
 
     /**
@@ -155,7 +160,7 @@ class EinstellungenViewModel @Inject constructor(
      * Koordinaten (sofern Hintergrund-Standort erteilt; den Flow macht der Screen davor).
      */
     fun setProximityAlerts(enabled: Boolean) {
-        viewModelScope.launch {
+        merkeEinstellung("Naeherungs-Push") {
             settingsRepository.setProximityAlertsEnabled(enabled)
             geofenceManager.refreshGeofences()
         }
@@ -189,7 +194,28 @@ class EinstellungenViewModel @Inject constructor(
      * Grad-Zuordnung (FK SET_NULL).
      */
     fun deleteGradeSystem(systemId: Int) {
-        viewModelScope.launch { gradeRepository.deleteSystem(systemId) }
+        viewModelScope.launch {
+            fehlerkanal.schreibe(
+                R.string.fehler_gradsystem_loeschen,
+                protokollMarke = "Gradsystem loeschen",
+            ) {
+                gradeRepository.deleteSystem(systemId)
+            }
+        }
+    }
+
+    /**
+     * Schreibt eine Einstellung und meldet einen Fehlschlag, statt die App zu beenden.
+     *
+     * Eigene Hilfe, weil hier sieben fast gleiche Aufrufe stehen: alle schreiben genau einen
+     * Wert in den DataStore, und alle sollen im Fehlerfall dasselbe sagen. Ein Abbruch waere
+     * die falsche Antwort — der Schalter in der Oberflaeche steht ohnehin schon um, die
+     * Meldung sagt lediglich, dass er den Neustart nicht ueberlebt.
+     */
+    private fun merkeEinstellung(marke: String, block: suspend () -> Unit) {
+        viewModelScope.launch {
+            fehlerkanal.schreibe(R.string.fehler_einstellung_speichern, marke, block)
+        }
     }
 
     /**
@@ -202,24 +228,29 @@ class EinstellungenViewModel @Inject constructor(
         val cleanLabels = labels.map { it.trim() }.filter { it.isNotBlank() }
         if (cleanName.isBlank() || cleanLabels.isEmpty()) return
         viewModelScope.launch {
-            /*
-             * Ohne Halle. Vorher hing das neue System an der *ersten beliebigen* Halle — und
-             * gab es keine, legte diese Zeile stillschweigend eine namens „Meine Halle" an.
-             * Wer sich eine eigene Skala baute, hatte danach eine Halle in der Verwaltung und
-             * einen Chip im Session-Formular, den er nie angelegt hatte.
-             *
-             * Ein Gradsystem darf ohne Halle bestehen; die Zuordnung zu einer Halle läuft
-             * ohnehin in der Gegenrichtung über `gym.defaultGradeSystemId`. Dass es damit
-             * löschbar bleibt, sichert `istStandard` — nicht mehr `gymId`.
-             */
-            val systemId = gradeRepository.createSystem(
-                GradeSystemEntity(gymId = null, name = cleanName)
-            )
-            gradeRepository.createGrades(
-                cleanLabels.mapIndexed { index, label ->
-                    GradeEntity(systemId = systemId, label = label, order = index)
-                }
-            )
+            fehlerkanal.schreibe(
+                R.string.fehler_gradsystem_anlegen,
+                protokollMarke = "Gradsystem anlegen",
+            ) {
+                /*
+                 * Ohne Halle. Vorher hing das neue System an der *ersten beliebigen* Halle —
+                 * und gab es keine, legte diese Zeile stillschweigend eine namens „Meine
+                 * Halle" an. Wer sich eine eigene Skala baute, hatte danach eine Halle in der
+                 * Verwaltung und einen Chip im Session-Formular, den er nie angelegt hatte.
+                 *
+                 * Ein Gradsystem darf ohne Halle bestehen; die Zuordnung zu einer Halle läuft
+                 * ohnehin in der Gegenrichtung über `gym.defaultGradeSystemId`. Dass es damit
+                 * löschbar bleibt, sichert `istStandard` — nicht mehr `gymId`.
+                 */
+                val systemId = gradeRepository.createSystem(
+                    GradeSystemEntity(gymId = null, name = cleanName)
+                )
+                gradeRepository.createGrades(
+                    cleanLabels.mapIndexed { index, label ->
+                        GradeEntity(systemId = systemId, label = label, order = index)
+                    }
+                )
+            }
         }
     }
 }

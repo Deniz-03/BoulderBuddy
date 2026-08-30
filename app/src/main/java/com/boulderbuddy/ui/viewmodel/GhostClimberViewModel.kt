@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import com.boulderbuddy.ui.Fehlerkanal
+import com.boulderbuddy.ui.schreibe
 import com.boulderbuddy.ui.Texte
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -181,6 +183,7 @@ class GhostClimberViewModel @Inject constructor(
     private val analysisRepository: GhostAnalysisRepository,
     private val eigeneAufnahmen: EigeneAufnahmen,
     // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt).
+    private val fehlerkanal: Fehlerkanal,
     private val texte: Texte,
     savedStateHandle: SavedStateHandle,
 ) : AndroidViewModel(application) {
@@ -678,7 +681,14 @@ class GhostClimberViewModel @Inject constructor(
     }
 
     fun deleteAnalysis(id: Int) {
-        viewModelScope.launch { analysisRepository.delete(id) }
+        viewModelScope.launch {
+            fehlerkanal.schreibe(
+                R.string.ghost_fehler_loeschen,
+                protokollMarke = "Ghost-Analyse loeschen",
+            ) {
+                analysisRepository.delete(id)
+            }
+        }
     }
 
     /**

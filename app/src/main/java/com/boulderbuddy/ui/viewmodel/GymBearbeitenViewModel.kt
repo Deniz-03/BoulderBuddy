@@ -2,7 +2,9 @@ package com.boulderbuddy.ui.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import com.boulderbuddy.R
+import com.boulderbuddy.ui.Fehlerkanal
 import com.boulderbuddy.ui.Texte
+import com.boulderbuddy.ui.schreibe
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
@@ -63,6 +65,7 @@ class GymBearbeitenViewModel @Inject constructor(
     private val geofenceManager: GeofenceManager,
     // Loest die Anzeigetexte aus strings.xml auf (siehe ui/Texte.kt: als Schnittstelle,
     // damit dieses ViewModel ohne Android testbar bleibt).
+    private val fehlerkanal: Fehlerkanal,
     private val texte: Texte,
 ) : ViewModel() {
 
@@ -208,33 +211,42 @@ class GymBearbeitenViewModel @Inject constructor(
         val state = _uiState.value
         if (!state.ready || state.name.isBlank()) return
         viewModelScope.launch {
-            // Beim Bearbeiten auf der geladenen Zeile aufsetzen, damit Spalten erhalten
-            // bleiben, die der Editor gar nicht anfasst. Ist sie zwischenzeitlich gelöscht
-            // worden, gibt es nichts zu speichern — und keine leere Halle als Ersatz.
-            val basis = if (gymId == null) {
-                GymEntity(name = "")
-            } else {
-                gymRepository.getById(gymId) ?: return@launch
+            var gespeicherteId: Int? = null
+            val geschrieben = fehlerkanal.schreibe(
+                R.string.fehler_halle_speichern,
+                protokollMarke = "Halle speichern",
+            ) {
+                // Beim Bearbeiten auf der geladenen Zeile aufsetzen, damit Spalten erhalten
+                // bleiben, die der Editor gar nicht anfasst. Ist sie zwischenzeitlich gelöscht
+                // worden, gibt es nichts zu speichern — und keine leere Halle als Ersatz.
+                val basis = if (gymId == null) {
+                    GymEntity(name = "")
+                } else {
+                    gymRepository.getById(gymId) ?: return@schreibe
+                }
+                val entwurf = basis.copy(
+                    name = state.name.trim(),
+                    location = state.location.trim().ifBlank { null },
+                    latitude = state.latitude,
+                    longitude = state.longitude,
+                    geofenceRadiusMeters = state.radiusMeters,
+                    proximityAlertsEnabled = state.alertsEnabled,
+                    defaultGradeSystemId = state.defaultGradeSystemId,
+                )
+                gespeicherteId = if (gymId == null) {
+                    gymRepository.create(entwurf)
+                } else {
+                    gymRepository.update(entwurf)
+                    gymId
+                }
+                // Koordinaten/Radius/Toggle können sich geändert haben → Geofences neu
+                // registrieren (M2). Idempotent, daher bedenkenlos bei jedem Save.
+                geofenceManager.refreshGeofences()
             }
-            val entwurf = basis.copy(
-                name = state.name.trim(),
-                location = state.location.trim().ifBlank { null },
-                latitude = state.latitude,
-                longitude = state.longitude,
-                geofenceRadiusMeters = state.radiusMeters,
-                proximityAlertsEnabled = state.alertsEnabled,
-                defaultGradeSystemId = state.defaultGradeSystemId,
-            )
-            val gespeicherteId = if (gymId == null) {
-                gymRepository.create(entwurf)
-            } else {
-                gymRepository.update(entwurf)
-                gymId
-            }
-            // Koordinaten/Radius/Toggle können sich geändert haben → Geofences neu
-            // registrieren (M2). Idempotent, daher bedenkenlos bei jedem Save.
-            geofenceManager.refreshGeofences()
-            onSaved(gespeicherteId)
+            // Nur bei Erfolg schliessen: `onSaved` navigiert zurueck, und mit ihm waere die
+            // Eingabe weg — bei einer Halle mit von Hand gesetzten Koordinaten die
+            // aergerlichste Sorte Verlust.
+            gespeicherteId?.takeIf { geschrieben }?.let(onSaved)
         }
     }
 
@@ -249,10 +261,18 @@ class GymBearbeitenViewModel @Inject constructor(
     fun delete(onDeleted: () -> Unit) {
         val id = gymId ?: return
         viewModelScope.launch {
-            gymRepository.delete(id)
-            // Der Geofence dieser Halle muss weg — refreshGeofences meldet ohnehin alle neu an.
-            geofenceManager.refreshGeofences()
-            onDeleted()
+            val geloescht = fehlerkanal.schreibe(
+                R.string.fehler_halle_loeschen,
+                protokollMarke = "Halle loeschen",
+            ) {
+                gymRepository.delete(id)
+                // Der Geofence dieser Halle muss weg — refreshGeofences meldet ohnehin alle
+                // neu an.
+                geofenceManager.refreshGeofences()
+            }
+            // Nur schliessen, wenn wirklich geloescht wurde. Sonst stuende der Nutzer vor
+            // einer Liste, in der die Halle weiterhin steht, ohne zu wissen warum.
+            if (geloescht) onDeleted()
         }
     }
 }
