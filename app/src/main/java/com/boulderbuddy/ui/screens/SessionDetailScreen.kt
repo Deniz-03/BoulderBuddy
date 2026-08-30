@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -144,7 +145,19 @@ fun SessionDetailScreen(
                      * 2500 px breiter Balken da. Die anderen Detail-Screens (AlteSession,
                      * BoulderDetail) machen das längst; hier fehlte es als einzigem.
                      */
-                    .inhaltsBreite(),
+                    .inhaltsBreite()
+                    /*
+                     * Unterkante frei von der Navigationsleiste halten.
+                     *
+                     * Als Push-Ziel (vom Home-Screen, vom Widget, aus der Näherungs-Notification)
+                     * hat dieser Screen keine BottomNav unter sich — die letzten beiden Elemente,
+                     * der Ghost-Climber-Block und „Session beenden", lagen dann halb unter der
+                     * Leiste des Geräts und waren am unteren Rand nicht mehr antippbar.
+                     *
+                     * Im Sessions-Tab steht die BottomNav darunter; dort ist der Abstand bereits
+                     * bezahlt und wird von `AppNavigation` verrechnet, diese Zeile also 0.
+                     */
+                    .navigationBarsPadding(),
                 contentPadding = PaddingValues(
                     horizontal = Dimens.paddingL,
                     vertical = Dimens.paddingL,
